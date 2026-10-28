@@ -1,0 +1,4 @@
+# Smile Austin Dental: the team page is private.
+User-agent: *
+Disallow: /meet-the-team/
+Disallow: /wp-admin/
