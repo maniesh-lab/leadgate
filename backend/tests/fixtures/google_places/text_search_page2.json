@@ -1,0 +1,16 @@
+{
+  "places": [
+    {
+      "id": "ChIJtest_mueller_family_dentistry",
+      "displayName": {"text": "Mueller Family Dentistry", "languageCode": "en"},
+      "formattedAddress": "1801 Aldrich St, Austin, TX 78723, USA",
+      "location": {"latitude": 30.2983, "longitude": -97.7049},
+      "types": ["dentist", "health", "establishment"],
+      "businessStatus": "OPERATIONAL",
+      "internationalPhoneNumber": "+1 512-555-0188",
+      "websiteUri": "http://muellerfamilydentistry.example",
+      "rating": 3.9,
+      "userRatingCount": 54
+    }
+  ]
+}

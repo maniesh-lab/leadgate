@@ -1,0 +1,338 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-28T12:17:19Z",
+    "timestamp_areas_base": "2026-10-28T07:13:06Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "node",
+      "id": 564536984,
+      "lat": 30.1851035,
+      "lon": -97.8473432,
+      "tags": {
+        "addr:housenumber": "130",
+        "addr:street": "Brodie Lane",
+        "amenity": "dentist",
+        "description": "Dr. Michael Flurry",
+        "healthcare": "dentist",
+        "name": "Smiles by Dentistry"
+      }
+    },
+    {
+      "type": "node",
+      "id": 863465762,
+      "lat": 30.4081273,
+      "lon": -97.7481855,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Omni Dental Group"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1236793096,
+      "lat": 30.3150367,
+      "lon": -97.7355807,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Austin Dental Works"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1249567757,
+      "lat": 30.3988286,
+      "lon": -97.7488709,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Castle Dental"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1249567769,
+      "lat": 30.3997798,
+      "lon": -97.7472811,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Hammons Family Dental"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1249568535,
+      "lat": 30.4000021,
+      "lon": -97.7480254,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Fastbraces"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2527535401,
+      "lat": 30.3636375,
+      "lon": -97.7189262,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Lone Star Pediatric Dental"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2663954886,
+      "lat": 30.4043302,
+      "lon": -97.6760178,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "12400",
+        "addr:postcode": "78753",
+        "addr:state": "TX",
+        "addr:street": "North Interstate 35",
+        "addr:unit": "A131",
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "healthcare:speciality": "dentist",
+        "name": "Tech Ridge Dental",
+        "opening_hours": "Mo-Fr 07:30-16:30",
+        "phone": "+1-512-821-2394",
+        "website": "https://www.techridgedental.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2728727105,
+      "lat": 30.2007465,
+      "lon": -97.8647251,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Castle Dental"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2793750812,
+      "lat": 30.2004295,
+      "lon": -97.868636,
+      "tags": {
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Matthew Home Dentistry"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2920762431,
+      "lat": 30.3000118,
+      "lon": -97.7211043,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "1000",
+        "addr:postcode": "78751",
+        "addr:state": "TX",
+        "addr:street": "East 41st Street",
+        "addr:unit": "230",
+        "amenity": "dentist",
+        "brand": "Castle Dental",
+        "brand:wikidata": "Q108288471",
+        "fax": "+1-512-458-3033",
+        "healthcare": "dentist",
+        "healthcare:speciality": "dentist;orthodontics;periodontics;oral_surgery",
+        "name": "Castle Dental",
+        "opening_hours": "Mo 08:00-17:00; We-Fr 08:00-17:00; Sa 07:00-13:00",
+        "phone": "+1-512-458-3600",
+        "website": "https://www.castledental.com/dentist-near-me/austin-dentist/35080"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2992260019,
+      "lat": 30.3053975,
+      "lon": -97.7081725,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "1201",
+        "addr:postcode": "78723",
+        "addr:state": "TX",
+        "addr:street": "Barbara Jordan Boulevard",
+        "addr:unit": "1430",
+        "air_conditioning": "yes",
+        "amenity": "dentist",
+        "check_date": "2023-11-22",
+        "email": "ctpd@ctpdkid.com",
+        "fax": "+1-512-474-7583",
+        "healthcare": "dentist",
+        "healthcare:speciality": "dentist",
+        "name": "Central Texas Pediatric Dentistry",
+        "opening_hours": "Mo,Tu,Th 09:00-14:30",
+        "phone": "+1-512-474-7575",
+        "website": "https://www.ctpdkid.com/",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2992260020,
+      "lat": 30.3053536,
+      "lon": -97.7081994,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "1201",
+        "addr:postcode": "78723",
+        "addr:state": "TX",
+        "addr:street": "Barbara Jordan Boulevard",
+        "addr:unit": "1435",
+        "air_conditioning": "yes",
+        "amenity": "dentist",
+        "check_date": "2023-11-22",
+        "contact:facebook": "http://facebook.com/dentalsmiles78723",
+        "contact:linkedin": "http://linkedin.com/in/divyashetty",
+        "email": "info@mydentalsmiles.com",
+        "healthcare": "dentist",
+        "healthcare:speciality": "dentist",
+        "name": "Dental Smiles Family and Cosmetic",
+        "opening_hours": "Mo,We 08:00-17:00; Tu,Th 07:00-15:00; Fr 07:00-13:00",
+        "phone": "+1-512-467-9955",
+        "website": "https://mydentalsmiles.com/",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3157298458,
+      "lat": 30.4046817,
+      "lon": -97.6733163,
+      "tags": {
+        "addr:housenumber": "500",
+        "addr:street": "West Canyon Ridge Drive",
+        "addr:unit": "F100",
+        "amenity": "dentist",
+        "check_date": "2025-12-18",
+        "contact:phone": "+1-512-837-2900",
+        "contact:website": "https://www.castledental.com/",
+        "healthcare": "dentist",
+        "name": "Castle Dental",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3825322745,
+      "lat": 30.259739,
+      "lon": -97.7107213,
+      "tags": {
+        "addr:housenumber": "2719",
+        "addr:street": "East 7th Street",
+        "amenity": "dentist",
+        "coa:place_id": "124061",
+        "healthcare": "dentist",
+        "name": "High Point Dentistry"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3856445942,
+      "lat": 30.245304,
+      "lon": -97.730394,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "1614",
+        "addr:postcode": "78741",
+        "addr:state": "TX",
+        "addr:street": "East Riverside Drive",
+        "amenity": "dentist",
+        "email": "riverside@aloha-dental.com",
+        "healthcare": "dentist",
+        "name": "Aloha Dental",
+        "opening_hours": "Mo 08:00-17:00; Tu 09:00-18:00; We 08:00-17:00; Th 09:00-18:00; Fr 08:00-17:00",
+        "phone": "+1-512-707-7300",
+        "website": "https://www.aloha-dental.com/",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3857696615,
+      "lat": 30.2684867,
+      "lon": -97.7534402,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "830",
+        "addr:postcode": "78703",
+        "addr:state": "TX",
+        "addr:street": "West 3rd Street",
+        "addr:unit": "1138",
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "healthcare:speciality": "orthodontics",
+        "name": "Kunik Orthodontics",
+        "phone": "+1-512-327-7575",
+        "website": "https://www.kunikorthodontics.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3876692988,
+      "lat": 30.2226655,
+      "lon": -97.8917628,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "8517",
+        "addr:postcode": "78737",
+        "addr:state": "TX",
+        "addr:street": "Farm to Market Road 1826",
+        "amenity": "dentist",
+        "email": "smile@canvasdental.com",
+        "healthcare": "dentist",
+        "name": "Canvas Dental",
+        "phone": "+1-512-646-4505",
+        "website": "https://canvasdental.com/",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4966513023,
+      "lat": 30.3079955,
+      "lon": -97.7485955,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "2304",
+        "addr:postcode": "78756",
+        "addr:state": "TX",
+        "addr:street": "Hancock Drive",
+        "amenity": "dentist",
+        "healthcare": "dentist",
+        "name": "Austin Dental Center, PC"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4966513024,
+      "lat": 30.3082015,
+      "lon": -97.7523302,
+      "tags": {
+        "addr:city": "Austin",
+        "addr:housenumber": "3500",
+        "addr:postcode": "78731",
+        "addr:state": "TX",
+        "addr:street": "Jefferson Street",
+        "amenity": "dentist",
+        "name": "Brush 32 | Central Austin"
+      }
+    }
+  ]
+}

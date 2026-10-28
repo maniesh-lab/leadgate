@@ -1,0 +1,10 @@
+{
+  "name": "Company",
+  "phone": "Tel",
+  "website": "Web",
+  "email": "E-mail",
+  "address": "Street Address",
+  "category_hint": "Type",
+  "rating": "Stars",
+  "review_count": "Reviews"
+}
