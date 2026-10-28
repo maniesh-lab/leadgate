@@ -1,79 +1,11 @@
 """Tests for the polite website crawler (`app.enrichment.crawler`).
 
-No network: `FakeWeb` answers every request from a dict of URL -> answer, and a
+No network: `tests.fake_web` answers every request from a dict of URL -> answer, and a
 `FakeClock` stands in for time, so the 1 s waits between requests take no time.
 """
 
-from pathlib import Path
-
-import httpx2
-
-from app.enrichment.crawler import MAX_PAGE_BYTES, Crawler, start_url
-
-FIXTURES = Path(__file__).parents[1] / "fixtures" / "websites"
-USER_AGENT = "leadgate/0.1 (+https://github.com/maniesh-lab/leadgate)"
-
-SMILE = "https://www.smileaustin.test"
-SMILE_SITE = {
-    "http://www.smileaustin.test/robots.txt": ("text", (FIXTURES / "smile_robots.txt").read_text()),
-    "http://www.smileaustin.test/": ("redirect", SMILE + "/"),
-    f"{SMILE}/robots.txt": ("text", (FIXTURES / "smile_robots.txt").read_text()),
-    f"{SMILE}/": ("html", (FIXTURES / "smile_home.html").read_text()),
-    f"{SMILE}/contact-us": ("html", (FIXTURES / "smile_contact.html").read_text()),
-    f"{SMILE}/about": ("html", (FIXTURES / "smile_about.html").read_text()),
-    f"{SMILE}/meet-the-team/": ("html", "<p>private</p>"),
-}
-
-
-class FakeWeb:
-    """A tiny fake internet. Unknown URLs answer 404. Remembers every request."""
-
-    def __init__(self, routes: dict[str, tuple[str, str]]) -> None:
-        self.routes = routes
-        self.requests: list[str] = []
-
-    def __call__(self, request: httpx2.Request) -> httpx2.Response:
-        url = f"{request.url.scheme}://{request.url.host}{request.url.raw_path.decode()}"
-        self.requests.append(url)
-        kind, value = self.routes.get(url, ("status", "404"))
-        if kind == "html":
-            return httpx2.Response(
-                200, headers={"content-type": "text/html; charset=utf-8"}, text=value
-            )
-        if kind == "text":
-            return httpx2.Response(200, headers={"content-type": "text/plain"}, text=value)
-        if kind == "redirect":
-            return httpx2.Response(301, headers={"location": value})
-        if kind == "pdf":
-            return httpx2.Response(
-                200, headers={"content-type": "application/pdf"}, content=b"%PDF"
-            )
-        if kind == "timeout":
-            raise httpx2.ReadTimeout("timed out", request=request)
-        if kind == "down":
-            raise httpx2.ConnectError("connection refused", request=request)
-        return httpx2.Response(int(value))
-
-
-class FakeClock:
-    """Time that only moves when someone sleeps."""
-
-    def __init__(self) -> None:
-        self.now = 1000.0
-        self.sleeps: list[float] = []
-
-    def __call__(self) -> float:
-        return self.now
-
-    def sleep(self, seconds: float) -> None:
-        self.sleeps.append(seconds)
-        self.now += seconds
-
-
-def make_crawler(web: FakeWeb, clock: FakeClock | None = None, max_pages: int = 4) -> Crawler:
-    clock = clock or FakeClock()
-    client = httpx2.Client(transport=httpx2.MockTransport(web))
-    return Crawler(client, USER_AGENT, max_pages=max_pages, clock=clock, sleep=clock.sleep)
+from app.enrichment.crawler import MAX_PAGE_BYTES, start_url
+from tests.fake_web import FIXTURES, SMILE, SMILE_SITE, FakeClock, FakeWeb, make_crawler
 
 
 def test_crawls_the_home_page_and_its_contact_and_about_pages() -> None:
