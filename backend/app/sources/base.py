@@ -39,7 +39,7 @@ class RawLead(BaseModel):
 
     source: str
     # Unique inside the source: an OSM "node/123", a Google place id, a CSV row hash.
-    source_ref: str
+    source_ref: str = Field(min_length=1)
     raw: dict[str, Any]
 
     name: str = Field(min_length=1)

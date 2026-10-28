@@ -1,0 +1,32 @@
+{
+  "places": [
+    {
+      "id": "ChIJtest_hill_country_dental",
+      "displayName": {"text": "Hill Country Dental", "languageCode": "en"},
+      "formattedAddress": "4100 Bee Caves Rd, Austin, TX 78746, USA",
+      "location": {"latitude": 30.2771, "longitude": -97.7912},
+      "types": ["dentist", "health", "point_of_interest", "establishment"],
+      "businessStatus": "OPERATIONAL",
+      "internationalPhoneNumber": "+1 512-555-0131",
+      "websiteUri": "https://hillcountrydental.example/",
+      "rating": 4.7,
+      "userRatingCount": 318
+    },
+    {
+      "id": "ChIJtest_eastside_smiles",
+      "displayName": {"text": "Eastside Smiles", "languageCode": "en"},
+      "formattedAddress": "1910 E 7th St, Austin, TX 78702, USA",
+      "location": {"latitude": 30.2615, "longitude": -97.7221},
+      "types": ["dentist", "health", "establishment"],
+      "businessStatus": "CLOSED_TEMPORARILY",
+      "rating": 4.1,
+      "userRatingCount": 12
+    },
+    {
+      "id": "ChIJtest_no_name",
+      "formattedAddress": "1 Unknown Way, Austin, TX 78701, USA",
+      "types": ["dentist"]
+    }
+  ],
+  "nextPageToken": "page-2-token"
+}
