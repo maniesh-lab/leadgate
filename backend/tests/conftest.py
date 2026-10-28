@@ -21,7 +21,8 @@ from app.main import create_app
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}")
+    # _env_file=None: never read the developer's real .env, so tests act the same everywhere.
+    return Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}")
 
 
 @pytest.fixture
