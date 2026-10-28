@@ -18,7 +18,9 @@ from bs4 import BeautifulSoup
 # Tags whose text a visitor never sees.
 HIDDEN_TAGS = ["script", "style", "noscript", "template", "svg", "head"]
 
-EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+# Bounded lengths (an address allows 64 + 253 chars): an unbounded `+` makes the regex
+# crawl very slowly over a page with one very long word.
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}")
 # Looks like an email but is a file name ("logo@2x.png") or a tracking/placeholder address.
 NOT_EMAIL_ENDINGS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
 JUNK_EMAIL_DOMAINS = ("example.com", "example.org", "domain.com", "sentry.io", "wixpress.com")

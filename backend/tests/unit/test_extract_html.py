@@ -73,6 +73,11 @@ def test_junk_is_not_an_email(text: str) -> None:
     assert find_emails(text) == []
 
 
+def test_a_very_long_word_does_not_hang_the_email_search() -> None:
+    # Before the regex had length limits, this took minutes.
+    assert find_emails("a" * 200_000 + " write to info@smile.test") == ["info@smile.test"]
+
+
 def test_phones_from_tel_links_and_text() -> None:
     home = parse_fixture("smile_home.html")
     contact = parse_fixture("smile_contact.html", SMILE + "contact-us")
