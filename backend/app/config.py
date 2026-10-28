@@ -36,11 +36,16 @@ class Settings(BaseSettings):
     # repr=False: never shown when the settings object is printed (e.g. in a traceback).
     admin_password: str | None = Field(default=None, repr=False)
 
-    # Sent on every request the lead sources make: OSM's Nominatim and Overpass (their
-    # policies ask for a User-Agent that names the app), and Google Places when a key is set.
+    # Sent on every request leadgate makes: OSM's Nominatim and Overpass (their policies ask
+    # for a User-Agent that names the app), Google Places, and the website crawler.
     osm_user_agent: str = DEFAULT_USER_AGENT
     # The `google_places` source only runs when this is set.
     google_places_api_key: str | None = Field(default=None, repr=False)
+
+    # Website enrichment: reuse a lead's enrichment while it is younger than this.
+    enrich_cache_days: int = Field(default=14, ge=0)
+    # Pages fetched per website: the home page plus up to (this - 1) contact/about/... pages.
+    enrich_max_pages: int = Field(default=4, ge=1)
 
 
 @lru_cache

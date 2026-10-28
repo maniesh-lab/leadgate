@@ -1,1 +1,1 @@
-"""Services: lead ingestion now; audit, CRM, notifier and n8n in later phases."""
+"""Services: ingestion, website enrichment and opt-out now; audit, CRM, notifier, n8n later."""

@@ -25,9 +25,11 @@ services:
       # Only `python -m app.cli seed` reads these (docker compose run --rm api python -m app.cli seed).
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      # Read by `python -m app.cli collect` (empty = the default User-Agent / no Google source).
+      # Read by `python -m app.cli collect` / `enrich` (empty = the defaults / no Google source).
       OSM_USER_AGENT: ${OSM_USER_AGENT:-}
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      ENRICH_CACHE_DAYS: ${ENRICH_CACHE_DAYS:-}
+      ENRICH_MAX_PAGES: ${ENRICH_MAX_PAGES:-}
     ports:
       - "8000:8000"
     depends_on:
