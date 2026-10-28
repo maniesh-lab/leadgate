@@ -43,6 +43,8 @@ known-third-party = ["alembic"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets tests import shared helpers as `tests.<module>`.
+pythonpath = ["."]
 addopts = "-ra --cov=app --cov-report=term-missing"
 
 [tool.coverage.run]
