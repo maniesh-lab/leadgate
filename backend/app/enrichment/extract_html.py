@@ -4,13 +4,20 @@
 `pick_links()` on the home page to choose which other pages to visit;
 `app.services.enrichment` combines every page's `ParsedPage` into the lead's enrichment.
 
+Emails and phones come from `mailto:` / `tel:` links, the page's schema.org JSON-LD
+(data the business publishes for search engines) and the visible text. Emails a site
+hides from bots (e.g. Cloudflare's email obfuscation) are left hidden on purpose.
+
 Everything found here is a candidate, not a fact: phones are checked with the
 `phonenumbers` library in Phase 5's extract node, and the LLM may only use emails
 that are in this list (the traceability check).
 """
 
+import json
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
@@ -48,6 +55,10 @@ LINK_KEYWORDS = ("contact", "about", "team", "service")
 # Links to files we would skip anyway (the crawler also checks the Content-Type).
 FILE_EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".zip", ".doc", ".docx")
 
+# An <iframe> whose address has one of these words is an embedded contact/booking form
+# (e.g. "https://www.doctible.com/forms/123", "https://form.jotform.com/456").
+FORM_IFRAME_WORDS = {"form", "forms", "book", "booking", "appointment", "appointments", "schedule"}
+
 
 @dataclass
 class Link:
@@ -60,8 +71,8 @@ class ParsedPage:
     url: str
     text: str = ""
     links: list[Link] = field(default_factory=list)
-    emails: list[str] = field(default_factory=list)  # mailto: links first, then the text
-    phones: list[str] = field(default_factory=list)  # tel: links first, then the text
+    emails: list[str] = field(default_factory=list)  # mailto: links, then JSON-LD, then text
+    phones: list[str] = field(default_factory=list)  # tel: links, then JSON-LD, then text
     has_mobile_viewport: bool = False
     has_form: bool = False
 
@@ -70,17 +81,21 @@ def parse_page(html: str, url: str) -> ParsedPage:
     """Everything enrichment needs from one page. `url` is where the page really came from."""
     soup = BeautifulSoup(html, "html.parser")
     page = ParsedPage(url=url)
-    # Read <head> before the visible-text step removes it.
+    # Read <head> and <script> before the visible-text step removes them.
     page.has_mobile_viewport = has_mobile_viewport(soup)
     page.has_form = has_contact_form(soup)
     page.links = page_links(soup, url)
+    data_emails, data_phones = structured_data_contacts(soup)
 
-    mailto = [link.url for link in page.links if link.url.lower().startswith("mailto:")]
-    tel = [link.url for link in page.links if link.url.lower().startswith("tel:")]
+    hrefs = [link.url for link in page.links]
+    mailto = [href for href in hrefs if href.lower().startswith("mailto:")]
+    tel = [unquote(href[4:]).strip() for href in hrefs if href.lower().startswith("tel:")]
 
     page.text = visible_text(soup)
-    page.emails = unique([*mailto_emails(mailto), *find_emails(page.text)])
-    page.phones = unique_phones([*(unquote(t[4:]).strip() for t in tel), *find_phones(page.text)])
+    page.emails = unique(
+        [*mailto_emails(mailto), *find_emails(" ".join(data_emails)), *find_emails(page.text)]
+    )
+    page.phones = unique_phones([*tel, *data_phones, *find_phones(page.text)])
     return page
 
 
@@ -111,9 +126,10 @@ def has_mobile_viewport(soup: BeautifulSoup) -> bool:
 
 
 def has_contact_form(soup: BeautifulSoup) -> bool:
-    """True when a <form> takes a message, an email or a phone (a contact or booking form).
+    """True when the page has a contact or booking form.
 
-    A search box alone is not a contact form.
+    That's a <form> that takes a message, an email or a phone (a search box alone is
+    not one), or an <iframe> that embeds a form/booking widget.
     """
     for form in soup.find_all("form"):
         if form.find("textarea"):
@@ -121,7 +137,47 @@ def has_contact_form(soup: BeautifulSoup) -> bool:
         input_types = {str(tag.get("type", "")).lower() for tag in form.find_all("input")}
         if input_types & {"email", "tel"}:
             return True
+    for iframe in soup.find_all("iframe", src=True):
+        parts = urlsplit(str(iframe["src"]).lower())
+        # Whole words only: "platform.twitter.com" has "form" inside a word, not as one.
+        if FORM_IFRAME_WORDS & set(re.split(r"[^a-z]+", f"{parts.hostname} {parts.path}")):
+            return True
     return False
+
+
+def structured_data_contacts(soup: BeautifulSoup) -> tuple[list[str], list[str]]:
+    """The "email" and "telephone" values in the page's schema.org JSON-LD blocks.
+
+    Many sites describe the business for search engines in
+    `<script type="application/ld+json">{"@type": "Dentist", "telephone": ...}</script>`.
+    A block that isn't valid JSON is skipped.
+    """
+    emails: list[str] = []
+    phones: list[str] = []
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        try:
+            data = json.loads(script.get_text())
+        except ValueError:
+            continue
+        for key, value in json_strings(data, {"email", "telephone"}):
+            if key == "email":
+                emails.append(value.removeprefix("mailto:"))
+            else:
+                phones.append(value)
+    return emails, phones
+
+
+def json_strings(data: Any, keys: set[str]) -> Iterator[tuple[str, str]]:
+    """Every (key, string value) pair for the given keys, at any depth of the JSON."""
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key in keys and isinstance(value, str):
+                yield key, value
+            else:
+                yield from json_strings(value, keys)
+    elif isinstance(data, list):
+        for item in data:
+            yield from json_strings(item, keys)
 
 
 def mailto_emails(hrefs: list[str]) -> list[str]:

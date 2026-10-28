@@ -73,6 +73,35 @@ def test_junk_is_not_an_email(text: str) -> None:
     assert find_emails(text) == []
 
 
+def test_contacts_from_schema_org_json_ld() -> None:
+    html = """
+    <script type="application/ld+json">
+      {"@context": "https://schema.org", "@graph": [
+        {"@type": "Dentist", "name": "Smile", "telephone": "+1 512 555 0177",
+         "email": "mailto:Hello@SmileAustin.test"},
+        {"@type": "Person", "name": "Dr. Smith", "email": "HELLO@smileaustin.test"}
+      ]}
+    </script>
+    <script type="application/ld+json">{ not json </script>
+    <script>var email = "hidden@smileaustin.test";</script>
+    <p>Visit us</p>
+    """
+    page = parse_page(html, SMILE)
+    # Found once despite two spellings; plain <script> code and broken JSON are ignored.
+    assert page.emails == ["hello@smileaustin.test"]
+    assert page.phones == ["+1 512 555 0177"]
+    assert page.text == "Visit us"
+
+
+def test_cloudflare_hidden_emails_stay_hidden() -> None:
+    # The site asked bots not to read this address, so we don't decode it.
+    html = (
+        '<a href="/cdn-cgi/l/email-protection#b7ded9d1d8f7">'
+        '<span class="__cf_email__" data-cfemail="b7ded9d1d8f7">[email&#160;protected]</span></a>'
+    )
+    assert parse_page(html, SMILE).emails == []
+
+
 def test_a_very_long_word_does_not_hang_the_email_search() -> None:
     # Before the regex had length limits, this took minutes.
     assert find_emails("a" * 200_000 + " write to info@smile.test") == ["info@smile.test"]
@@ -148,6 +177,19 @@ def test_a_search_box_alone_is_not_a_contact_form() -> None:
 def test_a_booking_form_with_a_phone_field_counts() -> None:
     page = parse_page('<form><input type="tel" name="phone"><button>Book</button></form>', SMILE)
     assert page.has_form is True
+
+
+def test_an_embedded_booking_form_counts() -> None:
+    page = parse_page('<iframe src="https://www.doctible.test/forms/98478?noscroll=1">', SMILE)
+    assert page.has_form is True
+
+
+def test_other_iframes_are_not_forms() -> None:
+    html = (
+        '<iframe src="https://www.google.test/maps/embed?pb=1"></iframe>'
+        '<iframe src="https://platform.twitter.test/widgets/tweet"></iframe>'
+    )
+    assert parse_page(html, SMILE).has_form is False
 
 
 def test_a_viewport_without_device_width_is_not_mobile() -> None:
