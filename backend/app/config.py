@@ -16,13 +16,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 REPO_ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 
 
+DEFAULT_USER_AGENT = "leadgate/0.1 (+https://github.com/maniesh-lab/leadgate)"
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=REPO_ROOT_ENV, extra="ignore")
+    # env_ignore_empty: a key left empty in .env (`KEY=`) means "use the default".
+    model_config = SettingsConfigDict(env_file=REPO_ROOT_ENV, extra="ignore", env_ignore_empty=True)
 
     database_url: str
     # The first admin, created by `python -m app.cli seed`. Only the seed command needs them.
     admin_email: str | None = None
     admin_password: str | None = None
+
+    # Sent on every request to OpenStreetMap's Nominatim and Overpass (their policies ask
+    # for a User-Agent that names the app).
+    osm_user_agent: str = DEFAULT_USER_AGENT
+    # The `google_places` source only runs when this is set.
+    google_places_api_key: str | None = None
 
 
 @lru_cache

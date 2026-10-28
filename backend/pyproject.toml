@@ -18,13 +18,13 @@ dependencies = [
     "alembic==1.20.1",
     "pwdlib[argon2]==0.3.1",
     "faker==40.43.0",
+    "httpx2==2.16.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest==9.2.0",
     "pytest-cov==7.1.0",
-    "httpx2==2.16.0",
     "ruff==0.17.3",
 ]
 
