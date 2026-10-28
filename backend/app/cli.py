@@ -3,6 +3,7 @@
 - `seed`: create the admin user (from ADMIN_EMAIL / ADMIN_PASSWORD) and the two rubrics
 - `fake-data --leads N [--seed S]`: insert N fake leads (demos, SQL phase)
 - `ingest <file> [--mapping mapping.json]`: import leads from any CSV file
+- `collect --campaign <id>`: run the campaign's sources (osm, google_places, csv)
 
 Each command opens its own DB connection from DATABASE_URL. The real work lives in
 other modules (`app.db.seed`, `app.db.fake_data`, `app.services.ingestion`); this
@@ -17,10 +18,11 @@ from pathlib import Path
 
 from app.config import Settings, get_settings
 from app.db.fake_data import insert_fake_leads
+from app.db.models import Campaign
 from app.db.seed import seed
 from app.db.session import make_engine, make_session_factory
-from app.services.ingestion import ingest_source
-from app.sources.base import SourceError
+from app.services.ingestion import collect_campaign, ingest_source
+from app.sources.base import SourceError, make_http_client
 from app.sources.csv_mapped import CsvSource
 
 
@@ -71,6 +73,31 @@ def cmd_ingest(settings: Settings, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_collect(settings: Settings, args: argparse.Namespace) -> int:
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            campaign = session.get(Campaign, args.campaign)
+            if campaign is None:
+                print(f"no campaign with id {args.campaign}")
+                return 1
+            with make_http_client(settings.osm_user_agent) as client:
+                outcomes = collect_campaign(session, campaign, settings, client)
+    finally:
+        engine.dispose()
+
+    if not outcomes:
+        print("the campaign lists no sources")
+    for outcome in outcomes:
+        if outcome.result is not None:
+            print(f"{outcome.source}: {outcome.result.summary()}")
+        elif outcome.skipped:
+            print(f"{outcome.source}: skipped ({outcome.skipped})")
+        else:
+            print(f"{outcome.source}: failed ({outcome.error})")
+    return 1 if any(outcome.error for outcome in outcomes) else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="leadgate tools")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -89,6 +116,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--mapping", help='JSON file: {"name": "Company", "phone": "Tel", ...} (field -> column)'
     )
     ingest_parser.set_defaults(handler=cmd_ingest)
+
+    collect_parser = commands.add_parser("collect", help="run a campaign's lead sources")
+    collect_parser.add_argument("--campaign", type=int, required=True, help="campaign id")
+    collect_parser.set_defaults(handler=cmd_collect)
 
     return parser
 

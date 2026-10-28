@@ -14,6 +14,9 @@ Upsert rules:
 
 Postgres and SQLite both support `INSERT ... ON CONFLICT DO UPDATE`; SQLAlchemy
 has a dialect-specific `insert()` for each, picked in `upsert_lead()`.
+
+`collect_campaign()` runs every source a campaign lists (`osm`, `google_places`,
+`csv`) and commits after each one, so one failing source doesn't lose the others' leads.
 """
 
 from collections.abc import Iterable
@@ -21,13 +24,18 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
+import httpx2
 import structlog
 from sqlalchemy import func, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.db.models import Campaign, Lead
-from app.sources.base import LeadSource, RawLead
+from app.sources.base import LeadSource, RawLead, SourceError
+from app.sources.csv_mapped import CsvSource
+from app.sources.google_places import GooglePlacesSource, expire_cached_content
+from app.sources.osm import OsmSource
 
 log = structlog.get_logger(__name__)
 
@@ -66,6 +74,59 @@ class IngestResult:
             f"{self.duplicates} duplicates, {self.opted_out} opted out, "
             f"{self.skipped} bad rows skipped"
         )
+
+
+@dataclass
+class SourceOutcome:
+    """What happened to one source in `collect_campaign()`."""
+
+    source: str
+    result: IngestResult | None = None  # set when the source ran
+    skipped: str | None = None  # why it didn't run (not an error, e.g. no API key)
+    error: str | None = None  # why it failed
+
+
+def collect_campaign(
+    session: Session, campaign: Campaign, settings: Settings, client: httpx2.Client
+) -> list[SourceOutcome]:
+    """Run each of the campaign's sources and upsert the leads. Commits after each source."""
+    expire_cached_content(session)
+    session.commit()
+
+    outcomes = []
+    for name in campaign.sources:
+        outcome = SourceOutcome(source=name)
+        try:
+            source = make_source(name, campaign, settings, client)
+            if source is None:
+                outcome.skipped = "GOOGLE_PLACES_API_KEY is not set"
+            else:
+                outcome.result = ingest_source(session, source, campaign)
+            # Also saves the OSM source's cached geocode on the campaign.
+            session.commit()
+        except SourceError as exc:
+            session.rollback()
+            outcome.error = str(exc)
+            log.warning("source_failed", source=name, campaign_id=campaign.id, error=str(exc))
+        outcomes.append(outcome)
+    return outcomes
+
+
+def make_source(
+    name: str, campaign: Campaign, settings: Settings, client: httpx2.Client
+) -> LeadSource | None:
+    """Build the source called `name`, or None for google_places without a key."""
+    if name == "osm":
+        return OsmSource(client)
+    if name == "google_places":
+        key = settings.google_places_api_key
+        return GooglePlacesSource(client, key) if key else None
+    if name == "csv":
+        options = campaign.source_options or {}
+        if not options.get("csv_path"):
+            raise SourceError("the csv source needs source_options.csv_path")
+        return CsvSource(options["csv_path"], options.get("csv_mapping"))
+    raise SourceError(f"unknown source {name!r}; known: osm, google_places, csv")
 
 
 def ingest_source(
