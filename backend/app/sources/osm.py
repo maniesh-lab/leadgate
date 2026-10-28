@@ -8,7 +8,7 @@ Two steps:
    inside that place's boundary, or within `radius_km` of its centre.
 
 Usage policies (checked 2026-10-28): Nominatim allows at most 1 request/second and wants
-a User-Agent naming the app; Overpass allows ~10,000 requests/day and answers 429/504
+a User-Agent naming the app; Overpass allows ~10,000 requests/day and answers 429/5xx
 when busy, so we wait and retry twice. One collect = at most 1 Nominatim + 3 Overpass
 requests. OSM data is "© OpenStreetMap contributors" (shown in the UI footer later).
 
@@ -35,8 +35,9 @@ DEFAULT_MAX_RESULTS = 50
 # Used when the place is a single point (no boundary) and no radius_km is given.
 DEFAULT_RADIUS_KM = 10
 OVERPASS_TIMEOUT_SECONDS = 60
-# Overpass answers 429 (rate limit) or 504 (server busy): wait this long, then retry.
-BUSY_STATUSES = {429, 504}
+# Overpass answers 429 (rate limit), 504 (no capacity) or, seen live, 502/503 when its
+# queue is full and it asks for backoff: wait this long, then retry.
+BUSY_STATUSES = {429, 502, 503, 504}
 RETRY_WAITS_SECONDS = (10, 30)
 
 # niche -> the OSM tags (key, value) that mean "this kind of business". Any tag matches.

@@ -121,7 +121,7 @@ def test_new_location_is_geocoded_again() -> None:
 
 def test_overpass_busy_is_retried_after_a_wait() -> None:
     sleeps: list[float] = []
-    leads = list(make_source(FakeOsm(overpass_statuses=[429, 504]), sleeps).collect(campaign()))
+    leads = list(make_source(FakeOsm(overpass_statuses=[502, 429]), sleeps).collect(campaign()))
 
     assert len(leads) == 20
     assert sleeps == [10, 30]
