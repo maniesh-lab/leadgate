@@ -24,3 +24,11 @@ def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_errors_never_show_secret_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("ADMIN_PASSWORD", "super-secret-value")
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None)
+    assert "super-secret-value" not in str(error.value)

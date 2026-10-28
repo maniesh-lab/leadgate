@@ -20,8 +20,14 @@ DEFAULT_USER_AGENT = "leadgate/0.1 (+https://github.com/maniesh-lab/leadgate)"
 
 
 class Settings(BaseSettings):
-    # env_ignore_empty: a key left empty in .env (`KEY=`) means "use the default".
-    model_config = SettingsConfigDict(env_file=REPO_ROOT_ENV, extra="ignore", env_ignore_empty=True)
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT_ENV,
+        extra="ignore",
+        # A key left empty in .env (`KEY=`) means "use the default".
+        env_ignore_empty=True,
+        # Error messages never echo the values (they include passwords and keys).
+        hide_input_in_errors=True,
+    )
 
     database_url: str
     # The first admin, created by `python -m app.cli seed`. Only the seed command needs them.
