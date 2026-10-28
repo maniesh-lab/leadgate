@@ -1,8 +1,9 @@
 """App settings, read from environment variables (and the repo-root `.env` if present).
 
 One `Settings` object holds every config value so the rest of the code never
-reads `os.environ` directly. `create_app()` and, later, the worker and CLI call
-`get_settings()`. Every key here must also be listed in `.env.example`.
+reads `os.environ` directly. `create_app()`, the CLI and Alembic's `env.py` call
+`get_settings()` (the worker will too, from Phase 6). Every key here must also be
+listed in `.env.example`.
 """
 
 from functools import lru_cache
