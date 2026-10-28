@@ -15,9 +15,12 @@ def test_empty_values_fall_back_to_defaults(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("DATABASE_URL", "sqlite:///x.db")
     monkeypatch.setenv("OSM_USER_AGENT", "")
     monkeypatch.setenv("GOOGLE_PLACES_API_KEY", "")
+    monkeypatch.setenv("ENRICH_CACHE_DAYS", "")
+    monkeypatch.setenv("ENRICH_MAX_PAGES", "")
     settings = Settings(_env_file=None)
     assert settings.osm_user_agent.startswith("leadgate/")
     assert settings.google_places_api_key is None
+    assert (settings.enrich_cache_days, settings.enrich_max_pages) == (14, 4)
 
 
 def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
