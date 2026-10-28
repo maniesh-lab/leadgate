@@ -8,8 +8,8 @@ Two steps:
    inside that place's boundary, or within `radius_km` of its centre.
 
 Usage policies (checked 2026-10-28): Nominatim allows at most 1 request/second and wants
-a User-Agent naming the app; Overpass allows ~10,000 requests/day and answers 429/5xx
-when busy, so we wait and retry twice. One collect = at most 1 Nominatim + 3 Overpass
+a User-Agent naming the app; Overpass allows ~10,000 requests/day and answers
+429/502/503/504 when busy, so we wait and retry twice. One collect = at most 1 Nominatim + 3 Overpass
 requests. OSM data is "© OpenStreetMap contributors" (shown in the UI footer later).
 
 OSM has no ratings, review counts or opening status, and many places lack a phone or
