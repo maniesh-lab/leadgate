@@ -139,6 +139,8 @@ def ingest_source(
     result = ingest(session, source.collect(campaign))
     # `collect()` is a generator, so the skip count is final only after `ingest()` used it up.
     result.skipped = source.skipped
+    if result.skipped:
+        log.warning("bad_rows_skipped", source=source.name, rows=result.skipped)
     return result
 
 
@@ -165,7 +167,14 @@ def ingest(session: Session, leads: Iterable[RawLead]) -> IngestResult:
             result.new += 1
 
     session.flush()
-    log.info("leads_ingested", **vars(result))
+    log.info(
+        "leads_ingested",
+        seen=result.seen,
+        new=result.new,
+        updated=result.updated,
+        duplicates=result.duplicates,
+        opted_out=result.opted_out,
+    )
     return result
 
 
