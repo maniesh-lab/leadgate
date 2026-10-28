@@ -84,3 +84,19 @@ class LeadSource(ABC):
 def make_http_client(user_agent: str) -> httpx2.Client:
     """The HTTP client the OSM and Google sources use (tests pass a mocked one instead)."""
     return httpx2.Client(headers={"User-Agent": user_agent}, timeout=HTTP_TIMEOUT_SECONDS)
+
+
+def send(
+    client: httpx2.Client, service: str, method: str, url: str, **kwargs: Any
+) -> httpx2.Response:
+    """Send one request; a network problem (timeout, DNS, ...) becomes a SourceError."""
+    try:
+        return client.request(method, url, **kwargs)
+    except httpx2.HTTPError as exc:
+        raise SourceError(f"{service} request failed: {exc}") from exc
+
+
+def check_ok(response: httpx2.Response, service: str) -> None:
+    """Raise SourceError for an error status (4xx/5xx), with the start of the body to explain it."""
+    if response.is_error:
+        raise SourceError(f"{service} answered HTTP {response.status_code}: {response.text[:200]}")
