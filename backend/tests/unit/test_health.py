@@ -20,7 +20,7 @@ def test_ready_ok_when_db_reachable(client: TestClient) -> None:
 
 def test_ready_503_when_db_unreachable() -> None:
     # SQLite can't create a file inside a folder that doesn't exist, so connecting fails.
-    settings = Settings(database_url="sqlite:////no/such/folder/test.db")
+    settings = Settings(_env_file=None, database_url="sqlite:////no/such/folder/test.db")
     with TestClient(create_app(settings)) as client:
         response = client.get("/api/ready")
     assert response.status_code == 503
