@@ -36,8 +36,8 @@ class Settings(BaseSettings):
     # repr=False: never shown when the settings object is printed (e.g. in a traceback).
     admin_password: str | None = Field(default=None, repr=False)
 
-    # Sent on every request to OpenStreetMap's Nominatim and Overpass (their policies ask
-    # for a User-Agent that names the app).
+    # Sent on every request the lead sources make: OSM's Nominatim and Overpass (their
+    # policies ask for a User-Agent that names the app), and Google Places when a key is set.
     osm_user_agent: str = DEFAULT_USER_AGENT
     # The `google_places` source only runs when this is set.
     google_places_api_key: str | None = Field(default=None, repr=False)
