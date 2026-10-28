@@ -2,9 +2,10 @@
 
 PLAN §4 asks for simple privacy hygiene: a business can ask us to forget it.
 `opt_out_lead()` clears every contact field, the raw source data and the website
-enrichment, and sets `opt_out`. The row itself stays (name + source_key only), so a
-later collect recognises the lead and skips it (`app.services.ingestion`) and the
-crawler never visits it again (`app.services.enrichment`).
+enrichment, and sets `opt_out`. The rest of the row stays (name, source_key, category,
+city/area/country, rating, review state), so a later collect recognises the lead and
+skips it (`app.services.ingestion`) and the crawler never visits it again
+(`app.services.enrichment`).
 
 Called by `python -m app.cli opt-out --lead <id>`; Phase 7 adds `DELETE /api/leads/{id}/data`.
 """
