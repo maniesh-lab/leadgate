@@ -15,6 +15,9 @@ dependencies = [
     "structlog==26.1.0",
     "sqlalchemy==2.1.6",
     "psycopg[binary]==3.3.6",
+    "alembic==1.20.1",
+    "pwdlib[argon2]==0.3.1",
+    "faker==40.43.0",
 ]
 
 [project.optional-dependencies]
@@ -35,8 +38,15 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 
+[tool.ruff.lint.isort]
+# backend/alembic/ (our migrations folder) would otherwise make ruff think the alembic
+# library is our own code.
+known-third-party = ["alembic"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets tests import shared helpers as `tests.<module>`.
+pythonpath = ["."]
 addopts = "-ra --cov=app --cov-report=term-missing"
 
 [tool.coverage.run]

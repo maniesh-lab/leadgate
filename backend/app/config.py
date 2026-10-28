@@ -1,8 +1,9 @@
 """App settings, read from environment variables (and the repo-root `.env` if present).
 
 One `Settings` object holds every config value so the rest of the code never
-reads `os.environ` directly. `create_app()` and, later, the worker and CLI call
-`get_settings()`. Every key here must also be listed in `.env.example`.
+reads `os.environ` directly. `create_app()`, the CLI and Alembic's `env.py` call
+`get_settings()` (the worker will too, from Phase 6). Every key here must also be
+listed in `.env.example`.
 """
 
 from functools import lru_cache
@@ -19,6 +20,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPO_ROOT_ENV, extra="ignore")
 
     database_url: str
+    # The first admin, created by `python -m app.cli seed`. Only the seed command needs them.
+    admin_email: str | None = None
+    admin_password: str | None = None
 
 
 @lru_cache

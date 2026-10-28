@@ -11,6 +11,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY app ./app
 RUN pip install .
+# Migrations, so `docker compose run --rm api alembic upgrade head` works.
+COPY alembic.ini ./
+COPY alembic ./alembic
 
 RUN useradd --create-home --uid 1000 leadgate
 USER leadgate
