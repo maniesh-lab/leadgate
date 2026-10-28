@@ -60,6 +60,13 @@ class IngestResult:
     opted_out: int = 0  # known and opted out: left untouched
     skipped: int = 0  # bad rows the source skipped (set by `ingest_source`)
 
+    def summary(self) -> str:
+        return (
+            f"{self.seen} found, {self.new} new, {self.updated} updated, "
+            f"{self.duplicates} duplicates, {self.opted_out} opted out, "
+            f"{self.skipped} bad rows skipped"
+        )
+
 
 def ingest_source(
     session: Session, source: LeadSource, campaign: Campaign | None = None
