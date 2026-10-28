@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPO_ROOT_ENV, extra="ignore")
 
     database_url: str
+    # The first admin, created by `python -m app.cli seed`. Only the seed command needs them.
+    admin_email: str | None = None
+    admin_password: str | None = None
 
 
 @lru_cache
