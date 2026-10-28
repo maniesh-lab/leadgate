@@ -18,9 +18,20 @@ from app.db.base import Base
 from app.db.session import make_engine, make_session_factory
 from app.main import create_app
 
+# Settings a developer may have exported in their shell; tests must not see them.
+APP_ENV_VARS = [
+    "DATABASE_URL",
+    "ADMIN_EMAIL",
+    "ADMIN_PASSWORD",
+    "OSM_USER_AGENT",
+    "GOOGLE_PLACES_API_KEY",
+]
+
 
 @pytest.fixture
-def settings(tmp_path: Path) -> Settings:
+def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    for name in APP_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
     # _env_file=None: never read the developer's real .env, so tests act the same everywhere.
     return Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}")
 

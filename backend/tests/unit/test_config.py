@@ -32,3 +32,10 @@ def test_errors_never_show_secret_values(monkeypatch: pytest.MonkeyPatch) -> Non
     with pytest.raises(ValidationError) as error:
         Settings(_env_file=None)
     assert "super-secret-value" not in str(error.value)
+
+
+def test_secrets_are_not_in_the_printed_settings() -> None:
+    settings = Settings(
+        _env_file=None, database_url="sqlite://", admin_password="pw-1", google_places_api_key="k-1"
+    )
+    assert "pw-1" not in repr(settings) and "k-1" not in repr(settings)
