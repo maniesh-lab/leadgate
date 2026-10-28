@@ -8,7 +8,9 @@ The rules (PLAN §4):
 - robots.txt is read once per site and obeyed (RFC 9309: a 4xx answer means no
   rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer.
 - at least 1 s between two requests to the same domain (robots.txt included)
-- a timeout on every request; at most 3 redirects, each one checked against robots.txt
+- a timeout on every request; at most 3 redirects. A page's redirects are followed by
+  hand, so each hop is checked against robots.txt and waits its turn; the robots.txt
+  request itself lets httpx2 follow its (max 3) redirects.
 - only HTML pages are read (a PDF or an image is skipped), and only the first 2 MB
 - no logins, no CAPTCHAs, no proxies
 

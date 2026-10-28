@@ -5,8 +5,9 @@ site without https / a mobile layout means the business may want a new website.
 `app.services.enrichment` calls `site_signals()` and stores the result in
 `lead.enrichment["signals"]`, where the rubric reads it as `signals.<name>`.
 
-A signal is None when we couldn't look (no website, or the home page didn't load):
-"unknown" must never count as "bad website" in the score.
+A signal is None when we couldn't look, because "unknown" must never count as
+"bad website" in the score. When the home page didn't load, every signal is None
+except `page_load_ok`, which is False; with no website at all, it is None too.
 """
 
 import re
