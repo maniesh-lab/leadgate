@@ -69,7 +69,7 @@ def test_step_rows_hold_compact_input_output_and_timing(world: World) -> None:
     assert score.output["score"] == 60
     assert score.input["lead_id"] == lead.id
     # The website text is cut so rows stay small.
-    assert len(score.input["enrichment"]["text"]) < 400
+    assert len(score.input["enrichment"]["text"]) < MAX_TEXT + 30
     assert score.duration_ms is not None and score.finished_at is not None
 
     audit = world.db.scalars(select(AuditLog).where(AuditLog.action == "lead.scored")).one()
