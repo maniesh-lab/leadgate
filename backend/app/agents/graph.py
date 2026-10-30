@@ -4,9 +4,10 @@
           → route → act → END        (or route → END when the lead is rejected)
 
 `build_graph(checkpointer)` takes the checkpointer as an argument: tests pass
-LangGraph's `InMemorySaver`, and Phase 6 passes the Postgres one, so the same graph
-survives a crash there. Nodes get their helpers (DB session, LLM, crawler, CRM,
-notifier) from `AgentContext`, passed on every `invoke`. Each node is wrapped by
+LangGraph's `InMemorySaver`, and the worker passes the Postgres one
+(`app.agents.checkpoint`), so the same graph survives a crash there. Nodes get their
+helpers (DB session, LLM, crawler, CRM, notifier) from `AgentContext`, passed on every
+`invoke`. Each node is wrapped by
 `app.agents.tracking.tracked_node()` (run_steps + audit rows). Use `app.agents.runner`
 to start and resume a lead instead of calling the graph directly.
 """

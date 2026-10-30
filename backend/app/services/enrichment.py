@@ -154,7 +154,7 @@ def rank_emails(emails: list[str], site_domain: str | None) -> list[str]:
 
 
 def campaign_leads(session: Session, campaign_id: int) -> list[Lead]:
-    """The leads in any run of the campaign (run_items are the link; runs start in Phase 6)."""
+    """The leads in any run of the campaign (run_items are the link)."""
     in_campaign = (
         select(RunItem.lead_id)
         .join(Run, Run.id == RunItem.run_id)

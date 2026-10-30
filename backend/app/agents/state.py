@@ -29,7 +29,7 @@ from app.services.notify import Notifier
 
 
 class LeadState(TypedDict, total=False):
-    # Given when the thread starts (by app.agents.runner; the worker from Phase 6).
+    # Given when the thread starts (by app.agents.runner, called by the worker).
     thread_id: str
     run_item_id: int | None
     lead_id: int
