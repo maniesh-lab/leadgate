@@ -20,9 +20,14 @@ dependencies = [
     "faker==40.43.0",
     "httpx2==2.16.0",
     "beautifulsoup4==4.15.0",
+    "langgraph==1.2.18",
+    "steadfast-llm[groq]==0.3.0",
+    "phonenumbers==9.0.42",
 ]
 
 [project.optional-dependencies]
+# Only for LLM_MODE=openai.
+openai = ["openai==3.40.0"]
 dev = [
     "pytest==9.2.0",
     "pytest-cov==7.1.0",
@@ -49,6 +54,10 @@ testpaths = ["tests"]
 # Lets tests import shared helpers as `tests.<module>`.
 pythonpath = ["."]
 addopts = "-ra --cov=app --cov-report=term-missing"
+filterwarnings = [
+    # langsmith (pulled in by langgraph) uses an asyncio function Python 3.14 deprecates.
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:langsmith",
+]
 
 [tool.coverage.run]
 branch = true
