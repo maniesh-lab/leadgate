@@ -7,8 +7,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agents.nodes.score import MAX_EXPLANATION_CHARS
 from app.agents.runner import resume_lead, start_lead
-from app.agents.tracking import compact
+from app.agents.tracking import MAX_TEXT, compact
 from app.db.models import AuditLog, RunStep, StepStatus
 from tests.agent_world import World, add_lead
 
@@ -134,9 +135,14 @@ def test_compact_cuts_long_strings_and_lists() -> None:
 
     small = compact(value)
 
-    assert small["text"] == "x" * 300 + "… (+700 chars)"
+    assert small["text"] == "x" * 500 + "… (+500 chars)"
     assert small["items"] == [*range(20), "… (+5 more)"]
     assert small["n"] == 3
+
+
+def test_a_whole_score_explanation_fits_in_a_step() -> None:
+    # The API shows the explanation from the score step's output, so it must not be cut.
+    assert MAX_TEXT >= MAX_EXPLANATION_CHARS
 
 
 def broken_llm(*_args, **_kwargs):
