@@ -13,6 +13,9 @@ import { Layout } from "./components/Layout";
 import { CampaignsPage } from "./pages/CampaignsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCampaignPage } from "./pages/NewCampaignPage";
+import { RunItemPage } from "./pages/RunItemPage";
+import { RunPage } from "./pages/RunPage";
+import { RunsPage } from "./pages/RunsPage";
 
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
@@ -32,6 +35,9 @@ export const routes: RouteObject[] = [
               </RequireRole>
             ),
           },
+          { path: "runs", element: <RunsPage /> },
+          { path: "runs/:runId", element: <RunPage /> },
+          { path: "run-items/:itemId", element: <RunItemPage /> },
           { path: "*", element: <p className="text-slate-600">Page not found.</p> },
         ],
       },
