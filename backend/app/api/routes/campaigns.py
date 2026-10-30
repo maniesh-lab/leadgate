@@ -117,7 +117,7 @@ def start_run(
     run = create_run(
         db, campaign, datetime.now(UTC), triggered_by=admin, correlation_id=correlation_id
     )
-    return RunOut.model_validate(run)
+    return RunOut.model_validate(run).model_copy(update={"campaign_name": campaign.name})
 
 
 def check_campaign(db: Session, campaign: Campaign) -> None:
