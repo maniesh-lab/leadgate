@@ -7,9 +7,9 @@
 LangGraph's `InMemorySaver`, and the worker passes the Postgres one
 (`app.agents.checkpoint`), so the same graph survives a crash there. Nodes get their
 helpers (DB session, LLM, crawler, CRM, notifier) from `AgentContext`, passed on every
-`invoke`. Each node is wrapped by
-`app.agents.tracking.tracked_node()` (run_steps + audit rows). Use `app.agents.runner`
-to start and resume a lead instead of calling the graph directly.
+`invoke`. Each node is wrapped by `app.agents.tracking.tracked_node()` (run_steps +
+audit rows). Use `app.agents.runner` to start and resume a lead instead of calling the
+graph directly.
 """
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
