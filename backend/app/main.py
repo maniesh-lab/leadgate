@@ -25,6 +25,7 @@ from app.api.routes import (
     campaigns,
     health,
     leads,
+    reports,
     rubrics,
     runs,
     users,
@@ -81,7 +82,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.middleware("http")(correlation_id_middleware)
     add_error_handlers(app)
     app.include_router(health.router, prefix="/api")
-    for module in (auth, users, rubrics, campaigns, runs, approvals, leads, audit, webhooks):
+    for module in (
+        auth,
+        users,
+        rubrics,
+        campaigns,
+        runs,
+        approvals,
+        leads,
+        audit,
+        reports,
+        webhooks,
+    ):
         # 422 = our error shape, not FastAPI's default one (also in the OpenAPI docs).
         app.include_router(module.router, prefix="/api", responses=error_docs(422))
     return app
