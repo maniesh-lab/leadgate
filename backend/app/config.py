@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # repr=False: never shown when the settings object is printed (e.g. in a traceback).
     admin_password: str | None = Field(default=None, repr=False)
 
+    # Signs the API's login tokens (HS256). The API refuses to start without it; the CLI
+    # and the worker don't need it. At least 32 characters: `openssl rand -hex 32`.
+    jwt_secret: str | None = Field(default=None, min_length=32, repr=False)
+    # How long a login token is valid. There are no refresh tokens: log in again after.
+    jwt_expire_minutes: int = Field(default=60, ge=1)
+
     # Sent on every request leadgate makes: OSM's Nominatim and Overpass (their policies ask
     # for a User-Agent that names the app), Google Places, and the website crawler.
     osm_user_agent: str = DEFAULT_USER_AGENT

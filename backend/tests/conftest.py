@@ -23,6 +23,8 @@ APP_ENV_VARS = [
     "DATABASE_URL",
     "ADMIN_EMAIL",
     "ADMIN_PASSWORD",
+    "JWT_SECRET",
+    "JWT_EXPIRE_MINUTES",
     "OSM_USER_AGENT",
     "GOOGLE_PLACES_API_KEY",
     "ENRICH_CACHE_DAYS",
@@ -33,6 +35,8 @@ APP_ENV_VARS = [
     "OPENAI_API_KEY",
     "RUN_WORKER_IN_API",
 ]
+# Signs the tests' login tokens (32+ characters, like the real one must be).
+TEST_JWT_SECRET = "test-secret-" + "x" * 32
 
 
 @pytest.fixture
@@ -40,7 +44,11 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     for name in APP_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
     # _env_file=None: never read the developer's real .env, so tests act the same everywhere.
-    return Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}")
+    return Settings(
+        _env_file=None,
+        database_url=f"sqlite:///{tmp_path / 'test.db'}",
+        jwt_secret=TEST_JWT_SECRET,
+    )
 
 
 @pytest.fixture

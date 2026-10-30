@@ -39,6 +39,16 @@ def test_errors_never_show_secret_values(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_secrets_are_not_in_the_printed_settings() -> None:
     settings = Settings(
-        _env_file=None, database_url="sqlite://", admin_password="pw-1", google_places_api_key="k-1"
+        _env_file=None,
+        database_url="sqlite://",
+        admin_password="pw-1",
+        google_places_api_key="k-1",
+        jwt_secret="j" * 32,
     )
     assert "pw-1" not in repr(settings) and "k-1" not in repr(settings)
+    assert "j" * 32 not in repr(settings)
+
+
+def test_jwt_secret_must_be_long() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, database_url="sqlite://", jwt_secret="short")

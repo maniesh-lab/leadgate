@@ -7,6 +7,9 @@ x-backend-env: &backend-env
   # Read by `python -m app.cli seed` (creates the admin) and `decide` (ADMIN_EMAIL = default reviewer).
   ADMIN_EMAIL: ${ADMIN_EMAIL:-}
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  # The API's login tokens (the api refuses to start without JWT_SECRET).
+  JWT_SECRET: ${JWT_SECRET:-}
+  JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-}
   # Lead sources + website crawler (empty = the defaults / no Google source).
   OSM_USER_AGENT: ${OSM_USER_AGENT:-}
   GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}

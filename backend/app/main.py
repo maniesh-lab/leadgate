@@ -2,7 +2,8 @@
 
 `create_app()` builds the app: logging, the DB engine, middleware and routers.
 Uvicorn calls it with `--factory` (see the Dockerfile); tests call it directly
-with their own `Settings`, so nothing is created at import time.
+with their own `Settings`, so nothing is created at import time. It refuses to build
+the app without JWT_SECRET (no login could work).
 
 With RUN_WORKER_IN_API=true the startup also starts the job worker in a background
 thread (the same loop as `python -m app.worker`), and the shutdown stops it after its
@@ -28,6 +29,9 @@ WORKER_STOP_SECONDS = 60
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    if not settings.jwt_secret:
+        # Fail at startup, not at the first login.
+        raise RuntimeError("JWT_SECRET is not set; the API needs it to sign login tokens")
     configure_logging()
 
     @asynccontextmanager
