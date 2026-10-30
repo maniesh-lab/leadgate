@@ -16,7 +16,7 @@ from difflib import SequenceMatcher
 
 import structlog
 from langgraph.runtime import Runtime
-from sqlalchemy import and_, or_, select
+from sqlalchemy import Select, and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.agents.categories import campaign_category
@@ -56,18 +56,24 @@ def check(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
 
 def find_duplicates(session: Session, lead: Lead, raw: dict, extracted: dict) -> list[int]:
     """Ids of other leads that look like the same business (at most MAX_DUPLICATE_FLAGS)."""
-    others = select(Lead.id).where(Lead.id != lead.id, Lead.opt_out.is_(False))
-
-    same_contact = [and_(Lead.source_ref == lead.source_ref, Lead.source != lead.source)]
     phones = [phone for phone in (extracted.get("phone"), raw.get("phone")) if phone]
+    found = set(session.scalars(same_contact_query(lead, phones)))
+    found |= similar_names(session, lead.id, extracted)
+    return sorted(found)[:MAX_DUPLICATE_FLAGS]
+
+
+def same_contact_query(lead: Lead, phones: list[str]) -> Select[tuple[int]]:
+    """Other leads with the same source ref (from another source), phone or website domain.
+
+    One OR across three columns: Postgres can only use indexes for it (a BitmapOr) when
+    each of the three columns has one (see docs/sql-notes.md).
+    """
+    same_contact = [and_(Lead.source_ref == lead.source_ref, Lead.source != lead.source)]
     if phones:
         same_contact.append(Lead.phone.in_(phones))
     if lead.website_domain:
         same_contact.append(Lead.website_domain == lead.website_domain)
-    found = set(session.scalars(others.where(or_(*same_contact))))
-
-    found |= similar_names(session, lead.id, extracted)
-    return sorted(found)[:MAX_DUPLICATE_FLAGS]
+    return select(Lead.id).where(Lead.id != lead.id, Lead.opt_out.is_(False), or_(*same_contact))
 
 
 def similar_names(session: Session, lead_id: int, extracted: dict) -> set[int]:

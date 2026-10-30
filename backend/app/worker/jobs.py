@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import or_, select, update
+from sqlalchemy import Select, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import Job, JobStatus, JobType
@@ -51,14 +51,7 @@ def enqueue(session: Session, job_type: JobType, payload: dict[str, Any], now: d
 
 def claim_next(session: Session, worker_id: str, now: datetime) -> Job | None:
     """Lock the oldest due job for `worker_id` and commit. None when nothing is due."""
-    next_id = (
-        select(Job.id)
-        .where(Job.status == JobStatus.QUEUED, Job.run_after <= now)
-        .order_by(Job.run_after, Job.id)
-        .limit(1)
-        .with_for_update(skip_locked=True)
-        .scalar_subquery()
-    )
+    next_id = next_job_query(now).with_for_update(skip_locked=True).scalar_subquery()
     stmt = (
         update(Job)
         .where(Job.id == next_id)
@@ -76,6 +69,16 @@ def claim_next(session: Session, worker_id: str, now: datetime) -> Job | None:
     job = session.scalars(stmt).first()
     session.commit()
     return job
+
+
+def next_job_query(now: datetime) -> Select[tuple[int]]:
+    """The oldest due job's id (served by the partial index `ix_jobs_queued_run_after`)."""
+    return (
+        select(Job.id)
+        .where(Job.status == JobStatus.QUEUED, Job.run_after <= now)
+        .order_by(Job.run_after, Job.id)
+        .limit(1)
+    )
 
 
 def mark_done(session: Session, job: Job) -> None:
