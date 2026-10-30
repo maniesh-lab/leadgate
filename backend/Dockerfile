@@ -1,4 +1,4 @@
-# leadgate backend image (API now; the worker reuses it from Phase 6).
+# leadgate backend image: the api, the worker (`python -m app.worker`) and migrate use it.
 FROM python:3.14.8-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -11,7 +11,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY app ./app
 RUN pip install .
-# Migrations, so `docker compose run --rm api alembic upgrade head` works.
+# Migrations: the compose `migrate` service runs `alembic upgrade head` with this image.
 COPY alembic.ini ./
 COPY alembic ./alembic
 

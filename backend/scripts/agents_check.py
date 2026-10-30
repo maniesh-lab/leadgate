@@ -12,8 +12,9 @@ the card a reviewer would see is printed, then the script answers with --decisio
 fakes, so nothing is sent anywhere; the messages they would get are printed.
 
 It writes to DATABASE_URL like the real thing would: enrichment, extracted fields,
-score and status on each lead. The checkpoints stay in memory (Phase 6 makes them
-durable). Settings come from .env; LLM_MODE is forced to groq unless --llm says other.
+score and status on each lead. The checkpoints stay in memory and no run items are
+made (so no run_steps / audit rows): for the durable path, use `start-run` + the worker.
+Settings come from .env; LLM_MODE is forced to groq unless --llm says other.
 """
 
 import argparse

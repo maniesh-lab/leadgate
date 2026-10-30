@@ -10,6 +10,10 @@ Phase 8 adds the Discord webhook notifier behind the same interface.
 from abc import ABC, abstractmethod
 from enum import StrEnum
 
+import structlog
+
+log = structlog.get_logger(__name__)
+
 
 class Channel(StrEnum):
     LEADS = "leads"
@@ -23,10 +27,11 @@ class Notifier(ABC):
 
 
 class FakeNotifier(Notifier):
-    """Remembers every message in `sent` instead of posting it."""
+    """Remembers every message in `sent` (and logs it) instead of posting it."""
 
     def __init__(self) -> None:
         self.sent: list[tuple[Channel, str]] = []
 
     def send(self, channel: Channel, text: str) -> None:
         self.sent.append((channel, text))
+        log.info("fake_message", channel=channel.value, text=text)

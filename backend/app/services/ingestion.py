@@ -3,7 +3,7 @@
 Leads are upserted by `source_key` ("osm:node/123", "csv:<hash>", ...): a new key
 inserts a lead, a key we already have refreshes it. So running the same source
 twice adds 0 new leads. Called by `python -m app.cli ingest` / `collect`
-(and by the worker's `start_run` job from Phase 6).
+and by the worker's `start_run` job (`app.services.runs.collect_run()`).
 
 Upsert rules:
 - a re-collect refreshes the source's own fields (name, phone, rating, ...), but an
@@ -20,7 +20,7 @@ has a dialect-specific `insert()` for each, picked in `upsert_lead()`.
 """
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -67,6 +67,8 @@ class IngestResult:
     duplicates: int = 0  # same key again in this batch, saved once
     opted_out: int = 0  # known and opted out: left untouched
     skipped: int = 0  # bad rows the source skipped (set by `ingest_source`)
+    # source_key of every lead saved (new or updated): a run makes its items from these.
+    saved_keys: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         return (
@@ -161,6 +163,7 @@ def ingest(session: Session, leads: Iterable[RawLead]) -> IngestResult:
             result.opted_out += 1
             continue
         upsert_lead(session, lead_values(lead))
+        result.saved_keys.append(key)
         if key in known:
             result.updated += 1
         else:

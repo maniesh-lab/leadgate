@@ -7,6 +7,12 @@
 - `enrich --lead <id> | --campaign <id> | --stale [--limit N] [--force]`: crawl the
   leads' websites (`--stale`: every lead never enriched or past ENRICH_CACHE_DAYS)
 - `opt-out --lead <id>`: wipe a lead's contact data and never collect or crawl it again
+- `start-run --campaign <id>`: queue a run (the worker, `python -m app.worker`, does it)
+- `decide --item <id> --decision approved|rejected [--reason ...] [--reviewer email]`:
+  a reviewer's decision on a run item waiting at the approval gate (default reviewer:
+  ADMIN_EMAIL); the worker then resumes the item
+- `show-run --run <id>`: the run's status, stats and items, and any node that completed
+  twice for one item (there should be none, even after the worker was killed)
 
 Each command opens its own DB connection from DATABASE_URL. The real work lives in
 other modules (`app.db.seed`, `app.db.fake_data`, `app.services.*`); this file only
@@ -17,20 +23,24 @@ import argparse
 import json
 import sys
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx2
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db.fake_data import insert_fake_leads
-from app.db.models import Campaign, Lead
+from app.db.models import Campaign, Lead, Run, RunItem, RunStep, StepStatus, User
 from app.db.seed import seed
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
+from app.services.approvals import NotAwaitingDecision, decide
 from app.services.enrichment import CACHED, ENRICHED, campaign_leads, enrich_lead, stale_leads
 from app.services.ingestion import collect_campaign, ingest_source
 from app.services.privacy import opt_out_lead
+from app.services.runs import create_run
 from app.sources.base import SourceError, make_http_client
 from app.sources.csv_mapped import CsvSource
 
@@ -184,6 +194,90 @@ def cmd_opt_out(settings: Settings, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_start_run(settings: Settings, args: argparse.Namespace) -> int:
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            campaign = session.get(Campaign, args.campaign)
+            if campaign is None:
+                print(f"no campaign with id {args.campaign}")
+                return 1
+            run = create_run(session, campaign, datetime.now(UTC))
+    finally:
+        engine.dispose()
+    print(f"run {run.id} queued for campaign {campaign.id} ({campaign.name})")
+    print("the worker (python -m app.worker) collects the leads and processes them")
+    return 0
+
+
+def cmd_decide(settings: Settings, args: argparse.Namespace) -> int:
+    email = args.reviewer or settings.admin_email
+    if not email:
+        print("give --reviewer <email> (or set ADMIN_EMAIL)")
+        return 1
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            reviewer = session.scalars(select(User).where(User.email == email)).first()
+            if reviewer is None:
+                print(f"no user {email}")
+                return 1
+            try:
+                decide(session, args.item, reviewer, args.decision, args.reason, datetime.now(UTC))
+            except (ValueError, LookupError, NotAwaitingDecision) as exc:
+                print(f"error: {exc}")
+                return 1
+    finally:
+        engine.dispose()
+    print(f"run item {args.item}: {args.decision} by {email}; the worker resumes it")
+    return 0
+
+
+def cmd_show_run(settings: Settings, args: argparse.Namespace) -> int:
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            run = session.get(Run, args.run)
+            if run is None:
+                print(f"no run with id {args.run}")
+                return 1
+            print(describe_run(session, run))
+    finally:
+        engine.dispose()
+    return 0
+
+
+def describe_run(session: Session, run: Run) -> str:
+    lines = [f"run {run.id}: {run.status.value} (campaign {run.campaign_id})"]
+    lines.append(f"  stats: {json.dumps(run.stats, sort_keys=True)}")
+    items = session.execute(
+        select(RunItem, Lead.name)
+        .join(Lead, Lead.id == RunItem.lead_id)
+        .where(RunItem.run_id == run.id)
+        .order_by(RunItem.id)
+    )
+    for item, name in items:
+        route = f", route {item.route.value}" if item.route else ""
+        flags = f", flags {item.flags}" if item.flags else ""
+        error = f", error: {item.error}" if item.error else ""
+        lines.append(
+            f"  item {item.id} {name}: {item.status.value}, score {item.score}{route}{flags}{error}"
+        )
+    twice = session.execute(
+        select(RunStep.run_item_id, RunStep.node, func.count())
+        .join(RunItem, RunItem.id == RunStep.run_item_id)
+        .where(RunItem.run_id == run.id, RunStep.status == StepStatus.COMPLETED)
+        .group_by(RunStep.run_item_id, RunStep.node)
+        .having(func.count() > 1)
+    ).all()
+    if twice:
+        for item_id, node, count in twice:
+            lines.append(f"  !! item {item_id}: {node} completed {count} times")
+    else:
+        lines.append("  no node completed twice for any item")
+    return "\n".join(lines)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="leadgate tools")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -225,6 +319,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     opt_out_parser.add_argument("--lead", type=int, required=True, help="lead id")
     opt_out_parser.set_defaults(handler=cmd_opt_out)
+
+    start_parser = commands.add_parser("start-run", help="queue a run of a campaign")
+    start_parser.add_argument("--campaign", type=int, required=True, help="campaign id")
+    start_parser.set_defaults(handler=cmd_start_run)
+
+    decide_parser = commands.add_parser("decide", help="approve or reject a waiting run item")
+    decide_parser.add_argument("--item", type=int, required=True, help="run item id")
+    decide_parser.add_argument("--decision", choices=["approved", "rejected"], required=True)
+    decide_parser.add_argument("--reason", help="why (required for a rejection)")
+    decide_parser.add_argument("--reviewer", help="the reviewer's email (default: ADMIN_EMAIL)")
+    decide_parser.set_defaults(handler=cmd_decide)
+
+    show_parser = commands.add_parser("show-run", help="a run's status, items and steps")
+    show_parser.add_argument("--run", type=int, required=True, help="run id")
+    show_parser.set_defaults(handler=cmd_show_run)
 
     return parser
 

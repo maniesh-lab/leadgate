@@ -1,8 +1,9 @@
 """A small world for the agent tests: rubrics, a dentist campaign in Austin, leads, fakes.
 
 `World` holds the DB session and every fake the graph touches (website, LLM, CRM,
-notifier), so a test can run the real graph with no network and then look at what
-happened. The lead's website is `tests.fake_web.SMILE_SITE` (a reserved `.test` domain).
+notifier), plus one run that each started lead gets a run item in, so a test can run
+the real graph with no network and then look at what happened (also in run_steps and
+the audit log). The lead's website is `tests.fake_web.SMILE_SITE` (a reserved `.test` domain).
 """
 
 from dataclasses import dataclass, field
@@ -17,7 +18,7 @@ from app.agents.graph import build_graph
 from app.agents.llm import LLM, FakeLLM
 from app.agents.runner import start_lead
 from app.agents.state import AgentContext, LeadState
-from app.db.models import Campaign, Lead, ScoringRubric
+from app.db.models import Campaign, Lead, Run, RunItem, RunTrigger, ScoringRubric
 from app.db.seed import RUBRICS
 from app.services.crm import FakeCRM
 from app.services.notify import FakeNotifier
@@ -79,6 +80,13 @@ class World:
             rubric_id=self.rubrics["general-b2b"].id,
         )
         self.db.add(self.campaign)
+        self.db.flush()
+        self.run = Run(
+            campaign_id=self.campaign.id,
+            trigger=RunTrigger.MANUAL,
+            rubric_id=self.campaign.rubric_id,
+        )
+        self.db.add(self.run)
         self.db.commit()
         self.graph: CompiledStateGraph = build_graph(self.checkpointer)
 
@@ -92,14 +100,22 @@ class World:
             now=lambda: NOW,
         )
 
+    def add_item(self, lead: Lead) -> RunItem:
+        """The lead's run item in `self.run` (thread id `lead-<id>`)."""
+        item = RunItem(run_id=self.run.id, lead_id=lead.id, thread_id=f"lead-{lead.id}")
+        self.db.add(item)
+        self.db.commit()
+        return item
+
     def start(self, lead: Lead, rubric: str = "general-b2b") -> LeadState:
+        item = self.add_item(lead)
         return start_lead(
             self.graph,
             self.context(),
-            thread_id=f"lead-{lead.id}",
+            thread_id=item.thread_id,
             lead_id=lead.id,
             campaign_id=self.campaign.id,
             rubric_id=self.rubrics[rubric].id,
-            run_item_id=lead.id * 10,
+            run_item_id=item.id,
             correlation_id="test-correlation",
         )

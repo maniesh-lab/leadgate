@@ -43,6 +43,8 @@ def test_importing_twice_adds_nothing_new(db: Session) -> None:
 
     assert (result.new, result.updated) == (0, 6)
     assert count_leads(db) == 6
+    # Every saved lead's key is listed once (a run makes its items from these).
+    assert sorted(result.saved_keys) == sorted(db.scalars(select(Lead.source_key)))
 
 
 def test_recollect_refreshes_but_never_wipes(db: Session) -> None:
@@ -74,7 +76,7 @@ def test_opted_out_lead_is_left_alone(db: Session) -> None:
     result = ingest(db, [raw_lead(phone="512-555-0100")])
     db.expire_all()
 
-    assert (result.opted_out, result.updated) == (1, 0)
+    assert (result.opted_out, result.updated, result.saved_keys) == (1, 0, [])
     assert db.scalars(select(Lead)).one().phone is None
 
 

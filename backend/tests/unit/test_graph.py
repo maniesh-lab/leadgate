@@ -13,8 +13,19 @@ from sqlalchemy.orm import Session
 from app.agents.graph import build_graph
 from app.agents.llm import scripted_llm
 from app.agents.nodes.act import act
-from app.agents.runner import current_state, resume_lead, start_lead, waiting_for
-from app.db.models import Lead, LeadStatus
+from app.agents.runner import (
+    FINISHED,
+    NEW,
+    PAUSED,
+    UNFINISHED,
+    continue_lead,
+    current_state,
+    resume_lead,
+    start_lead,
+    thread_status,
+    waiting_for,
+)
+from app.db.models import Lead, LeadStatus, RunItem
 from app.services.notify import Channel
 from app.services.privacy import opt_out_lead
 from tests.agent_world import World, add_lead
@@ -356,3 +367,56 @@ def test_zero_point_hits_are_left_out_of_the_template(world: World) -> None:
 
     assert state["score"] == 20  # copyright 2019 is older than 3 years
     assert state["score_explanation"] == "Score 20/100: copyright year older than 3 years (+20)."
+
+
+def test_thread_status_follows_the_thread(world: World) -> None:
+    lead = add_lead(world.db)
+    thread = f"lead-{lead.id}"
+    assert thread_status(world.graph, thread) == NEW
+
+    world.start(lead)
+    assert thread_status(world.graph, thread) == PAUSED
+
+    decide(world, lead, "approved")
+    assert thread_status(world.graph, thread) == FINISHED
+
+
+def test_a_thread_whose_node_failed_continues_without_rerunning_finished_nodes(
+    world: World,
+) -> None:
+    lead = add_lead(world.db)
+    real_structured = world.llm.structured
+    world.llm.structured = broken_llm
+    with pytest.raises(RuntimeError):
+        world.start(lead)
+    thread = f"lead-{lead.id}"
+    assert thread_status(world.graph, thread) == UNFINISHED
+    requests_before = len(world.web.requests)
+
+    world.llm.structured = real_structured
+    state = continue_lead(world.graph, world.context(), thread)
+
+    assert thread_status(world.graph, thread) == PAUSED
+    assert len(world.web.requests) == requests_before  # enrich did not run again
+    assert state["score"] == 60
+    with pytest.raises(ValueError, match="nothing to continue"):
+        continue_lead(world.graph, world.context(), thread)
+
+
+def test_act_skips_the_message_when_the_run_item_says_it_was_sent(world: World) -> None:
+    lead = add_lead(world.db)
+    world.start(lead)
+    decide(world, lead, "approved")
+    state = current_state(world.graph, f"lead-{lead.id}")
+    item = world.db.get(RunItem, state["run_item_id"])
+    assert item.notified_at is not None
+
+    # A crash right after the post: notified_at was committed, the checkpoint wasn't.
+    update = act({**state, "notified": False}, Runtime(context=world.context()))
+
+    assert "notified" not in update
+    assert len(world.notifier.sent) == 1
+
+
+def broken_llm(*_args, **_kwargs):
+    raise RuntimeError("LLM down")

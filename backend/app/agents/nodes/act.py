@@ -7,9 +7,10 @@
 Safe to repeat:
 - the CRM write uses the thread id as its key, so a second call updates the same
   record; and it's skipped when `crm_record_id` is already in the state
-- the message is skipped when `notified` is already true. (If the process dies right
-  after posting but before the checkpoint is saved, the message could go out twice;
-  Phase 6 closes that gap with `run_items.notified_at`.)
+- the message is skipped when `notified` is already true in the state, or when the run
+  item's `notified_at` is set. `notified_at` is committed right after the post, before
+  LangGraph saves the checkpoint, so a crash in between doesn't send it again. (Only a
+  crash in the instant between the post and that commit could still send it twice.)
 
 A lead that opted out after it was approved gets no CRM write and no message.
 Messages are plain templates (the LLM isn't needed for them).
@@ -21,7 +22,7 @@ from langgraph.runtime import Runtime
 from app.agents.nodes.common import load_lead
 from app.agents.nodes.route import serious_flags
 from app.agents.state import AgentContext, LeadState
-from app.db.models import Route
+from app.db.models import Route, RunItem
 from app.services.notify import Channel
 
 log = structlog.get_logger(__name__)
@@ -38,15 +39,37 @@ def act(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
     if state["route"] == Route.NOTIFY:
         if not state.get("crm_record_id"):
             update["crm_record_id"] = context.crm.upsert_lead(state["thread_id"], crm_fields(state))
-        if not state.get("notified"):
-            context.notifier.send(Channel.LEADS, lead_message(state))
+        if not already_notified(context, state):
+            notify(context, state, Channel.LEADS, lead_message(state))
             update["notified"] = True
-    elif state["route"] == Route.ESCALATE and not state.get("notified"):
-        context.notifier.send(Channel.ADMIN, escalation_message(state))
+    elif state["route"] == Route.ESCALATE and not already_notified(context, state):
+        notify(context, state, Channel.ADMIN, escalation_message(state))
         update["notified"] = True
 
     log.info("node_act", lead_id=lead.id, route=state["route"], **update)
     return update
+
+
+def already_notified(context: AgentContext, state: LeadState) -> bool:
+    if state.get("notified"):
+        return True
+    item = run_item(context, state)
+    return item is not None and item.notified_at is not None
+
+
+def notify(context: AgentContext, state: LeadState, channel: Channel, text: str) -> None:
+    """Post the message, then record it on the run item at once (see the docstring)."""
+    context.notifier.send(channel, text)
+    item = run_item(context, state)
+    if item is not None:
+        item.notified_at = context.now()
+        context.session.commit()
+
+
+def run_item(context: AgentContext, state: LeadState) -> RunItem | None:
+    """The state's run item (None for the manual scripts, which run without one)."""
+    item_id = state.get("run_item_id")
+    return context.session.get(RunItem, item_id) if item_id is not None else None
 
 
 def crm_fields(state: LeadState) -> dict:

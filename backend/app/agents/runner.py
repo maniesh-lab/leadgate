@@ -3,11 +3,14 @@
 - `start_lead()` runs a new thread until it stops: at the approval gate (the normal
   case) or at the end. Then it saves the extracted fields, score and status on the lead.
 - `resume_lead()` passes the human's decision in and runs the thread to the end.
+- `continue_lead()` runs a thread on from its last checkpoint, after its worker died or
+  a node failed: finished nodes are not run again.
+- `thread_status()` says where a thread is: new, paused at the gate, unfinished, finished.
 - `waiting_for()` is the approval payload of a thread paused at the gate (None if not).
 
 The nodes don't write the lead's fields themselves; this file does, after each run,
-in one place. Phase 6's worker calls these same functions (and adds the run_items
-bookkeeping). The scripts in `backend/scripts/` use them directly.
+in one place. The worker's job handlers (`app.worker.handlers`) call these functions
+and keep the run_items up to date; the scripts in `backend/scripts/` use them directly.
 """
 
 from typing import Any
@@ -21,6 +24,12 @@ from app.agents.state import AgentContext, LeadState
 from app.db.models import Lead, LeadStatus, Route
 
 log = structlog.get_logger(__name__)
+
+# What `thread_status()` returns.
+NEW = "new"  # no checkpoint yet
+PAUSED = "paused"  # waiting at the approval gate
+UNFINISHED = "unfinished"  # stopped between nodes (crash or failed node): continue it
+FINISHED = "finished"  # reached the end
 
 ROUTE_STATUS = {
     Route.NOTIFY: LeadStatus.APPROVED,
@@ -86,6 +95,25 @@ def resume_lead(
     with structlog.contextvars.bound_contextvars(correlation_id=correlation_id):
         graph.invoke(Command(resume=answer), thread_config(thread_id), context=context)
     return save_result(graph, context, thread_id)
+
+
+def continue_lead(graph: CompiledStateGraph, context: AgentContext, thread_id: str) -> LeadState:
+    """Run an unfinished thread on from its last checkpoint (`invoke(None)`)."""
+    if thread_status(graph, thread_id) != UNFINISHED:
+        raise ValueError(f"thread {thread_id} has nothing to continue")
+    correlation_id = current_state(graph, thread_id).get("correlation_id")
+    with structlog.contextvars.bound_contextvars(correlation_id=correlation_id):
+        graph.invoke(None, thread_config(thread_id), context=context)
+    return save_result(graph, context, thread_id)
+
+
+def thread_status(graph: CompiledStateGraph, thread_id: str) -> str:
+    snapshot = graph.get_state(thread_config(thread_id))
+    if snapshot.created_at is None:
+        return NEW
+    if snapshot.interrupts:
+        return PAUSED
+    return UNFINISHED if snapshot.next else FINISHED
 
 
 def waiting_for(graph: CompiledStateGraph, thread_id: str) -> dict[str, Any] | None:
