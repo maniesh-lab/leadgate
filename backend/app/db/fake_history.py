@@ -578,8 +578,9 @@ def job_row(
         "status": status,
         "attempts": attempts,
         "run_after": moment,
-        "locked_at": moment,
-        "locked_by": "fake-worker",
+        # Finished jobs are unlocked, like `mark_done()` / `mark_failed()` leave them.
+        "locked_at": None,
+        "locked_by": None,
         "created_at": moment,
         "updated_at": moment,
     }
