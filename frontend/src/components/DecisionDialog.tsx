@@ -154,7 +154,7 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
               {detail.isPending && <p className="text-muted">Loading…</p>}
               {detail.error && <p className="text-(--red)">{describeError(detail.error)}</p>}
               {detail.data &&
-                (enrichment ? (
+                (lead.website && enrichment ? (
                   <SignalList enrichment={enrichment} />
                 ) : (
                   <p className="text-muted">

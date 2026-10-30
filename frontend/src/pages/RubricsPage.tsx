@@ -290,7 +290,7 @@ function RubricEditor({ rubric, latest, onSaved }: EditorProps) {
                     required
                   />
                 </td>
-                <td className="px-2">
+                <td className="min-w-44 px-2">
                   <select
                     aria-label={`Rule ${index + 1} op`}
                     className="input font-mono"
