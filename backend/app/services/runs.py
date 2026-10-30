@@ -10,7 +10,12 @@ A run's life (statuses from PLAN §6):
     failed      `start_run` gave up (e.g. every source failed three times)
 
 Each lead gets its own LangGraph thread, `run-<run id>-lead-<lead id>`. Called by the
-CLI (`start-run`), the worker's job handlers and the API (`POST /api/campaigns/{id}/runs`).
+CLI (`start-run`), the worker's job handlers and the API (`POST /api/campaigns/{id}/runs`,
+and the n8n webhook).
+
+A run started by n8n can bring its own leads (they ride in the `start_run` job's payload
+and replace the campaign's sources for that run) and a `callback_url`: when the run
+completes or fails, a `send_callback` job posts its summary there (`app.services.n8n`).
 """
 
 import uuid
@@ -36,7 +41,7 @@ from app.db.models import (
     User,
 )
 from app.services.audit import record
-from app.services.ingestion import collect_campaign
+from app.services.ingestion import collect_campaign, collect_inline
 from app.sources.base import SourceError
 from app.worker.jobs import enqueue
 
@@ -54,8 +59,12 @@ def create_run(
     triggered_by: User | None = None,
     callback_url: str | None = None,
     correlation_id: str | None = None,
+    leads: list[dict[str, Any]] | None = None,
 ) -> Run:
-    """Add a queued run and its `start_run` job, and commit both together."""
+    """Add a queued run and its `start_run` job, and commit both together.
+
+    `leads` (from the n8n webhook) are this run's leads instead of the campaign's sources.
+    """
     run = Run(
         campaign_id=campaign.id,
         trigger=trigger,
@@ -68,7 +77,10 @@ def create_run(
     )
     session.add(run)
     session.flush()  # gives the run its id
-    enqueue(session, JobType.START_RUN, job_payload(run), now)
+    payload = job_payload(run)
+    if leads is not None:
+        payload["leads"] = leads
+    enqueue(session, JobType.START_RUN, payload, now)
     record(
         session,
         actor_type=ActorType.USER if triggered_by else ActorType.SYSTEM,
@@ -86,9 +98,16 @@ def create_run(
 
 
 def collect_run(
-    session: Session, run: Run, settings: Settings, client: httpx2.Client, now: datetime
+    session: Session,
+    run: Run,
+    settings: Settings,
+    client: httpx2.Client,
+    now: datetime,
+    leads: list[dict[str, Any]] | None = None,
 ) -> None:
     """The `start_run` job: collect the leads, then add one item + one job per lead.
+
+    With `leads` (sent by n8n), those are saved instead of running the campaign's sources.
 
     The items and their jobs are committed together, so a retry after a crash either
     finds them all (and does nothing) or none (and collects again; the upsert makes
@@ -103,8 +122,11 @@ def collect_run(
     audit_run(session, run, "run.started")
     session.commit()
 
-    campaign = session.get(Campaign, run.campaign_id)
-    outcomes = collect_campaign(session, campaign, settings, client)
+    if leads is not None:
+        outcomes = collect_inline(session, leads)
+    else:
+        campaign = session.get(Campaign, run.campaign_id)
+        outcomes = collect_campaign(session, campaign, settings, client)
     failed = {outcome.source: outcome.error for outcome in outcomes if outcome.error}
     if outcomes and len(failed) == len(outcomes):
         # Raise, so the job is retried (sources like Overpass are often busy for a while).
@@ -157,6 +179,7 @@ def refresh_run_status(session: Session, run: Run, now: datetime) -> None:
         run.status = RunStatus.COMPLETED
         run.finished_at = now
         audit_run(session, run, "run.completed", details={"items": counts})
+        queue_callback(session, run, now)
         log.info("run_completed", run_id=run.id, items=counts)
     # A new dict, so SQLAlchemy sees the JSON column changed.
     run.stats = {**(run.stats or {}), "items": counts}
@@ -168,6 +191,13 @@ def fail_run(session: Session, run: Run, error: str, now: datetime) -> None:
     run.finished_at = now
     run.stats = {**(run.stats or {}), "error": error}
     audit_run(session, run, "run.failed", details={"error": error})
+    queue_callback(session, run, now)
+
+
+def queue_callback(session: Session, run: Run, now: datetime) -> None:
+    """A finished run with a `callback_url` (n8n) gets a `send_callback` job."""
+    if run.callback_url:
+        enqueue(session, JobType.SEND_CALLBACK, job_payload(run), now)
 
 
 def job_payload(run: Run, **ids: int) -> dict[str, Any]:

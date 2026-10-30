@@ -28,6 +28,7 @@ from app.api.routes import (
     rubrics,
     runs,
     users,
+    webhooks,
 )
 from app.config import Settings, get_settings
 from app.db.session import make_engine, make_session_factory
@@ -42,6 +43,9 @@ the CRM.
 **Log in:** `POST /api/auth/login` with your email + password (or the Authorize button)
 gives a token; send it as `Authorization: Bearer <token>`. Admins manage users,
 campaigns and rubrics and start runs; reviewers (and admins) decide on queued leads.
+
+**n8n** starts runs with `POST /api/webhooks/n8n/runs` and the `X-Webhook-Secret` header
+instead of a login.
 
 **Errors** always look like `{"error": {"code", "message", "details"}}`.
 **Lists** return `{items, total, page, page_size}` (`?page=1&page_size=50`).
@@ -77,7 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.middleware("http")(correlation_id_middleware)
     add_error_handlers(app)
     app.include_router(health.router, prefix="/api")
-    for module in (auth, users, rubrics, campaigns, runs, approvals, leads, audit):
+    for module in (auth, users, rubrics, campaigns, runs, approvals, leads, audit, webhooks):
         # 422 = our error shape, not FastAPI's default one (also in the OpenAPI docs).
         app.include_router(module.router, prefix="/api", responses=error_docs(422))
     return app

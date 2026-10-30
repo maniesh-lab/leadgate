@@ -215,19 +215,6 @@ def test_stop_lets_the_current_job_finish_then_the_loop_ends(
     assert {job.status for job in processes} == {JobStatus.QUEUED}
 
 
-def test_a_job_type_without_a_handler_fails(world, worker, clock) -> None:
-    enqueue(world.db, JobType.SEND_CALLBACK, {"run_id": 1}, clock())
-    world.db.commit()
-
-    for _ in range(3):
-        worker.run_once()
-        clock.advance(60)
-
-    job = world.db.scalars(select(Job)).one()
-    assert job.status == JobStatus.FAILED
-    assert "no handler for send_callback" in job.last_error
-
-
 def test_a_lead_that_opted_out_before_processing_is_skipped(world, worker, clock) -> None:
     run = start(world, clock)
     worker.run_once()  # start_run

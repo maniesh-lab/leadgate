@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     discord_webhook_url: str | None = Field(default=None, repr=False)
     discord_admin_webhook_url: str | None = Field(default=None, repr=False)
 
+    # Shared with Switchyard's n8n: n8n sends it as `X-Webhook-Secret` to start a run, and
+    # leadgate sends it back with the results callback. Empty = the n8n webhook is off (503).
+    n8n_webhook_secret: str | None = Field(default=None, min_length=32, repr=False)
+
 
 @lru_cache
 def get_settings() -> Settings:

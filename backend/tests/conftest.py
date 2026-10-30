@@ -44,6 +44,7 @@ APP_ENV_VARS = [
     "AIRTABLE_TABLE",
     "DISCORD_WEBHOOK_URL",
     "DISCORD_ADMIN_WEBHOOK_URL",
+    "N8N_WEBHOOK_SECRET",
 ]
 # The password `add_user()` gives every test user.
 PASSWORD = "password-123"

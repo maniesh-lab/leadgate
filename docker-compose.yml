@@ -29,6 +29,8 @@ x-backend-env: &backend-env
   # Discord webhooks (empty = messages are only logged).
   DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
   DISCORD_ADMIN_WEBHOOK_URL: ${DISCORD_ADMIN_WEBHOOK_URL:-}
+  # The n8n webhook + results callback (empty = the webhook answers 503).
+  N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
 
 services:
   db:

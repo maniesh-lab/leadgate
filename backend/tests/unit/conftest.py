@@ -4,6 +4,7 @@
 source; `worker` runs jobs with the real graph on the in-memory checkpointer and the
 fakes (website, LLM, CRM, notifier), on a `clock` the test moves by hand. No network.
 `started` is a run started through the API and taken to the approval gate by the worker.
+`n8n` is a fake n8n Webhook node: the worker's results callbacks land in it.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -56,8 +57,25 @@ def clock() -> Clock:
     return Clock()
 
 
+class FakeN8n:
+    """Answers the results callback with `status` and remembers each request."""
+
+    def __init__(self) -> None:
+        self.status = 200
+        self.requests: list[httpx2.Request] = []
+
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
+        self.requests.append(request)
+        return httpx2.Response(self.status, json={"message": "Workflow was started"})
+
+
 @pytest.fixture
-def deps(world: World, engine: Engine, settings: Settings, clock: Clock) -> Deps:
+def n8n() -> FakeN8n:
+    return FakeN8n()
+
+
+@pytest.fixture
+def deps(world: World, engine: Engine, settings: Settings, clock: Clock, n8n: FakeN8n) -> Deps:
     def refuse(request: httpx2.Request) -> httpx2.Response:
         raise AssertionError(f"unexpected request to {request.url}")
 
@@ -70,6 +88,7 @@ def deps(world: World, engine: Engine, settings: Settings, clock: Clock) -> Deps
         crm=world.crm,
         notifier=world.notifier,
         sources_client=httpx2.Client(transport=httpx2.MockTransport(refuse)),
+        callback_client=httpx2.Client(transport=httpx2.MockTransport(n8n)),
         now=clock,
     )
 

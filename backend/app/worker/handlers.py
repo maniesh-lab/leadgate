@@ -4,6 +4,7 @@
 - `process_item`: run the item's thread up to the approval gate
 - `resume_item`: give the thread the reviewer's decision (from the `approvals` row) and
   run it to the end
+- `send_callback`: post a finished n8n run's summary to its `callback_url`
 
 Every handler is safe to run twice: it first looks at where the item's thread is
 (`thread_status()`) and only does what is left. That's what lets a killed worker's job
@@ -12,7 +13,8 @@ them from the graph's result, apart from `pending` (new items, `collect_run()`) 
 `resuming` (a decision, `app.services.approvals.decide()`).
 
 `give_up()` runs when a job has failed `max_attempts` times: the item (or the run, for
-`start_run`) is marked failed with the error.
+`start_run`) is marked failed with the error. A callback that gives up leaves the run as
+it is and only writes a `run.callback_failed` audit row.
 
 Called by `app.worker.main.Worker`.
 """
@@ -44,8 +46,9 @@ from app.config import Settings
 from app.db.models import Approval, Job, JobType, Lead, Route, Run, RunItem, RunItemStatus
 from app.enrichment.crawler import Crawler
 from app.services.crm import CRMClient
+from app.services.n8n import post_callback
 from app.services.notify import Notifier
-from app.services.runs import collect_run, fail_run, refresh_run_status
+from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
 
 log = structlog.get_logger(__name__)
 
@@ -62,6 +65,7 @@ class Deps:
     crm: CRMClient
     notifier: Notifier
     sources_client: httpx2.Client  # for OSM / Google Places
+    callback_client: httpx2.Client  # for the n8n results callback
     now: Callable[[], datetime] = field(default=utc_now)
 
     def agent_context(self, session: Session) -> AgentContext:
@@ -78,7 +82,8 @@ class Deps:
 
 def start_run(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
     run = get(session, Run, payload["run_id"])
-    collect_run(session, run, deps.settings, deps.sources_client, deps.now())
+    leads = payload.get("leads")  # sent by n8n: they replace the campaign's sources
+    collect_run(session, run, deps.settings, deps.sources_client, deps.now(), leads)
 
 
 def process_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
@@ -138,11 +143,16 @@ def resume_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
     save_item(deps, session, item)
 
 
+def send_callback(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
+    run = get(session, Run, payload["run_id"])
+    post_callback(session, run, deps.callback_client, deps.settings.n8n_webhook_secret)
+
+
 HANDLERS: dict[JobType, Callable[[Deps, Session, dict[str, Any]], None]] = {
     JobType.START_RUN: start_run,
     JobType.PROCESS_ITEM: process_item,
     JobType.RESUME_ITEM: resume_item,
-    # send_callback (the n8n results callback) comes in Phase 8.
+    JobType.SEND_CALLBACK: send_callback,
 }
 
 
@@ -175,6 +185,14 @@ def give_up(deps: Deps, session: Session, job: Job) -> None:
     error = job.last_error or "unknown error"
     if job.type == JobType.START_RUN:
         fail_run(session, get(session, Run, job.payload["run_id"]), error, deps.now())
+        session.commit()
+    elif job.type == JobType.SEND_CALLBACK:
+        audit_run(
+            session,
+            get(session, Run, job.payload["run_id"]),
+            "run.callback_failed",
+            details={"error": error},
+        )
         session.commit()
     elif "run_item_id" in job.payload:
         item = get(session, RunItem, job.payload["run_item_id"])

@@ -87,10 +87,7 @@ class Worker:
         with structlog.contextvars.bound_contextvars(**context):
             log.info("job_started", type=job.type, attempt=job.attempts)
             try:
-                handler = HANDLERS.get(job.type)
-                if handler is None:
-                    raise NotImplementedError(f"no handler for {job.type.value} jobs yet")
-                handler(self.deps, session, job.payload)
+                HANDLERS[job.type](self.deps, session, job.payload)
             except Exception as exc:
                 session.rollback()
                 log.exception("job_error", type=job.type)
@@ -139,6 +136,7 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
             crm=make_crm(settings, outbound_client),
             notifier=make_notifier(settings, outbound_client),
             sources_client=stack.enter_context(make_http_client(settings.osm_user_agent)),
+            callback_client=outbound_client,
         )
         yield Worker(deps, worker_id)
 

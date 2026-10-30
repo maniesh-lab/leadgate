@@ -98,6 +98,9 @@ def start_worker(stack: ExitStack, url: str, world: World, clock: Clock, worker_
         sources_client=httpx2.Client(
             transport=httpx2.MockTransport(lambda r: httpx2.Response(404))
         ),
+        callback_client=httpx2.Client(
+            transport=httpx2.MockTransport(lambda r: httpx2.Response(404))
+        ),
         now=clock,
     )
     worker = Worker(deps, worker_id=worker_id)
