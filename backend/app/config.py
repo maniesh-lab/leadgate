@@ -91,7 +91,7 @@ class Settings(BaseSettings):
 
     # Websites allowed to call the API from a browser (CORS), comma-separated, e.g.
     # "https://leadgate.example.com". Empty = none: the dashboard reaches the API on its own
-    # address (the Vite dev server passes `/api` through; the frontend's nginx will too).
+    # address (the Vite dev server and the frontend image's nginx pass `/api` through).
     cors_origins: str = ""
 
     @property

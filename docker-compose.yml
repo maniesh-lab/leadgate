@@ -1,4 +1,4 @@
-# Local stack: db + migrate (one-shot) + api + worker. Phase 10 adds the frontend.
+# Local stack: db + migrate (one-shot) + api + worker + frontend (http://localhost:8080).
 # Values come from .env (see .env.example); empty ones fall back to "leadgate".
 # api + worker also join `leadnet`, the network shared with Switchyard's n8n (see below).
 
@@ -99,6 +99,17 @@ services:
     # `docker compose stop` sends SIGTERM; the worker finishes its current job first
     # (a website crawl + LLM calls can take a while), so give it time before SIGKILL.
     stop_grace_period: 60s
+
+  # The built app on nginx, which also passes /api to the api service (frontend/nginx.conf),
+  # so the browser talks to one address and VITE_API_URL stays empty.
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

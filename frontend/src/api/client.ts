@@ -6,7 +6,7 @@
  */
 import { getToken } from "../auth/token";
 
-// Empty = the same address as the page (Vite's dev proxy passes /api through; 10b's nginx will too).
+// Empty = the same address as the page (Vite's dev proxy and the image's nginx pass /api through).
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 export type Query = Record<string, string | number | boolean | null | undefined>;
