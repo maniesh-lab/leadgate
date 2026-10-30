@@ -74,3 +74,16 @@ def test_stale_running_jobs_go_back_to_the_queue(db: Session) -> None:
     assert fresh.status == JobStatus.RUNNING
     again = claim_next(db, "new-worker", NOW)
     assert (again.id, again.attempts) == (stale.id, 2)
+
+
+def test_a_restarted_worker_takes_back_its_own_jobs_at_once(db: Session) -> None:
+    add(db, 1, NOW - timedelta(minutes=10))
+    add(db, 2, NOW - timedelta(minutes=10))
+    mine = claim_next(db, "host-1", NOW - timedelta(seconds=30))
+    other = claim_next(db, "host-2", NOW - timedelta(seconds=30))
+
+    assert recover_stale(db, NOW, own_id="host-1") == 1
+
+    db.refresh(mine)
+    db.refresh(other)
+    assert (mine.status, other.status) == (JobStatus.QUEUED, JobStatus.RUNNING)

@@ -5,8 +5,10 @@
 - `claim_next()` takes the oldest due job and locks it for this worker
 - `mark_done()` / `mark_failed()` finish it; a failure is retried after 2, 4, 8 ... s
   (`2 ** attempts`) until `max_attempts` (3), then the job is `failed`
-- `recover_stale()` puts `running` jobs whose worker vanished (locked more than 5 min
-  ago) back in the queue: that's what makes "kill the worker, start it again" work
+- `recover_stale()` puts `running` jobs whose worker vanished back in the queue: jobs
+  locked more than 5 min ago, and jobs locked under the starting worker's own id (an
+  earlier life of the same worker, e.g. the same container restarted). That's what makes
+  "kill the worker, start it again" work
 
 The claim is one statement:
 
@@ -27,7 +29,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import Job, JobStatus, JobType
@@ -101,11 +103,18 @@ def mark_failed(session: Session, job: Job, error: str, now: datetime) -> bool:
     return retry
 
 
-def recover_stale(session: Session, now: datetime) -> int:
-    """Put jobs left `running` by a dead worker back in the queue. Returns how many."""
+def recover_stale(session: Session, now: datetime, own_id: str | None = None) -> int:
+    """Put jobs left `running` by a dead worker back in the queue. Returns how many.
+
+    `own_id`: the worker starting up. Jobs locked under its id belong to an earlier run
+    of it that died (it isn't running anything yet), so they don't wait the 5 minutes.
+    """
+    dead = Job.locked_at < now - STALE_AFTER
+    if own_id is not None:
+        dead = or_(dead, Job.locked_by == own_id)
     stmt = (
         update(Job)
-        .where(Job.status == JobStatus.RUNNING, Job.locked_at < now - STALE_AFTER)
+        .where(Job.status == JobStatus.RUNNING, dead)
         .values(status=JobStatus.QUEUED, locked_at=None, locked_by=None, run_after=now)
         .execution_options(synchronize_session=False)
     )
