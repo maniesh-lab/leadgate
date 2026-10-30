@@ -6,48 +6,12 @@ The campaign's source is the two-lead CSV file from `tests/unit/conftest.py`; th
 website, CRM and notifier are fakes. No network.
 """
 
-from datetime import UTC, datetime, timedelta
-
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db.models import AuditLog, Job, JobType
 from tests.agent_world import World, add_lead
-from tests.conftest import PASSWORD
-from tests.unit.conftest import Clock
-
-
-def run_jobs(worker, clock: Clock) -> int:
-    """Run every due job. The API stamps jobs with the real time, so catch the clock up."""
-    clock.now = max(clock.now, datetime.now(UTC) + timedelta(seconds=1))
-    return worker.run_until_idle()
-
-
-def login(client: TestClient, email: str) -> dict[str, str]:
-    response = client.post("/api/auth/login", data={"username": email, "password": PASSWORD})
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
-
-
-@pytest.fixture
-def started(client: TestClient, world: World, worker, clock, admin, reviewer) -> dict:
-    """A run started through the API and taken to the approval gate by the worker."""
-    as_admin = login(client, admin.email)
-    campaign = client.post(
-        "/api/campaigns",
-        json={
-            "name": "CSV dentists",
-            "niche": "dentist",
-            "location": "Austin, TX",
-            "sources": ["csv"],
-            "source_options": {"csv_path": world.campaign.source_options["csv_path"]},
-            "rubric_id": world.rubrics["general-b2b"].id,
-        },
-        headers=as_admin,
-    ).json()
-    run = client.post(f"/api/campaigns/{campaign['id']}/runs", headers=as_admin).json()
-    assert run_jobs(worker, clock) == 3  # start_run + 2 process_item
-    return {"campaign": campaign, "run": run, "as_admin": as_admin}
+from tests.unit.conftest import login, run_jobs
 
 
 def test_the_whole_flow_through_the_api(

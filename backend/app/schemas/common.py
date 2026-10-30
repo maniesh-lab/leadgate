@@ -1,4 +1,7 @@
-"""Shapes several route areas share: a page of results, and reading models from DB rows."""
+"""Shapes several route areas share: a page of results, reading models from DB rows, and
+a lead's review (its score breakdown)."""
+
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -16,3 +19,11 @@ class Page[T](BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class Review(BaseModel):
+    """Why the lead scored what it did, and what extraction couldn't prove (from its steps)."""
+
+    score_breakdown: list[dict[str, Any]] = []
+    score_explanation: str | None = None
+    extraction_issues: list[str] = []

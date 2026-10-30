@@ -28,11 +28,10 @@ from app.db.models import (
     StepStatus,
     User,
 )
-from app.schemas.common import Page
+from app.schemas.common import Page, Review
 from app.schemas.leads import LeadSummary
 from app.schemas.runs import (
     ApprovalOut,
-    Review,
     RunDetail,
     RunItemDetail,
     RunItemRow,

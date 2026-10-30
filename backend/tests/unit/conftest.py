@@ -3,6 +3,7 @@
 `world` is `tests.agent_world.World` with a two-lead CSV file as the campaign's only
 source; `worker` runs jobs with the real graph on the in-memory checkpointer and the
 fakes (website, LLM, CRM, notifier), on a `clock` the test moves by hand. No network.
+`started` is a run started through the API and taken to the approval gate by the worker.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,7 @@ from pathlib import Path
 
 import httpx2
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
@@ -18,6 +20,7 @@ from app.db.session import make_session_factory
 from app.worker.handlers import Deps
 from app.worker.main import Worker
 from tests.agent_world import World
+from tests.conftest import PASSWORD
 from tests.fake_web import SMILE, make_crawler
 
 CSV = f"""name,phone,website,category
@@ -74,3 +77,35 @@ def deps(world: World, engine: Engine, settings: Settings, clock: Clock) -> Deps
 @pytest.fixture
 def worker(deps: Deps) -> Worker:
     return Worker(deps, worker_id="test-worker")
+
+
+def run_jobs(worker, clock: Clock) -> int:
+    """Run every due job. The API stamps jobs with the real time, so catch the clock up."""
+    clock.now = max(clock.now, datetime.now(UTC) + timedelta(seconds=1))
+    return worker.run_until_idle()
+
+
+def login(client: TestClient, email: str) -> dict[str, str]:
+    response = client.post("/api/auth/login", data={"username": email, "password": PASSWORD})
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.fixture
+def started(client: TestClient, world: World, worker, clock, admin, reviewer) -> dict:
+    """A run started through the API and taken to the approval gate by the worker."""
+    as_admin = login(client, admin.email)
+    campaign = client.post(
+        "/api/campaigns",
+        json={
+            "name": "CSV dentists",
+            "niche": "dentist",
+            "location": "Austin, TX",
+            "sources": ["csv"],
+            "source_options": {"csv_path": world.campaign.source_options["csv_path"]},
+            "rubric_id": world.rubrics["general-b2b"].id,
+        },
+        headers=as_admin,
+    ).json()
+    run = client.post(f"/api/campaigns/{campaign['id']}/runs", headers=as_admin).json()
+    assert run_jobs(worker, clock) == 3  # start_run + 2 process_item
+    return {"campaign": campaign, "run": run, "as_admin": as_admin}

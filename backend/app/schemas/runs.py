@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.db.models import Decision, Route, RunItemStatus, RunStatus, RunTrigger, StepStatus
-from app.schemas.common import FromRow
+from app.schemas.common import FromRow, Review
 from app.schemas.leads import LeadSummary
 
 
@@ -70,14 +70,6 @@ class ApprovalOut(BaseModel):
     reviewer_id: int
     reviewer_email: str
     created_at: datetime
-
-
-class Review(BaseModel):
-    """Why the lead scored what it did, and what extraction couldn't prove (from its steps)."""
-
-    score_breakdown: list[dict[str, Any]] = []
-    score_explanation: str | None = None
-    extraction_issues: list[str] = []
 
 
 class RunItemDetail(BaseModel):
