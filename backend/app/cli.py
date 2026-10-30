@@ -1,7 +1,8 @@
 """Command-line tools, run from backend/ as `python -m app.cli <command>`.
 
 - `seed`: create the admin user (from ADMIN_EMAIL / ADMIN_PASSWORD) and the two rubrics
-- `fake-data --leads N [--seed S]`: insert N fake leads (demos, SQL phase)
+- `fake-data --leads N [--seed S] [--history]`: insert N fake leads (demos, SQL phase);
+  `--history` also gives every fake lead a run history (runs, steps, approvals, audit rows)
 - `ingest <file> [--mapping mapping.json]`: import leads from any CSV file
 - `collect --campaign <id>`: run the campaign's sources (osm, google_places, csv)
 - `enrich --lead <id> | --campaign <id> | --stale [--limit N] [--force]`: crawl the
@@ -32,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db.fake_data import insert_fake_leads
+from app.db.fake_history import insert_fake_history
 from app.db.models import Campaign, Lead, Run, RunItem, RunStep, StepStatus, User
 from app.db.seed import seed
 from app.db.session import make_engine, make_session_factory
@@ -65,8 +67,11 @@ def cmd_fake_data(settings: Settings, args: argparse.Namespace) -> int:
     engine = make_engine(settings.database_url)
     with make_session_factory(engine)() as session:
         inserted = insert_fake_leads(session, args.leads, seed=args.seed)
+        print(f"inserted {inserted} fake leads")
+        if args.history:
+            counts = insert_fake_history(session, seed=args.seed)
+            print(f"history: {counts.summary()}")
     engine.dispose()
-    print(f"inserted {inserted} fake leads")
     return 0
 
 
@@ -288,6 +293,11 @@ def build_parser() -> argparse.ArgumentParser:
     fake_parser = commands.add_parser("fake-data", help="insert fake leads for demos and tests")
     fake_parser.add_argument("--leads", type=int, required=True, help="how many leads to add")
     fake_parser.add_argument("--seed", type=int, help="random seed, for the same leads every time")
+    fake_parser.add_argument(
+        "--history",
+        action="store_true",
+        help="also add runs, steps, approvals and audit rows for every fake lead",
+    )
     fake_parser.set_defaults(handler=cmd_fake_data)
 
     ingest_parser = commands.add_parser("ingest", help="import leads from a CSV file")
