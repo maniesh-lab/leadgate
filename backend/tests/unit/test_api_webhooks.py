@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.config import Settings
-from app.db.models import AuditLog, Campaign, Job, JobStatus, JobType, Run, RunTrigger
+from app.db.models import AuditLog, Campaign, Job, JobStatus, JobType, Lead, Run, RunTrigger
 from app.services.n8n import SECRET_HEADER
 from tests.agent_world import World
 from tests.fake_web import SMILE
@@ -147,6 +147,9 @@ def test_inline_leads_run_to_the_end_and_n8n_gets_the_summary(
     queue = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"]
     assert [item["lead"]["name"] for item in queue] == [lead["name"] for lead in LEADS[:2]]
     smile, barton = queue
+    # Barton went to the CRM in an earlier run; this run's summary must not claim that id.
+    world.db.get(Lead, barton["lead"]["id"]).crm_record_id = "rec-from-an-earlier-run"
+    world.db.commit()
     client.post(
         f"/api/run-items/{smile['run_item_id']}/decision",
         json={"decision": "approved"},
@@ -170,6 +173,7 @@ def test_inline_leads_run_to_the_end_and_n8n_gets_the_summary(
         ("Barton Creek Dentistry", "skip"),
     ]
     assert summary["leads"][0]["crm_record_id"] == "fake-crm-1"
+    assert summary["leads"][1]["crm_record_id"] is None
     assert "phone" not in summary["leads"][0]  # no contact details in the callback
     assert actions(world)[-1] == "run.callback_sent"
 

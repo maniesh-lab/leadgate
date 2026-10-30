@@ -20,7 +20,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import ActorType, Lead, Run, RunItem
+from app.db.models import ActorType, Lead, Route, Run, RunItem, RunItemStatus
 from app.services.audit import record
 
 log = structlog.get_logger(__name__)
@@ -83,9 +83,20 @@ def run_summary(session: Session, run: Run) -> dict[str, Any]:
                 # second look, "skip" = rejected; null = it failed or opted out first.
                 "route": item.route.value if item.route else None,
                 "score": item.score,
-                "crm_record_id": lead.crm_record_id,
+                "crm_record_id": crm_record_id(item, lead),
                 "error": item.error,
             }
             for item, lead in rows
         ],
     }
+
+
+def crm_record_id(item: RunItem, lead: Lead) -> str | None:
+    """The CRM record this item wrote, or None.
+
+    The id lives on the lead, so it can be from an earlier run of the same lead; it only
+    belongs to this item when the item went to the CRM (route `notify`) and finished.
+    """
+    if item.route == Route.NOTIFY and item.status == RunItemStatus.DONE:
+        return lead.crm_record_id
+    return None
