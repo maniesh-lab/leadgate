@@ -122,6 +122,19 @@ def test_bad_bodies_are_refused(client: TestClient, world: World, body: dict) ->
     assert response.json()["error"]["code"] == "validation_error"
 
 
+def test_more_than_500_leads_are_refused(client: TestClient, world: World) -> None:
+    body = {"campaign_id": world.campaign.id, "leads": [{"name": f"Lead {n}"} for n in range(501)]}
+    assert client.post(URL, json=body, headers=HEADERS).status_code == 422
+
+
+def test_a_new_campaign_needs_the_seeded_rubric(client: TestClient, world: World) -> None:
+    world.rubrics["general-b2b"].name = "renamed"
+    world.db.commit()
+    response = client.post(URL, json={"niche": "gym", "location": "Denver, CO"}, headers=HEADERS)
+    assert response.status_code == 409
+    assert "app.cli seed" in response.json()["error"]["message"]
+
+
 def test_unknown_and_archived_campaigns(client: TestClient, world: World) -> None:
     assert client.post(URL, json={"campaign_id": 999}, headers=HEADERS).status_code == 404
     world.campaign.is_archived = True

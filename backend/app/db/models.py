@@ -169,7 +169,7 @@ class Lead(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     source: Mapped[str]
     source_ref: Mapped[str]
-    # "osm:node/123", "google_places:<place_id>", "csv:<sha1>": unique per lead.
+    # "osm:node/123", "google_places:<place_id>", "csv:<sha1>", "n8n:<sha1>": unique per lead.
     source_key: Mapped[str] = mapped_column(unique=True)
     raw: Mapped[dict[str, Any]] = mapped_column(JSONType)
 
