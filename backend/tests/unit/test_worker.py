@@ -6,11 +6,13 @@ the campaign's only source is a small CSV file, so nothing touches the network. 
 `except Exception` and leaves the job `running`, exactly like a killed worker.
 """
 
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx2
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
@@ -30,6 +32,7 @@ from app.db.models import (
     UserRole,
 )
 from app.db.session import make_session_factory
+from app.main import create_app
 from app.services.approvals import decide
 from app.services.runs import create_run
 from app.worker import handlers
@@ -322,6 +325,22 @@ def test_open_worker_builds_a_worker_from_the_settings(settings: Settings, engin
 
     assert worker.id == "from-settings"
     assert worker.last_recover is not None
+
+
+def test_run_worker_in_api_runs_jobs_in_a_background_thread(world, settings) -> None:
+    world.campaign.sources = []  # nothing to collect: the start_run job completes the run
+    world.db.commit()
+    run = create_run(world.db, world.campaign, datetime.now(UTC))
+    settings = settings.model_copy(update={"run_worker_in_api": True})
+
+    with TestClient(create_app(settings)):
+        for _ in range(100):  # up to 5 s
+            world.db.expire_all()
+            if world.db.get(Run, run.id).status == RunStatus.COMPLETED:
+                break
+            time.sleep(0.05)
+
+    assert world.db.get(Run, run.id).status == RunStatus.COMPLETED
 
 
 def broken_llm(*_args, **_kwargs):

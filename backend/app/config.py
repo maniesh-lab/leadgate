@@ -2,7 +2,7 @@
 
 One `Settings` object holds every config value so the rest of the code never
 reads `os.environ` directly. `create_app()`, the CLI and Alembic's `env.py` call
-`get_settings()` (the worker will too, from Phase 6). Every key here must also be
+`get_settings()`, and so does the worker (`app.worker.main`). Every key here must also be
 listed in `.env.example`.
 """
 
@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     groq_api_key: str | None = Field(default=None, repr=False)
     openai_api_key: str | None = Field(default=None, repr=False)
+
+    # Run the job worker inside the API process (a background thread) instead of as its
+    # own `python -m app.worker` process: for free hosting with a single process.
+    run_worker_in_api: bool = False
 
 
 @lru_cache

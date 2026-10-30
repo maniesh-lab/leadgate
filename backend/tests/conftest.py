@@ -31,6 +31,7 @@ APP_ENV_VARS = [
     "LLM_MODEL",
     "GROQ_API_KEY",
     "OPENAI_API_KEY",
+    "RUN_WORKER_IN_API",
 ]
 
 
