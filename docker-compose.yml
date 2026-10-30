@@ -22,6 +22,10 @@ x-backend-env: &backend-env
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   # true = the api runs the worker loop too (then stop the worker service).
   RUN_WORKER_IN_API: ${RUN_WORKER_IN_API:-}
+  # Airtable CRM (all three empty = approved leads are kept in memory).
+  AIRTABLE_TOKEN: ${AIRTABLE_TOKEN:-}
+  AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+  AIRTABLE_TABLE: ${AIRTABLE_TABLE:-}
 
 services:
   db:

@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     # own `python -m app.worker` process: for free hosting with a single process.
     run_worker_in_api: bool = False
 
+    # The CRM approved leads go to (app/services/crm.py). All three set = Airtable;
+    # otherwise the worker keeps them in memory (FakeCRM).
+    airtable_token: str | None = Field(default=None, repr=False)
+    airtable_base_id: str | None = None  # "app…"
+    airtable_table: str | None = None  # the table's name or id ("tbl…")
+
 
 @lru_cache
 def get_settings() -> Settings:

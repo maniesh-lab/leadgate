@@ -39,6 +39,9 @@ APP_ENV_VARS = [
     "GROQ_API_KEY",
     "OPENAI_API_KEY",
     "RUN_WORKER_IN_API",
+    "AIRTABLE_TOKEN",
+    "AIRTABLE_BASE_ID",
+    "AIRTABLE_TABLE",
 ]
 # The password `add_user()` gives every test user.
 PASSWORD = "password-123"
