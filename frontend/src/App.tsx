@@ -11,11 +11,15 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth, RequireRole } from "./auth/guards";
 import { Layout } from "./components/Layout";
 import { EmptyState } from "./components/Page";
+import { AuditPage } from "./pages/AuditPage";
 import { CampaignsPage } from "./pages/CampaignsPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { LeadPage } from "./pages/LeadPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCampaignPage } from "./pages/NewCampaignPage";
+import { QueuePage } from "./pages/QueuePage";
+import { RubricsPage } from "./pages/RubricsPage";
 import { RunItemPage } from "./pages/RunItemPage";
 import { RunPage } from "./pages/RunPage";
 import { RunsPage } from "./pages/RunsPage";
@@ -28,7 +32,9 @@ export const routes: RouteObject[] = [
       {
         element: <Layout />,
         children: [
-          { index: true, element: <Navigate to="/campaigns" replace /> },
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: "dashboard", element: <DashboardPage /> },
+          { path: "queue", element: <QueuePage /> },
           { path: "campaigns", element: <CampaignsPage /> },
           {
             path: "campaigns/new",
@@ -43,6 +49,15 @@ export const routes: RouteObject[] = [
           { path: "run-items/:itemId", element: <RunItemPage /> },
           { path: "leads", element: <LeadsPage /> },
           { path: "leads/:leadId", element: <LeadPage /> },
+          { path: "audit", element: <AuditPage /> },
+          {
+            path: "settings/rubrics",
+            element: (
+              <RequireRole allowed="admin">
+                <RubricsPage />
+              </RequireRole>
+            ),
+          },
           { path: "*", element: <EmptyState title="Page not found." /> },
         ],
       },
@@ -54,9 +69,10 @@ export function makeQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // A 4xx answer won't change on a retry; a network hiccup might.
+        // A 4xx answer (or 501 "not implemented") won't change on a retry; a hiccup might.
         retry: (failures, error) =>
-          failures < 2 && !(error instanceof ApiError && error.status < 500),
+          failures < 2 &&
+          !(error instanceof ApiError && (error.status < 500 || error.status === 501)),
         refetchOnWindowFocus: false,
       },
     },

@@ -1,21 +1,28 @@
 /**
  * The frame around every logged-in page: a floating pill bar with the mark, the menu,
  * the admin's "New campaign" button, the theme switch and the user, then the page
- * itself (`<Outlet />`). Reviewers don't get the admin-only button.
+ * itself (`<Outlet />`) and the footer. Reviewers don't get the admin-only button or "Settings".
  */
 import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { ThemeToggle, Wordmark } from "./Brand";
+import { Footer } from "./Footer";
 import { LogOutIcon, PlusIcon } from "./icons";
 
+// Every logged-in user sees these; admins also get "Settings" (ADMIN_NAV).
 const NAV = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/queue", label: "Queue" },
   { to: "/campaigns", label: "Campaigns" },
   { to: "/runs", label: "Runs" },
   { to: "/leads", label: "Leads" },
+  { to: "/audit", label: "Audit" },
 ];
+const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings" }];
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const nav = user?.role === "admin" ? [...NAV, ...ADMIN_NAV] : NAV;
 
   return (
     <div className="min-h-screen">
@@ -24,12 +31,12 @@ export function Layout() {
           aria-label="Main"
           className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 rounded-3xl border border-line bg-surface/75 px-4 py-2.5 backdrop-blur-md sm:rounded-full"
         >
-          <Link to="/campaigns" aria-label="leadgate home">
+          <Link to="/dashboard" aria-label="leadgate home">
             <Wordmark />
           </Link>
 
           <div className="order-last -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:mx-auto sm:w-auto">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -58,7 +65,7 @@ export function Layout() {
               </Link>
             )}
             <ThemeToggle />
-            <div className="hidden text-right leading-tight lg:block">
+            <div className="hidden text-right leading-tight 2xl:block">
               <div className="text-xs font-medium">{user?.email}</div>
               <div className="eyebrow text-[10px]">{user?.role}</div>
             </div>
@@ -77,6 +84,7 @@ export function Layout() {
       <main className="mx-auto max-w-6xl px-4 pt-10 pb-16">
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 }

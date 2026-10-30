@@ -29,6 +29,18 @@ export type LeadDetail = Schemas["LeadDetail"];
 export type LeadStatus = Schemas["LeadStatus"];
 export type Review = Schemas["Review"];
 
+export type QueueItem = Schemas["QueueItem"];
+export type Decision = Schemas["Decision"];
+export type Approval = Schemas["ApprovalOut"];
+
+export type AuditRow = Schemas["AuditOut"];
+export type ActorType = Schemas["ActorType"];
+
+export type Rule = Schemas["Rule"];
+
+export type ReportName = Schemas["ReportName"];
+export type Report = Schemas["ReportOut"];
+
 /** Every list endpoint answers with one page: `?page=2&page_size=50` -> items 51-100. */
 export type Page<T> = {
   items: T[];
