@@ -17,6 +17,10 @@ provider that replays canned replies, so no request ever leaves the machine.
 
 Steadfast is async only and the agents are sync (like the DB layer), so `SteadfastLLM`
 keeps one event loop (`asyncio.Runner`) and runs each call on it.
+
+With Langfuse on, each `SteadfastLLM` call is a generation (prompt, answer, model,
+tokens) under the node's span (`app.observability.tracing`). It's opened here, outside
+the event loop, so it lands under the node that asked.
 """
 
 import asyncio
@@ -28,6 +32,7 @@ from pydantic import BaseModel
 from steadfast import SteadfastClient, SteadfastError, ValidationRetryExceeded
 
 from app.config import Settings
+from app.observability.tracing import Tracer
 
 DEFAULT_MODELS = {"groq": "openai/gpt-oss-20b", "openai": "gpt-4o-mini"}
 # Calls per minute: Groq's free tier allows 30 for the gpt-oss models (checked 2026-10-28).
@@ -102,9 +107,19 @@ class FakeLLM(LLM):
 class SteadfastLLM(LLM):
     """A real model behind Steadfast (retries, rate limit, validate-and-retry)."""
 
-    def __init__(self, client: SteadfastClient, provider: str, **params: Any) -> None:
+    def __init__(
+        self,
+        client: SteadfastClient,
+        provider: str,
+        *,
+        model: str | None = None,
+        tracer: Tracer | None = None,
+        **params: Any,
+    ) -> None:
         self.client = client
         self.provider = provider
+        self.model = model  # only for the trace
+        self.tracer = tracer or Tracer()
         # Sent with every request, e.g. max_tokens and temperature.
         self.params = params
         self._runner = asyncio.Runner()
@@ -127,12 +142,27 @@ class SteadfastLLM(LLM):
             max_attempts=MAX_ATTEMPTS,
             **self.params,
         )
-        try:
-            return self._runner.run(call)
-        except ValidationRetryExceeded as exc:
-            raise LLMError(str(exc), exc.errors) from exc
-        except SteadfastError as exc:
-            raise LLMError(f"the LLM call failed: {exc}", [str(exc)]) from exc
+        trace_input = {"system": system, "prompt": prompt}
+        with self.tracer.generation(schema.__name__, model=self.model, input=trace_input) as span:
+            used_before = self.tokens_used()
+            try:
+                answer = self._runner.run(call)
+            except ValidationRetryExceeded as exc:
+                span.error(str(exc))
+                raise LLMError(str(exc), exc.errors) from exc
+            except SteadfastError as exc:
+                span.error(str(exc))
+                raise LLMError(f"the LLM call failed: {exc}", [str(exc)]) from exc
+            used = [
+                now - before for now, before in zip(self.tokens_used(), used_before, strict=True)
+            ]
+            span.output(answer.model_dump(), usage={"input": used[0], "output": used[1]})
+            return answer
+
+    def tokens_used(self) -> tuple[int, int]:
+        """(input, output) tokens this provider has used so far (Steadfast keeps the count)."""
+        usage = self.client.usage.get(self.provider)
+        return (usage.input_tokens, usage.output_tokens) if usage else (0, 0)
 
     def close(self) -> None:
         self._runner.close()
@@ -164,8 +194,10 @@ def scripted_llm(replies: list[str]) -> tuple[SteadfastLLM, ScriptedProvider]:
     return SteadfastLLM(client, provider.name), provider
 
 
-def make_llm(settings: Settings) -> LLM:
+def make_llm(settings: Settings, tracer: Tracer | None = None) -> LLM:
     """The LLM for LLM_MODE. Raises ValueError when the mode's API key is missing.
+
+    `tracer` (the worker's) puts each real call in Langfuse; FakeLLM calls aren't traced.
 
     LLM_MODE=openai also needs the optional openai SDK (`pip install -e ".[openai]"`); the
     Docker image is built without it, so there it raises ImportError.
@@ -190,4 +222,6 @@ def make_llm(settings: Settings) -> LLM:
 
     client = SteadfastClient(max_retries=MAX_RETRIES)
     client.register(provider, rate=RATE_PER_MINUTE[settings.llm_mode], period=60)
-    return SteadfastLLM(client, provider.name, max_tokens=MAX_TOKENS, temperature=0)
+    return SteadfastLLM(
+        client, provider.name, model=model, tracer=tracer, max_tokens=MAX_TOKENS, temperature=0
+    )

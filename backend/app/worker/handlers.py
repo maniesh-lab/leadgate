@@ -45,6 +45,7 @@ from app.agents.state import AgentContext, utc_now
 from app.config import Settings
 from app.db.models import Approval, Job, JobType, Lead, Route, Run, RunItem, RunItemStatus
 from app.enrichment.crawler import Crawler
+from app.observability.tracing import Tracer
 from app.services.crm import CRMClient
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
@@ -66,6 +67,7 @@ class Deps:
     notifier: Notifier
     sources_client: httpx2.Client  # for OSM / Google Places
     callback_client: httpx2.Client  # for the n8n results callback
+    tracer: Tracer = field(default_factory=Tracer)  # tracing off unless Langfuse is set up
     now: Callable[[], datetime] = field(default=utc_now)
 
     def agent_context(self, session: Session) -> AgentContext:
@@ -76,6 +78,7 @@ class Deps:
             crm=self.crm,
             notifier=self.notifier,
             enrich_cache_days=self.settings.enrich_cache_days,
+            tracer=self.tracer,
             now=self.now,
         )
 

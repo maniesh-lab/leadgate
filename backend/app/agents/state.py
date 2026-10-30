@@ -5,7 +5,7 @@ reads what it needs and returns only the keys it changes; the checkpointer saves
 state after every node, so a crash resumes from the last finished node.
 
 `AgentContext` is what the nodes get besides the state: the DB session, the LLM,
-the crawler, the CRM and the notifier. It is *not* saved in checkpoints (it's live
+the crawler, the CRM, the notifier and the tracer. It is *not* saved in checkpoints (it's live
 objects, not data), so the caller passes it again on every run and resume:
 `graph.invoke(..., context=AgentContext(...))`.
 
@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.llm import LLM
 from app.enrichment.crawler import Crawler
+from app.observability.tracing import Tracer
 from app.services.crm import CRMClient
 from app.services.notify import Notifier
 
@@ -96,5 +97,7 @@ class AgentContext:
     crm: CRMClient
     notifier: Notifier
     enrich_cache_days: int = 14
+    # Langfuse spans per node (the default does nothing: tracing off).
+    tracer: Tracer = field(default_factory=Tracer)
     # Tests pass a fixed clock.
     now: Callable[[], datetime] = field(default=utc_now)

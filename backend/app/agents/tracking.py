@@ -21,6 +21,9 @@ Two special cases:
 `duration_ms` is the time this call spent in the node. For `approval_gate`,
 `finished_at - started_at` is how long the lead waited for a human.
 
+Each call is also a span in the item's Langfuse trace (`app.observability.tracing`,
+off without keys); the trace id is saved on the row as `trace_id`.
+
 Called by `app.agents.graph.build_graph()`. Without a `run_item_id` in the state (the
 manual scripts) the node just runs, untracked.
 """
@@ -84,26 +87,45 @@ def run_tracked(
         run_item_id=item_id, node=name, status=StepStatus.STARTED, started_at=context.now()
     )
     step.input = compact(dict(state))
+    step.trace_id = context.tracer.trace_id(state["thread_id"])
     session.add(step)
     session.commit()
     step_id = step.id
+    item = session.get(RunItem, item_id)
 
     started = time.perf_counter()
-    try:
-        update = call()
-    except GraphInterrupt:
+    trace = context.tracer.node(
+        name, thread_id=state["thread_id"], run_id=item.run_id if item else None, input=step.input
+    )
+    # The node's exception is kept and raised after the trace span is closed, so the
+    # span can tell a pause from a failure (tracing would count any exception as an error).
+    failure: BaseException | None = None
+    with trace as span:
+        try:
+            update = call()
+        except GraphInterrupt as exc:
+            failure = exc
+            span.output({"paused": "waiting for a human decision"})
+        except Exception as exc:
+            failure = exc
+            span.error(f"{type(exc).__name__}: {exc}")
+        else:
+            span.output(compact(dict(update)))
+
+    if isinstance(failure, GraphInterrupt):
         # The approval gate paused: not an error, the row stays open until the decision.
         audit(session, state, "approval.requested", name, {"score": state.get("score")})
         session.commit()
-        raise
-    except Exception as exc:
+        raise failure
+    if failure is not None:
         # Throw away the node's half-done changes, then record the failure on its own.
         session.rollback()
         step = session.get(RunStep, step_id)
-        finish(step, context, started, StepStatus.FAILED, error=f"{type(exc).__name__}: {exc}")
+        error = f"{type(failure).__name__}: {failure}"
+        finish(step, context, started, StepStatus.FAILED, error=error)
         audit(session, state, "node.failed", name, {"node": name, "error": step.error})
         session.commit()
-        raise
+        raise failure
 
     finish(step, context, started, StepStatus.COMPLETED, output=compact(dict(update)))
     audit(session, state, NODE_ACTIONS[name], name, step.output)

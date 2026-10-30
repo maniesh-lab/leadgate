@@ -35,6 +35,7 @@ from app.db.models import Job
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
 from app.observability.logging import configure_logging
+from app.observability.tracing import make_tracer
 from app.services.crm import make_crm
 from app.services.notify import make_notifier
 from app.sources.base import make_http_client
@@ -119,7 +120,9 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
         engine = make_engine(settings.database_url)
         stack.callback(engine.dispose)
         checkpointer = stack.enter_context(open_checkpointer(settings.database_url))
-        llm = make_llm(settings)
+        tracer = make_tracer(settings)
+        stack.callback(tracer.close)  # sends the last spans to Langfuse
+        llm = make_llm(settings, tracer)
         stack.callback(llm.close)
         crawler_client = stack.enter_context(make_crawler_client(settings.osm_user_agent))
         # Airtable, Discord and the n8n callback (same User-Agent and timeout as the sources).
@@ -137,6 +140,7 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
             notifier=make_notifier(settings, outbound_client),
             sources_client=stack.enter_context(make_http_client(settings.osm_user_agent)),
             callback_client=outbound_client,
+            tracer=tracer,
         )
         yield Worker(deps, worker_id)
 

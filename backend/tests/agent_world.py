@@ -20,6 +20,7 @@ from app.agents.runner import start_lead
 from app.agents.state import AgentContext, LeadState
 from app.db.models import Campaign, Lead, Run, RunItem, RunTrigger, ScoringRubric
 from app.db.seed import RUBRICS
+from app.observability.tracing import Tracer
 from app.services.crm import FakeCRM
 from app.services.notify import FakeNotifier
 from tests.fake_web import SMILE, SMILE_SITE, FakeWeb, make_crawler
@@ -63,6 +64,7 @@ class World:
     crm: FakeCRM = field(default_factory=FakeCRM)
     notifier: FakeNotifier = field(default_factory=FakeNotifier)
     checkpointer: InMemorySaver = field(default_factory=InMemorySaver)
+    tracer: Tracer = field(default_factory=Tracer)
 
     def __post_init__(self) -> None:
         self.rubrics = {}
@@ -97,6 +99,7 @@ class World:
             crawler=make_crawler(self.web),
             crm=self.crm,
             notifier=self.notifier,
+            tracer=self.tracer,
             now=lambda: NOW,
         )
 

@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     # leadgate sends it back with the results callback. Empty = the n8n webhook is off (503).
     n8n_webhook_secret: str | None = Field(default=None, min_length=32, repr=False)
 
+    # Langfuse tracing (app/observability/tracing.py): on only when both keys are set.
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = Field(default=None, repr=False)
+    # The Langfuse server; the SDK's own name for it (LANGFUSE_HOST is the old one).
+    langfuse_base_url: str = "https://cloud.langfuse.com"
+
 
 @lru_cache
 def get_settings() -> Settings:

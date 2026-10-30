@@ -31,6 +31,10 @@ x-backend-env: &backend-env
   DISCORD_ADMIN_WEBHOOK_URL: ${DISCORD_ADMIN_WEBHOOK_URL:-}
   # The n8n webhook + results callback (empty = the webhook answers 503).
   N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
+  # Langfuse tracing (both keys empty = off).
+  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+  LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+  LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
 
 services:
   db:
