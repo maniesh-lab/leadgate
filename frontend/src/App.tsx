@@ -11,6 +11,8 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth, RequireRole } from "./auth/guards";
 import { Layout } from "./components/Layout";
 import { CampaignsPage } from "./pages/CampaignsPage";
+import { LeadPage } from "./pages/LeadPage";
+import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCampaignPage } from "./pages/NewCampaignPage";
 import { RunItemPage } from "./pages/RunItemPage";
@@ -38,6 +40,8 @@ export const routes: RouteObject[] = [
           { path: "runs", element: <RunsPage /> },
           { path: "runs/:runId", element: <RunPage /> },
           { path: "run-items/:itemId", element: <RunItemPage /> },
+          { path: "leads", element: <LeadsPage /> },
+          { path: "leads/:leadId", element: <LeadPage /> },
           { path: "*", element: <p className="text-slate-600">Page not found.</p> },
         ],
       },
