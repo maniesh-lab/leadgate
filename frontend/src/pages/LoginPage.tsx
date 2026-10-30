@@ -3,6 +3,8 @@ import { type FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { describeError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { ThemeToggle, Wordmark } from "../components/Brand";
+import { ArrowRightIcon } from "../components/icons";
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -32,40 +34,55 @@ export function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow">
-        <h1 className="text-xl font-semibold">leadgate</h1>
-        <label className="block">
-          <span className="text-sm text-slate-600">Email</span>
-          <input
-            type="email"
-            required
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input mt-1"
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm text-slate-600">Password</span>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input mt-1"
-          />
-        </label>
-        {error && (
-          <p role="alert" className="text-sm text-red-700">
-            {error}
-          </p>
-        )}
-        <button type="submit" disabled={busy} className="btn-primary w-full">
-          {busy ? "Logging in…" : "Log in"}
-        </button>
-      </form>
+    <main className="flex min-h-screen flex-col px-4 py-6">
+      <div className="mx-auto flex w-full max-w-md items-center justify-between">
+        <Wordmark />
+        <ThemeToggle />
+      </div>
+
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-12">
+        <p className="eyebrow mb-4">Sign in</p>
+        <h1 className="text-5xl leading-tight font-semibold tracking-tight">
+          Welcome <span className="text-gradient">back</span>.
+        </h1>
+        <p className="mt-3 text-muted">
+          Agents find and score the leads. You decide what goes out.
+        </p>
+
+        <form onSubmit={submit} className="card mt-8 space-y-4">
+          <label className="block">
+            <span className="eyebrow text-[10px]">Email</span>
+            <input
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="input mt-1.5"
+            />
+          </label>
+          <label className="block">
+            <span className="eyebrow text-[10px]">Password</span>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input mt-1.5"
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-sm text-(--red)">
+              {error}
+            </p>
+          )}
+          <button type="submit" disabled={busy} className="btn-primary w-full py-2.5">
+            {busy ? "Logging in…" : "Log in"}
+            {!busy && <ArrowRightIcon />}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

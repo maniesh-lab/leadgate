@@ -9,11 +9,12 @@ import { useNavigate } from "react-router";
 import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
 import type { Campaign, CampaignCreate, SourceName } from "../api/types";
+import { PageHeader } from "../components/Page";
 
-const SOURCES: { name: SourceName; label: string }[] = [
-  { name: "osm", label: "OpenStreetMap (free, no key)" },
-  { name: "google_places", label: "Google Places (needs GOOGLE_PLACES_API_KEY)" },
-  { name: "csv", label: "CSV file on the worker's disk" },
+const SOURCES: { name: SourceName; title: string; hint: string }[] = [
+  { name: "osm", title: "OpenStreetMap", hint: "Free, no key. The default." },
+  { name: "google_places", title: "Google Places", hint: "Needs GOOGLE_PLACES_API_KEY." },
+  { name: "csv", title: "CSV file", hint: "Your own list, on the worker's disk." },
 ];
 
 type Form = {
@@ -105,9 +106,17 @@ export function NewCampaignPage() {
   const error = formError ?? (create.error ? describeError(create.error) : null);
 
   return (
-    <section className="max-w-xl">
-      <h1 className="mb-4 text-lg font-semibold">New campaign</h1>
-      <form onSubmit={submit} className="card space-y-4">
+    <section className="max-w-2xl">
+      <PageHeader
+        eyebrow="Pipeline · new"
+        title={
+          <>
+            New <span className="text-gradient">campaign</span>
+          </>
+        }
+        subtitle="Tell the agents what to look for and where. Nothing runs until you press Start run."
+      />
+      <form onSubmit={submit} className="card space-y-6">
         <Field id="name" label="Name">
           <input id="name" required value={form.name} onChange={set("name")} className="input" />
         </Field>
@@ -133,17 +142,27 @@ export function NewCampaignPage() {
         </div>
 
         <fieldset>
-          <legend className="text-sm text-slate-600">Sources</legend>
-          {SOURCES.map((source) => (
-            <label key={source.name} className="mt-1 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.sources.includes(source.name)}
-                onChange={() => toggleSource(source.name)}
-              />
-              {source.label}
-            </label>
-          ))}
+          <legend className="eyebrow mb-2 text-[10px]">Sources</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {SOURCES.map((source) => (
+              <label
+                key={source.name}
+                className="flex cursor-pointer gap-3 rounded-xl border border-line p-3 transition-colors hover:border-line-strong has-checked:border-accent/60 has-checked:bg-(--blue-bg)"
+              >
+                <input
+                  type="checkbox"
+                  aria-label={source.title}
+                  checked={form.sources.includes(source.name)}
+                  onChange={() => toggleSource(source.name)}
+                  className="mt-0.5 accent-accent"
+                />
+                <span>
+                  <span className="block text-sm font-semibold">{source.title}</span>
+                  <span className="block text-xs text-muted">{source.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </fieldset>
 
         <Field id="rubric" label="Scoring rubric">
@@ -218,11 +237,11 @@ export function NewCampaignPage() {
         )}
 
         {error && (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-(--red)">
             {error}
           </p>
         )}
-        <div className="flex gap-2">
+        <div className="flex gap-2 border-t border-line pt-5">
           <button type="submit" className="btn-primary" disabled={create.isPending}>
             {create.isPending ? "Creating…" : "Create campaign"}
           </button>
@@ -241,11 +260,11 @@ type FieldProps = { id: string; label: string; hint?: string; children: ReactNod
 function Field({ id, label, hint, children }: FieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="text-sm text-slate-600">
+      <label htmlFor={id} className="eyebrow text-[10px]">
         {label}
       </label>
-      <div className="mt-1">{children}</div>
-      {hint && <span className="text-xs text-slate-400">{hint}</span>}
+      <div className="mt-1.5">{children}</div>
+      {hint && <span className="mt-1 block text-xs text-faint">{hint}</span>}
     </div>
   );
 }

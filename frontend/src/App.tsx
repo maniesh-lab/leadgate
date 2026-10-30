@@ -10,6 +10,7 @@ import { ApiError } from "./api/client";
 import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth, RequireRole } from "./auth/guards";
 import { Layout } from "./components/Layout";
+import { EmptyState } from "./components/Page";
 import { CampaignsPage } from "./pages/CampaignsPage";
 import { LeadPage } from "./pages/LeadPage";
 import { LeadsPage } from "./pages/LeadsPage";
@@ -42,7 +43,7 @@ export const routes: RouteObject[] = [
           { path: "run-items/:itemId", element: <RunItemPage /> },
           { path: "leads", element: <LeadsPage /> },
           { path: "leads/:leadId", element: <LeadPage /> },
-          { path: "*", element: <p className="text-slate-600">Page not found.</p> },
+          { path: "*", element: <EmptyState title="Page not found." /> },
         ],
       },
     ],

@@ -13,21 +13,28 @@ export function Pagination({ page, pageSize, total, onPage }: Props) {
   const last = Math.min(page * pageSize, total);
 
   return (
-    <div className="mt-3 flex items-center gap-3 text-sm text-slate-600">
-      <span>
+    <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+      <span className="font-mono text-xs text-faint">
         {first}–{last} of {total}
       </span>
-      <button type="button" className="btn" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-        Previous
-      </button>
-      <button
-        type="button"
-        className="btn"
-        disabled={page >= lastPage}
-        onClick={() => onPage(page + 1)}
-      >
-        Next
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="btn px-3 py-1"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          className="btn px-3 py-1"
+          disabled={page >= lastPage}
+          onClick={() => onPage(page + 1)}
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }

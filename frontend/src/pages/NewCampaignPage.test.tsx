@@ -34,7 +34,7 @@ describe("NewCampaignPage", () => {
     await screen.findByRole("option", { name: "web-agency v2" });
     await userEvent.selectOptions(screen.getByLabelText("Scoring rubric"), "web-agency v2");
     await userEvent.type(screen.getByLabelText("Max results"), "20");
-    await userEvent.click(screen.getByLabelText("CSV file on the worker's disk"));
+    await userEvent.click(screen.getByLabelText("CSV file"));
     await userEvent.type(screen.getByLabelText("CSV path"), "/data/list.csv");
     await userEvent.click(screen.getByRole("button", { name: "Create campaign" }));
 

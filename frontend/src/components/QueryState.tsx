@@ -2,12 +2,20 @@
 import { describeError } from "../api/client";
 
 export function Loading() {
-  return <p className="text-sm text-slate-500">Loading…</p>;
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted">
+      <span className="size-2 animate-pulse rounded-full bg-accent" />
+      Loading…
+    </p>
+  );
 }
 
 export function ErrorMessage({ error }: { error: unknown }) {
   return (
-    <p role="alert" className="text-sm text-red-700">
+    <p
+      role="alert"
+      className="rounded-xl border border-(--red)/30 bg-(--red-bg) px-4 py-3 text-sm text-(--red)"
+    >
       {describeError(error)}
     </p>
   );

@@ -10,7 +10,8 @@ import { api, describeError } from "../api/client";
 import type { LeadDetail } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { Badge, FlagBadge, StatusBadge } from "../components/Badge";
-import { Fact } from "../components/Fact";
+import { ExternalIcon } from "../components/icons";
+import { EmptyState, Fact, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { ScoreReview } from "../components/ScoreReview";
 import { formatDateTime } from "../lib/format";
@@ -28,7 +29,7 @@ type Enrichment = {
 const SIGNALS: [key: string, label: string][] = [
   ["page_load_ok", "Home page loads"],
   ["https", "Uses https"],
-  ["mobile_viewport", "Mobile friendly (viewport)"],
+  ["mobile_viewport", "Mobile friendly"],
   ["has_form", "Contact or booking form"],
   ["copyright_year", "Latest copyright year"],
 ];
@@ -47,33 +48,49 @@ export function LeadPage() {
   const latest = data.history[0];
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">{data.name}</h1>
-        <StatusBadge status={data.status} />
-        {data.opt_out && <Badge tone="red">opted out</Badge>}
-        {data.flags.map((flag) => (
-          <FlagBadge key={flag} flag={flag} />
-        ))}
-        <OptOutButton lead={data} />
-      </div>
+    <section className="space-y-6">
+      <PageHeader
+        eyebrow={`Lead · ${data.category ?? data.source}`}
+        title={data.name}
+        subtitle={[data.address, data.city].filter(Boolean).join(" · ") || undefined}
+        actions={
+          <>
+            <StatusBadge status={data.status} />
+            {data.opt_out && <Badge tone="red">opted out</Badge>}
+            <OptOutButton lead={data} />
+          </>
+        }
+      />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="card grid grid-cols-2 gap-3 text-sm">
+      {data.flags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {data.flags.map((flag) => (
+            <FlagBadge key={flag} flag={flag} />
+          ))}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+        <div className="card grid content-start gap-5 sm:grid-cols-2">
           <Fact label="Phone" value={data.phone} />
           <Fact label="Email" value={data.email} />
           <Fact
             label="Website"
             value={
               data.website && (
-                <a href={data.website} target="_blank" rel="noreferrer" className="link">
+                <a
+                  href={data.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="link inline-flex items-center gap-1"
+                >
                   {data.website_domain ?? data.website}
+                  <ExternalIcon className="size-3" />
                 </a>
               )
             }
           />
           <Fact label="Category" value={data.category} />
-          <Fact label="Address" value={data.address} />
           <Fact
             label="Area / city / country"
             value={[data.area, data.city, data.country].filter(Boolean).join(", ")}
@@ -81,16 +98,23 @@ export function LeadPage() {
           <Fact
             label="Rating"
             value={
-              data.rating === null ? null : `${data.rating} (${data.review_count ?? 0} reviews)`
+              data.rating === null ? null : `${data.rating} ★ (${data.review_count ?? 0} reviews)`
             }
           />
           <Fact label="Business status" value={data.business_status} />
           <Fact label="Established" value={data.established_year} />
-          <Fact label="Services" value={data.services.join(", ")} />
-          <Fact label="Source" value={`${data.source}: ${data.source_ref}`} />
+          <div className="sm:col-span-2">
+            <Fact label="Services" value={data.services.join(", ")} />
+          </div>
+          <Fact
+            label="Source"
+            value={
+              <span className="font-mono text-xs">{`${data.source}: ${data.source_ref}`}</span>
+            }
+          />
           <Fact label="CRM record" value={data.crm_record_id} />
           <Fact label="First seen" value={formatDateTime(data.first_seen_at)} />
-          <Fact label="Enriched" value={formatDateTime(data.enriched_at)} />
+          <Fact label="Enriched" value={data.enriched_at && formatDateTime(data.enriched_at)} />
         </div>
         <ScoreReview review={data.review} score={latest?.score ?? data.score} />
       </div>
@@ -98,49 +122,54 @@ export function LeadPage() {
       <EnrichmentCard enrichment={enrichment} />
 
       <div>
-        <h2 className="mb-2 font-medium">History</h2>
+        <h2 className="mb-3 text-lg font-semibold">History</h2>
         {data.history.length === 0 ? (
-          <p className="text-sm text-slate-500">Not in any run yet.</p>
+          <EmptyState title="Not in any run yet." />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-slate-500">
+          <div className="card overflow-x-auto p-0">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 font-medium">Run</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Score</th>
-                  <th className="px-3 py-2 font-medium">Decision</th>
-                  <th className="px-3 py-2 font-medium">When</th>
+                  <th>Run</th>
+                  <th>Status</th>
+                  <th className="text-right">Score</th>
+                  <th>Decision</th>
+                  <th>When</th>
                 </tr>
               </thead>
               <tbody>
                 {data.history.map((item) => (
-                  <tr key={item.run_item_id} className="border-b border-slate-100 align-top">
-                    <td className="px-3 py-2">
-                      <Link to={`/run-items/${item.run_item_id}`} className="link">
+                  <tr key={item.run_item_id}>
+                    <td>
+                      <Link
+                        to={`/run-items/${item.run_item_id}`}
+                        className="link font-mono font-semibold"
+                      >
                         Run #{item.run_id}
                       </Link>
-                      <div className="text-xs text-slate-500">{item.campaign_name}</div>
+                      <div className="mt-0.5 text-xs text-muted">{item.campaign_name}</div>
                     </td>
-                    <td className="space-x-1 px-3 py-2">
-                      <StatusBadge status={item.status} />
-                      <StatusBadge status={item.route} />
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        <StatusBadge status={item.status} />
+                        <StatusBadge status={item.route} />
+                      </div>
                     </td>
-                    <td className="px-3 py-2">{item.score ?? "—"}</td>
-                    <td className="px-3 py-2">
+                    <td className="text-right font-semibold tabular-nums">{item.score ?? "—"}</td>
+                    <td>
                       {item.decision ? (
                         <>
-                          <StatusBadge status={item.decision} />{" "}
-                          <span className="text-slate-500">{item.reviewer_email}</span>
+                          <StatusBadge status={item.decision} />
+                          <div className="mt-1 text-xs text-muted">{item.reviewer_email}</div>
                           {item.reason && (
-                            <div className="text-xs text-slate-600">“{item.reason}”</div>
+                            <div className="mt-0.5 text-xs text-muted">“{item.reason}”</div>
                           )}
                         </>
                       ) : (
-                        "—"
+                        <span className="text-faint">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="whitespace-nowrap text-muted">
                       {formatDateTime(item.created_at)}
                     </td>
                   </tr>
@@ -157,54 +186,72 @@ export function LeadPage() {
 /** What the website visit found. Unknown signals show "—", never "no". */
 function EnrichmentCard({ enrichment }: { enrichment: Enrichment | null }) {
   if (!enrichment) {
-    return <p className="card text-sm text-slate-500">The website hasn't been visited yet.</p>;
+    return <EmptyState title="The website hasn't been visited yet." />;
   }
   const signals = enrichment.signals ?? {};
   const socials = Object.entries(enrichment.socials ?? {}).filter(([, url]) => url);
+  const pages = enrichment.pages ?? [];
 
   return (
-    <div className="card grid gap-4 text-sm md:grid-cols-3">
+    <div className="card grid gap-6 text-sm md:grid-cols-3">
       <div>
-        <h2 className="mb-1 font-medium">Website signals</h2>
-        <dl className="grid grid-cols-[1fr_auto] gap-x-3">
+        <h2 className="eyebrow mb-3">Website signals</h2>
+        <dl className="space-y-1.5">
           {SIGNALS.map(([key, label]) => (
-            <div key={key} className="contents">
-              <dt className="text-slate-600">{label}</dt>
-              <dd>{signalText(signals[key])}</dd>
+            <div key={key} className="flex justify-between gap-3">
+              <dt className="text-muted">{label}</dt>
+              <dd className={`font-medium ${signalTone(signals[key])}`}>
+                {signalText(signals[key])}
+              </dd>
             </div>
           ))}
         </dl>
       </div>
       <div>
-        <h2 className="mb-1 font-medium">Contacts found</h2>
-        <p className="text-slate-600">Emails: {enrichment.emails?.join(", ") || "none"}</p>
-        <p className="text-slate-600">Phones: {enrichment.phones?.join(", ") || "none"}</p>
-        <p className="text-slate-600">
-          Social:{" "}
-          {socials.length === 0
-            ? "none"
-            : socials.map(([name, url]) => (
-                <a
-                  key={name}
-                  href={url ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="link mr-2"
-                >
-                  {name}
-                </a>
-              ))}
-        </p>
+        <h2 className="eyebrow mb-3">Contacts found</h2>
+        <dl className="space-y-2">
+          <div>
+            <dt className="text-xs text-faint">Emails</dt>
+            <dd className="break-words">{enrichment.emails?.join(", ") || "none"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-faint">Phones</dt>
+            <dd>{enrichment.phones?.join(", ") || "none"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-faint">Social</dt>
+            <dd className="flex flex-wrap gap-x-3">
+              {socials.length === 0
+                ? "none"
+                : socials.map(([name, url]) => (
+                    <a
+                      key={name}
+                      href={url ?? undefined}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="link"
+                    >
+                      {name}
+                    </a>
+                  ))}
+            </dd>
+          </div>
+        </dl>
       </div>
-      <div>
-        <h2 className="mb-1 font-medium">Pages fetched</h2>
-        {(enrichment.pages ?? []).length === 0 ? (
-          <p className="text-slate-500">none (no website)</p>
+      <div className="min-w-0">
+        <h2 className="eyebrow mb-3">Pages fetched</h2>
+        {pages.length === 0 ? (
+          <p className="text-muted">none (no website)</p>
         ) : (
-          <ul className="space-y-0.5">
-            {enrichment.pages?.map((page) => (
-              <li key={page.url} className="truncate" title={page.url}>
-                {page.status ?? "—"} · {page.error ?? page.url}
+          <ul className="space-y-1.5">
+            {pages.map((page) => (
+              <li key={page.url} className="flex gap-2" title={page.url}>
+                <span
+                  className={`font-mono text-xs font-semibold ${page.status === 200 ? "text-(--green)" : "text-(--amber)"}`}
+                >
+                  {page.status ?? "—"}
+                </span>
+                <span className="truncate text-muted">{page.error ?? page.url}</span>
               </li>
             ))}
           </ul>
@@ -221,6 +268,12 @@ function signalText(value: boolean | number | null | undefined): string {
   return String(value);
 }
 
+function signalTone(value: boolean | number | null | undefined): string {
+  if (value === true) return "text-(--green)";
+  if (value === false) return "text-(--red)";
+  return "text-fg";
+}
+
 /** Admins only: wipe the lead's contact data for good (asks first). */
 function OptOutButton({ lead }: { lead: LeadDetail }) {
   const { user } = useAuth();
@@ -232,10 +285,10 @@ function OptOutButton({ lead }: { lead: LeadDetail }) {
 
   if (user?.role !== "admin" || lead.opt_out) return null;
   return (
-    <span className="ml-auto text-sm">
+    <span className="flex items-center gap-2 text-sm">
       <button
         type="button"
-        className="btn"
+        className="btn px-3 py-1.5 hover:border-(--red)/50 hover:text-(--red)"
         disabled={optOut.isPending}
         onClick={() => {
           if (window.confirm(`Wipe ${lead.name}'s contact data and never collect it again?`)) {
@@ -245,7 +298,7 @@ function OptOutButton({ lead }: { lead: LeadDetail }) {
       >
         Opt out
       </button>
-      {optOut.error && <span className="ml-2 text-red-700">{describeError(optOut.error)}</span>}
+      {optOut.error && <span className="text-(--red)">{describeError(optOut.error)}</span>}
     </span>
   );
 }

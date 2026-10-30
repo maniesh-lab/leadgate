@@ -1,7 +1,7 @@
 /**
- * Why a lead scored what it did: each rubric rule, whether it matched, and its points,
- * then the LLM's short explanation (written from this breakdown only) and anything
- * extraction couldn't prove. Used on the run item and lead pages.
+ * Why a lead scored what it did: the score in big type, each rubric rule with whether it
+ * matched and its points, then the LLM's short explanation (written from this breakdown
+ * only) and anything extraction couldn't prove. Used on the run item and lead pages.
  */
 import type { Review } from "../api/types";
 
@@ -14,33 +14,47 @@ export function ScoreReview({ review, score }: { review: Review; score: number |
   const rules = review.score_breakdown as Rule[];
 
   return (
-    <div className="card space-y-3 text-sm">
-      <h2 className="font-medium">Score: {score ?? "—"}</h2>
+    <div className="card space-y-4">
+      <div className="flex items-baseline justify-between">
+        <span className="eyebrow">Score</span>
+        <span>
+          <span className="text-gradient text-5xl leading-none">{score ?? "—"}</span>
+          <span className="ml-1 text-sm text-faint">/ 100</span>
+        </span>
+      </div>
       {rules.length === 0 ? (
-        <p className="text-slate-500">Not scored yet.</p>
+        <p className="text-sm text-muted">Not scored yet.</p>
       ) : (
-        <table className="w-full text-left">
-          <tbody>
-            {rules.map((rule) => (
-              <tr key={rule.rule} className={rule.hit ? "" : "text-slate-400"}>
-                <td className="w-6 py-0.5">{rule.hit ? "✓" : "✗"}</td>
-                <td className="py-0.5">
-                  {rule.rule}
-                  {rule.required && <span className="ml-1 text-xs">(required)</span>}
-                </td>
-                <td className="py-0.5 text-right tabular-nums">
-                  {rule.hit ? signed(rule.points) : `(${signed(rule.points)})`}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="space-y-1.5 text-sm">
+          {rules.map((rule) => (
+            <li key={rule.rule} className="flex items-center gap-3">
+              <span
+                className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                  rule.hit ? "bg-(--green-bg) text-(--green)" : "bg-surface-2 text-faint"
+                }`}
+              >
+                {rule.hit ? "✓" : "✗"}
+              </span>
+              <span className={rule.hit ? "font-medium" : "text-faint"}>
+                {rule.rule}
+                {rule.required && <span className="eyebrow ml-2 text-[9px]">required</span>}
+              </span>
+              <span
+                className={`ml-auto font-mono text-xs tabular-nums ${rule.hit ? "font-semibold text-(--green)" : "text-faint"}`}
+              >
+                {rule.hit ? signed(rule.points) : `(${signed(rule.points)})`}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
-      {review.score_explanation && <p className="text-slate-700">{review.score_explanation}</p>}
+      {review.score_explanation && (
+        <p className="border-t border-line pt-4 text-sm text-muted">{review.score_explanation}</p>
+      )}
       {review.extraction_issues.length > 0 && (
-        <div>
-          <h3 className="text-xs font-medium text-amber-800">What extraction couldn't prove</h3>
-          <ul className="list-inside list-disc text-amber-800">
+        <div className="rounded-xl bg-(--amber-bg) p-3 text-sm text-(--amber)">
+          <p className="font-semibold">What extraction couldn't prove</p>
+          <ul className="mt-1 list-inside list-disc">
             {review.extraction_issues.map((issue) => (
               <li key={issue}>{issue}</li>
             ))}

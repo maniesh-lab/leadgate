@@ -6,9 +6,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { api } from "../api/client";
-import { useAllCampaigns } from "../api/hooks";
 import type { Page, Run, RunStatus } from "../api/types";
 import { StatusBadge } from "../components/Badge";
+import { CampaignSelect } from "../components/CampaignSelect";
+import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
@@ -39,39 +40,33 @@ export function RunsPage() {
         status,
       }),
   });
-  const campaigns = useAllCampaigns();
 
   /** Change one filter (and go back to page 1), or the page. */
   function update(key: string, value: string) {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    if (key !== "page") next.delete("page");
-    setParams(next);
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      if (key !== "page") next.delete("page");
+      return next;
+    });
   }
 
   return (
     <section>
-      <h1 className="mb-4 text-lg font-semibold">Runs</h1>
-      <div className="mb-4 flex flex-wrap gap-3">
-        <select
-          aria-label="Campaign"
-          value={campaignId}
-          onChange={(e) => update("campaign_id", e.target.value)}
-          className="input w-auto"
-        >
-          <option value="">All campaigns</option>
-          {campaigns.data?.map((campaign) => (
-            <option key={campaign.id} value={campaign.id}>
-              {campaign.name}
-            </option>
-          ))}
-        </select>
+      <PageHeader
+        eyebrow="Activity"
+        title={<span className="text-gradient">Runs</span>}
+        subtitle="Each run collects a campaign's leads and takes every one through enrich, extract, check and score, up to a human's approval."
+      />
+
+      <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_220px]">
+        <CampaignSelect value={campaignId} onChange={(value) => update("campaign_id", value)} />
         <select
           aria-label="Status"
           value={status}
           onChange={(e) => update("status", e.target.value)}
-          className="input w-auto"
+          className="input"
         >
           <option value="">Any status</option>
           {STATUSES.map((s) => (
@@ -85,41 +80,51 @@ export function RunsPage() {
       {runs.isPending && <Loading />}
       {runs.error && <ErrorMessage error={runs.error} />}
       {runs.data && runs.data.items.length === 0 && (
-        <p className="text-sm text-slate-500">No runs match.</p>
+        <EmptyState
+          title="No runs match."
+          hint="Start one from a campaign, or loosen the filters."
+          action={
+            <Link to="/campaigns" className="btn">
+              Go to campaigns
+            </Link>
+          }
+        />
       )}
       {runs.data && runs.data.items.length > 0 && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-slate-500">
+          <div className="card overflow-x-auto p-0">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 font-medium">Run</th>
-                  <th className="px-3 py-2 font-medium">Campaign</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Trigger</th>
-                  <th className="px-3 py-2 font-medium">Leads</th>
-                  <th className="px-3 py-2 font-medium">Started</th>
-                  <th className="px-3 py-2 font-medium">Finished</th>
+                  <th>Run</th>
+                  <th>Campaign</th>
+                  <th>Status</th>
+                  <th>Trigger</th>
+                  <th className="text-right">Leads</th>
+                  <th>Started</th>
+                  <th>Finished</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.data.items.map((run) => (
-                  <tr key={run.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2">
-                      <Link to={`/runs/${run.id}`} className="link">
+                  <tr key={run.id}>
+                    <td>
+                      <Link to={`/runs/${run.id}`} className="link font-mono font-semibold">
                         #{run.id}
                       </Link>
                     </td>
-                    <td className="px-3 py-2">{run.campaign_name}</td>
-                    <td className="px-3 py-2">
+                    <td className="min-w-48 font-medium">{run.campaign_name}</td>
+                    <td>
                       <StatusBadge status={run.status} />
                     </td>
-                    <td className="px-3 py-2">{run.trigger}</td>
-                    <td className="px-3 py-2">{String(run.stats.run_items ?? "—")}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="font-mono text-xs text-muted">{run.trigger}</td>
+                    <td className="text-right font-semibold tabular-nums">
+                      {String(run.stats.run_items ?? "—")}
+                    </td>
+                    <td className="whitespace-nowrap text-muted">
                       {formatDateTime(run.started_at)}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="whitespace-nowrap text-muted">
                       {formatDateTime(run.finished_at)}
                     </td>
                   </tr>

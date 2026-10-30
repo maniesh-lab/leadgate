@@ -9,6 +9,8 @@ import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
 import type { Campaign, Page, Run } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
+import { PlayIcon } from "../components/icons";
+import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
@@ -42,47 +44,45 @@ export function CampaignsPage() {
 
   return (
     <section>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">{archived ? "Archived campaigns" : "Campaigns"}</h1>
-        <button
-          type="button"
-          className="link text-sm"
-          onClick={() => show({ archived: !archived })}
-        >
-          {archived ? "Show open campaigns" : "Show archived"}
-        </button>
-        {isAdmin && (
-          <Link to="/campaigns/new" className="btn-primary ml-auto">
-            New campaign
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        eyebrow={archived ? "Pipeline · archived" : "Pipeline"}
+        title={<span className="text-gradient">Campaigns</span>}
+        subtitle="What to look for, where, and which rubric scores it. Each run collects the leads again and sends them through the agents."
+        actions={
+          <button type="button" className="btn" onClick={() => show({ archived: !archived })}>
+            {archived ? "Show open" : "Show archived"}
+          </button>
+        }
+      />
 
       {campaigns.isPending && <Loading />}
       {campaigns.error && <ErrorMessage error={campaigns.error} />}
       {campaigns.data && campaigns.data.items.length === 0 && (
-        <p className="text-sm text-slate-500">No campaigns yet.</p>
+        <EmptyState
+          title={archived ? "No archived campaigns." : "No campaigns yet."}
+          hint={isAdmin ? "Create one: a niche, a city and a rubric." : "An admin creates them."}
+        />
       )}
       {campaigns.data && campaigns.data.items.length > 0 && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-slate-500">
+          <div className="card overflow-x-auto p-0">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 font-medium">Campaign</th>
-                  <th className="px-3 py-2 font-medium">Looks for</th>
-                  <th className="px-3 py-2 font-medium">Sources</th>
-                  <th className="px-3 py-2 font-medium">Rubric</th>
-                  <th className="px-3 py-2 font-medium">Created</th>
-                  <th className="px-3 py-2" />
+                  <th>Campaign</th>
+                  <th>Looks for</th>
+                  <th>Sources</th>
+                  <th>Rubric</th>
+                  <th>Created</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {campaigns.data.items.map((campaign) => (
-                  <tr key={campaign.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{campaign.name}</div>
-                      <div className="space-x-3 text-xs">
+                  <tr key={campaign.id}>
+                    <td className="min-w-56">
+                      <div className="font-semibold">{campaign.name}</div>
+                      <div className="mt-1 flex gap-3 text-xs">
                         <Link to={`/runs?campaign_id=${campaign.id}`} className="link">
                           Runs
                         </Link>
@@ -91,15 +91,29 @@ export function CampaignsPage() {
                         </Link>
                       </div>
                     </td>
-                    <td className="px-3 py-2">
-                      {campaign.niche} in {campaign.location}
+                    <td>
+                      <span className="font-medium">{campaign.niche}</span>
+                      <span className="text-muted"> in {campaign.location}</span>
                     </td>
-                    <td className="px-3 py-2">{campaign.sources.join(", ")}</td>
-                    <td className="px-3 py-2">{rubricName(campaign.rubric_id)}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        {campaign.sources.map((source) => (
+                          <span
+                            key={source}
+                            className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] text-muted"
+                          >
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="font-mono text-xs text-muted">
+                      {rubricName(campaign.rubric_id)}
+                    </td>
+                    <td className="whitespace-nowrap text-muted">
                       {formatDateTime(campaign.created_at)}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="text-right">
                       {isAdmin && !campaign.is_archived && <StartRunButton campaign={campaign} />}
                     </td>
                   </tr>
@@ -135,14 +149,15 @@ function StartRunButton({ campaign }: { campaign: Campaign }) {
     <div>
       <button
         type="button"
-        className="btn"
+        className="btn px-3 py-1.5 whitespace-nowrap"
         disabled={start.isPending}
         onClick={() => start.mutate()}
       >
+        <PlayIcon className="size-3.5 text-accent" />
         {start.isPending ? "Starting…" : "Start run"}
       </button>
       {start.error && (
-        <p role="alert" className="mt-1 text-xs text-red-700">
+        <p role="alert" className="mt-1 text-xs text-(--red)">
           {describeError(start.error)}
         </p>
       )}

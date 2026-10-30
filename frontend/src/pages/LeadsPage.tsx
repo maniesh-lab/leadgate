@@ -8,9 +8,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api } from "../api/client";
-import { useAllCampaigns } from "../api/hooks";
 import type { LeadRow, LeadStatus, Page } from "../api/types";
-import { Badge, FlagBadge, StatusBadge } from "../components/Badge";
+import { Badge, FlagBadge, ScoreMeter, StatusBadge } from "../components/Badge";
+import { CampaignSelect } from "../components/CampaignSelect";
+import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
 
@@ -52,7 +53,6 @@ export function LeadsPage() {
     queryFn: () => api.get<Page<LeadRow>>("/api/leads", { ...filters, page, page_size: PAGE_SIZE }),
     placeholderData: (previous) => previous, // keep the old rows while the next page loads
   });
-  const campaigns = useAllCampaigns();
 
   /** Change one filter (back to page 1), or the page. Empty = remove it from the URL. */
   function update(key: string, value: string) {
@@ -70,9 +70,13 @@ export function LeadsPage() {
 
   return (
     <section>
-      <h1 className="mb-4 text-lg font-semibold">Leads</h1>
+      <PageHeader
+        eyebrow="Pipeline"
+        title={<span className="text-gradient">Leads</span>}
+        subtitle="Every business the sources found, cleaned and scored by the agents. Filter, sort, and open one to see why it scored what it did."
+      />
 
-      <div className="card mb-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div className="card mb-4 grid gap-3 p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <SearchBox value={filters.q} onChange={(value) => update("q", value)} />
         <select
           aria-label="Status"
@@ -87,19 +91,10 @@ export function LeadsPage() {
             </option>
           ))}
         </select>
-        <select
-          aria-label="Campaign"
+        <CampaignSelect
           value={filters.campaign_id}
-          onChange={(e) => update("campaign_id", e.target.value)}
-          className="input"
-        >
-          <option value="">All campaigns</option>
-          {campaigns.data?.map((campaign) => (
-            <option key={campaign.id} value={campaign.id}>
-              {campaign.name}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => update("campaign_id", value)}
+        />
         <select
           aria-label="Flag"
           value={filters.flag}
@@ -138,7 +133,7 @@ export function LeadsPage() {
             value={filters.min_score}
             onChange={(v) => update("min_score", v)}
           />
-          <span className="text-slate-400">–</span>
+          <span className="text-faint">–</span>
           <ScoreInput
             label="Max score"
             value={filters.max_score}
@@ -160,7 +155,7 @@ export function LeadsPage() {
           ))}
         </select>
         {hasFilters && (
-          <button type="button" className="link text-left" onClick={() => setParams({})}>
+          <button type="button" className="link text-left text-sm" onClick={() => setParams({})}>
             Clear filters
           </button>
         )}
@@ -169,46 +164,57 @@ export function LeadsPage() {
       {leads.isPending && <Loading />}
       {leads.error && <ErrorMessage error={leads.error} />}
       {leads.data && leads.data.items.length === 0 && (
-        <p className="text-sm text-slate-500">No leads match.</p>
+        <EmptyState
+          title="No leads match."
+          hint={hasFilters ? "Try fewer filters." : "Start a run from a campaign to collect some."}
+        />
       )}
       {leads.data && leads.data.items.length > 0 && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-slate-500">
+          <div className="card overflow-x-auto p-0">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 font-medium">Lead</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Score</th>
-                  <th className="px-3 py-2 font-medium">Contact</th>
-                  <th className="px-3 py-2 font-medium">Area</th>
-                  <th className="px-3 py-2 font-medium">Flags</th>
+                  <th>Lead</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th>Contact</th>
+                  <th>Area</th>
+                  <th>Flags</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.data.items.map((lead) => (
-                  <tr key={lead.id} className="border-b border-slate-100 align-top last:border-0">
-                    <td className="px-3 py-2">
-                      <Link to={`/leads/${lead.id}`} className="link">
+                  <tr key={lead.id}>
+                    <td className="min-w-48">
+                      <Link to={`/leads/${lead.id}`} className="font-semibold hover:underline">
                         {lead.name}
                       </Link>
-                      <div className="text-xs text-slate-500">{lead.category ?? lead.source}</div>
+                      <div className="mt-0.5 font-mono text-[11px] text-faint">
+                        {lead.category ?? lead.source}
+                      </div>
                     </td>
-                    <td className="px-3 py-2">
+                    <td>
                       <StatusBadge status={lead.status} />
                     </td>
-                    <td className="px-3 py-2 tabular-nums">{lead.score ?? "—"}</td>
-                    <td className="space-x-1 px-3 py-2">
-                      {lead.email && <Badge tone="green">email</Badge>}
-                      {lead.phone && <Badge>phone</Badge>}
-                      {lead.website && <Badge>website</Badge>}
-                      {lead.opt_out && <Badge tone="red">opted out</Badge>}
+                    <td>
+                      <ScoreMeter score={lead.score} />
                     </td>
-                    <td className="px-3 py-2">{lead.area ?? lead.city ?? "—"}</td>
-                    <td className="space-x-1 px-3 py-2">
-                      {lead.flags.map((flag) => (
-                        <FlagBadge key={flag} flag={flag} />
-                      ))}
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        {lead.email && <Badge tone="green">email</Badge>}
+                        {lead.phone && <Badge>phone</Badge>}
+                        {lead.website && <Badge>website</Badge>}
+                        {lead.opt_out && <Badge tone="red">opted out</Badge>}
+                      </div>
+                    </td>
+                    <td className="text-muted">{lead.area ?? lead.city ?? "—"}</td>
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        {lead.flags.map((flag) => (
+                          <FlagBadge key={flag} flag={flag} />
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 ))}

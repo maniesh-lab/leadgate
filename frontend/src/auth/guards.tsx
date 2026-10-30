@@ -15,12 +15,14 @@ export function RequireAuth() {
   const { user, loading, error, logout } = useAuth();
   const location = useLocation();
 
-  if (loading) return <p className="p-8 text-slate-500">Loading…</p>;
+  if (loading) return <p className="p-8 text-sm text-muted">Loading…</p>;
   if (error) {
     return (
-      <div className="p-8">
-        <p className="text-red-700">Couldn't load your account: {describeError(error)}</p>
-        <button type="button" className="mt-4 underline" onClick={logout}>
+      <div className="mx-auto max-w-md p-8">
+        <p role="alert" className="text-(--red)">
+          Couldn't load your account: {describeError(error)}
+        </p>
+        <button type="button" className="btn mt-4" onClick={logout}>
           Log in again
         </button>
       </div>
@@ -34,7 +36,12 @@ export function RequireAuth() {
 export function RequireRole({ allowed, children }: { allowed: UserRole; children: ReactNode }) {
   const { user } = useAuth();
   if (user?.role !== allowed) {
-    return <p className="text-slate-600">This page is for {allowed}s only.</p>;
+    return (
+      <div className="rounded-2xl border border-dashed border-line-strong px-6 py-12 text-center">
+        <p className="font-medium">This page is for {allowed}s only.</p>
+        <p className="mt-1 text-sm text-muted">Ask an admin if you need it.</p>
+      </div>
+    );
   }
   return children;
 }
