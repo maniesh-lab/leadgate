@@ -36,7 +36,7 @@ from app.db.models import Campaign, Lead, Run, RunItem, RunStep, StepStatus, Use
 from app.db.seed import seed
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
-from app.services.approvals import NotAwaitingDecision, decide
+from app.services.approvals import LeadOptedOut, NotAwaitingDecision, decide
 from app.services.enrichment import CACHED, ENRICHED, campaign_leads, enrich_lead, stale_leads
 from app.services.ingestion import collect_campaign, ingest_source
 from app.services.privacy import opt_out_lead
@@ -224,7 +224,7 @@ def cmd_decide(settings: Settings, args: argparse.Namespace) -> int:
                 return 1
             try:
                 decide(session, args.item, reviewer, args.decision, args.reason, datetime.now(UTC))
-            except (ValueError, LookupError, NotAwaitingDecision) as exc:
+            except (ValueError, LookupError, NotAwaitingDecision, LeadOptedOut) as exc:
                 print(f"error: {exc}")
                 return 1
     finally:

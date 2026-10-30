@@ -21,7 +21,7 @@ from app.db.models import Campaign, Lead, Run, RunItem, RunItemStatus
 from app.schemas.common import Page
 from app.schemas.leads import LeadSummary
 from app.schemas.runs import ApprovalOut, DecisionIn, QueueItem
-from app.services.approvals import NotAwaitingDecision, decide
+from app.services.approvals import LeadOptedOut, NotAwaitingDecision, decide
 
 router = APIRouter(tags=["approvals"], responses=error_docs(401, 403))
 
@@ -69,13 +69,16 @@ def approval_queue(
 def decide_item(
     item_id: int, body: DecisionIn, reviewer: ReviewerUser, db: DbSession
 ) -> ApprovalOut:
-    """Approve or reject a waiting item (a rejection needs a reason). 409 if it isn't waiting."""
+    """Approve or reject a waiting item (a rejection needs a reason).
+
+    409 if the item isn't waiting, or if its lead opted out and this is an approval.
+    """
     # No lookup first: `decide()` loads the item itself, with the row lock.
     try:
         approval = decide(db, item_id, reviewer, body.decision, body.reason, datetime.now(UTC))
     except LookupError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"run item {item_id} not found") from exc
-    except NotAwaitingDecision as exc:
+    except (NotAwaitingDecision, LeadOptedOut) as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except ValueError as exc:  # e.g. a rejection without a reason
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc

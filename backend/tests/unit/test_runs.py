@@ -19,6 +19,7 @@ from app.db.models import (
     Campaign,
     Job,
     JobType,
+    Lead,
     Run,
     RunItem,
     RunItemStatus,
@@ -27,7 +28,7 @@ from app.db.models import (
     User,
     UserRole,
 )
-from app.services.approvals import NotAwaitingDecision, decide
+from app.services.approvals import LeadOptedOut, NotAwaitingDecision, decide
 from app.services.runs import collect_run, create_run, refresh_run_status
 from app.sources.base import SourceError
 
@@ -240,3 +241,17 @@ def test_decide_checks_the_input(db: Session, campaign, settings, no_network) ->
     db.commit()
     with pytest.raises(NotAwaitingDecision, match="pending"):
         decide(db, pending.id, user, "approved", None, NOW)
+
+
+def test_an_opted_out_lead_can_only_be_rejected(db: Session, campaign, settings, no_network):
+    run = collected_run(db, campaign, settings, no_network)
+    item = set_items(db, run, RunItemStatus.AWAITING_APPROVAL)[0]
+    db.get(Lead, item.lead_id).opt_out = True
+    db.commit()
+    user = reviewer(db)
+
+    with pytest.raises(LeadOptedOut):
+        decide(db, item.id, user, "approved", None, NOW)
+    assert db.get(RunItem, item.id).status == RunItemStatus.AWAITING_APPROVAL
+    decide(db, item.id, user, "rejected", "opted out", NOW)
+    assert db.get(RunItem, item.id).status == RunItemStatus.RESUMING
