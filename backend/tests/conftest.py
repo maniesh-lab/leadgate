@@ -18,7 +18,8 @@ import app.db.models  # noqa: F401  (importing it registers every table on Base.
 from app.auth.security import create_access_token, hash_password
 from app.config import Settings
 from app.db.base import Base
-from app.db.models import User, UserRole
+from app.db.models import ScoringRubric, User, UserRole
+from app.db.seed import WEB_AGENCY_RULES
 from app.db.session import make_engine, make_session_factory
 from app.main import create_app
 
@@ -99,6 +100,15 @@ def as_admin(admin: User) -> dict[str, str]:
 @pytest.fixture
 def as_reviewer(reviewer: User) -> dict[str, str]:
     return auth_headers(reviewer)
+
+
+@pytest.fixture
+def rubric(db: Session) -> ScoringRubric:
+    """The seeded web-agency rubric, v1."""
+    rubric = ScoringRubric(name="web-agency", version=1, rules=WEB_AGENCY_RULES)
+    db.add(rubric)
+    db.commit()
+    return rubric
 
 
 def add_user(db: Session, email: str, role: UserRole, password: str = PASSWORD) -> User:

@@ -52,6 +52,8 @@ def error_response(
 
 def code_for(status: int) -> str:
     """404 -> "not_found", 409 -> "conflict", ... (from the standard status names)."""
+    if status == 422:
+        return "validation_error"  # the same code as FastAPI's own field checks
     try:
         return HTTPStatus(status).phrase.lower().replace(" ", "_").replace("-", "_")
     except ValueError:
