@@ -10,7 +10,7 @@ A run's life (statuses from PLAN §6):
     failed      `start_run` gave up (e.g. every source failed three times)
 
 Each lead gets its own LangGraph thread, `run-<run id>-lead-<lead id>`. Called by the
-CLI (`start-run`), the worker's job handlers and, from Phase 7, the API.
+CLI (`start-run`), the worker's job handlers and the API (`POST /api/campaigns/{id}/runs`).
 """
 
 import uuid

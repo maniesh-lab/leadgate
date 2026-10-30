@@ -4,7 +4,7 @@
 
 1. lock the run item row (`SELECT ... FOR UPDATE`), so two reviewers can't both win
 2. check it is still `awaiting_approval` (else `NotAwaitingDecision`; the API turns that
-   into 409 in Phase 7)
+   into 409), and that an approved lead hasn't opted out (else `LeadOptedOut`, also 409)
 3. add the `approvals` row, set the item to `resuming`, add the audit row and a
    `resume_item` job
 4. commit
@@ -13,8 +13,9 @@ The unique `approvals.run_item_id` is the second guard: if two decisions ever go
 the lock, the database refuses the second one.
 
 The decision itself reaches the graph later: the worker's `resume_item` job reads the
-approval row and resumes the item's thread with it. Called by the CLI (`decide`) and,
-from Phase 7, the API.
+approval row and resumes the item's thread with it. Called by the CLI (`decide`) and the
+API (`POST /api/run-items/{id}/decision`, and the opt-out, which rejects the lead's
+waiting items).
 """
 
 from datetime import datetime
@@ -29,6 +30,7 @@ from app.db.models import (
     Approval,
     Decision,
     JobType,
+    Lead,
     Run,
     RunItem,
     RunItemStatus,
@@ -43,6 +45,14 @@ log = structlog.get_logger(__name__)
 
 class NotAwaitingDecision(Exception):
     """The item isn't waiting for a decision (already decided, or not at the gate yet)."""
+
+
+class LeadOptedOut(Exception):
+    """The lead opted out after it reached the gate: it can only be rejected.
+
+    Its thread's checkpoint still holds the contact data from before the opt-out, so an
+    approval would send that data to the CRM.
+    """
 
 
 def decide(
@@ -61,6 +71,10 @@ def decide(
     if item.status != RunItemStatus.AWAITING_APPROVAL:
         session.rollback()  # releases the lock
         raise NotAwaitingDecision(f"run item {run_item_id} is {item.status.value}")
+
+    if decision == Decision.APPROVED and session.get(Lead, item.lead_id).opt_out:
+        session.rollback()
+        raise LeadOptedOut(f"lead {item.lead_id} opted out; its item can only be rejected")
 
     run = session.get(Run, item.run_id)
     approval = Approval(

@@ -1,1 +1,2 @@
-"""Authentication: password hashing now; JWT and roles in Phase 7."""
+"""Authentication: password hashing and login tokens (`security.py`); roles are checked in
+`app.api.deps`."""

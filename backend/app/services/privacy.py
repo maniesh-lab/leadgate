@@ -7,7 +7,8 @@ city/area/country, rating, review state), so a later collect recognises the lead
 skips it (`app.services.ingestion`) and the crawler never visits it again
 (`app.services.enrichment`).
 
-Called by `python -m app.cli opt-out --lead <id>`; Phase 7 adds `DELETE /api/leads/{id}/data`.
+Called by `python -m app.cli opt-out --lead <id>` and `DELETE /api/leads/{id}/data` (which
+also writes a `lead.opted_out` audit row and rejects the lead's items waiting for approval).
 """
 
 from sqlalchemy.orm import Session

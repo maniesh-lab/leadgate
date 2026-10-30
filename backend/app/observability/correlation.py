@@ -3,7 +3,9 @@
 Reads `X-Request-ID` from the request (n8n or the frontend may send one) or makes
 a new UUID. The ID is bound into structlog's context so every log line during the
 request carries it, and it is echoed back in the `X-Request-ID` response header.
-Later phases pass it into job payloads, graph state and audit rows.
+Routes read it from `request.state.correlation_id`: a run started through the API
+keeps the request's id, which then follows it into job payloads, graph state, logs
+and audit rows.
 
 Registered by `create_app()`.
 """
@@ -34,6 +36,8 @@ async def correlation_id_middleware(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
     correlation_id = pick_correlation_id(request.headers.get(HEADER))
+    # Routes read it from here (e.g. to give a new run the request's id).
+    request.state.correlation_id = correlation_id
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
 

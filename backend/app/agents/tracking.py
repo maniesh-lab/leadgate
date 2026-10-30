@@ -49,7 +49,8 @@ NODE_ACTIONS = {
     "act": "lead.acted",
 }
 # Long values are cut in run_steps / audit rows (the website text alone is up to 20k chars).
-MAX_TEXT = 300
+# 500 keeps a whole score explanation (≤ 400 chars), which the API reads from the step.
+MAX_TEXT = 500
 MAX_ITEMS = 20
 
 Node = Callable[..., LeadState]
