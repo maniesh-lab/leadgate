@@ -7,8 +7,9 @@
 
 Every handler is safe to run twice: it first looks at where the item's thread is
 (`thread_status()`) and only does what is left. That's what lets a killed worker's job
-simply run again. Run item statuses are set here, from the graph's result, never by
-the nodes (PLAN §5).
+simply run again. The nodes never set run item statuses (PLAN §5): these handlers set
+them from the graph's result, apart from `pending` (new items, `collect_run()`) and
+`resuming` (a decision, `app.services.approvals.decide()`).
 
 `give_up()` runs when a job has failed `max_attempts` times: the item (or the run, for
 `start_run`) is marked failed with the error.

@@ -4,7 +4,7 @@
 # The backend services share one image and one set of settings.
 x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-leadgate}:${POSTGRES_PASSWORD:-leadgate}@db:5432/${POSTGRES_DB:-leadgate}
-  # Only `python -m app.cli seed` reads these (docker compose run --rm api python -m app.cli seed).
+  # Read by `python -m app.cli seed` (creates the admin) and `decide` (ADMIN_EMAIL = default reviewer).
   ADMIN_EMAIL: ${ADMIN_EMAIL:-}
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
   # Lead sources + website crawler (empty = the defaults / no Google source).

@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     )
 
     database_url: str
-    # The first admin, created by `python -m app.cli seed`. Only the seed command needs them.
+    # The first admin, created by `python -m app.cli seed`. `decide` also uses ADMIN_EMAIL as
+    # its default reviewer.
     admin_email: str | None = None
     # repr=False: never shown when the settings object is printed (e.g. in a traceback).
     admin_password: str | None = Field(default=None, repr=False)
