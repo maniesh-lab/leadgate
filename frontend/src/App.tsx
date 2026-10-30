@@ -69,9 +69,10 @@ export function makeQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // A 4xx answer won't change on a retry; a network hiccup might.
+        // A 4xx answer (or 501 "not implemented") won't change on a retry; a hiccup might.
         retry: (failures, error) =>
-          failures < 2 && !(error instanceof ApiError && error.status < 500),
+          failures < 2 &&
+          !(error instanceof ApiError && (error.status < 500 || error.status === 501)),
         refetchOnWindowFocus: false,
       },
     },
