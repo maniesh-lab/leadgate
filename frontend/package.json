@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc",
     "lint": "biome check .",
-    "fix": "biome check --write ."
+    "fix": "biome check --write .",
+    "gen:api": "npx --yes openapi-typescript@7.13.0 http://localhost:8000/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "react": "19.3.1",
