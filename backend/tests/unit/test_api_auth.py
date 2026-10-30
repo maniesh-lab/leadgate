@@ -168,3 +168,47 @@ def test_a_crash_uses_the_error_shape_without_details(settings) -> None:
         }
     }
     assert "secret internals" not in response.text
+
+
+# --- Slowing down password guessing ---
+
+
+def test_a_failed_login_leaves_an_audit_row(client: TestClient, db: Session, admin: User) -> None:
+    login(client, "admin@example.com", "nope-nope")
+    row = db.scalars(select(AuditLog).where(AuditLog.action == "auth.login_failed")).one()
+    assert (row.actor, row.entity_type, row.entity_id) == ("admin@example.com", "user", admin.id)
+    assert row.details == {"ip": "testclient"}
+
+
+def test_five_failures_lock_the_email_for_15_minutes(
+    client: TestClient, db: Session, admin: User
+) -> None:
+    for _ in range(5):
+        assert login(client, "admin@example.com", "nope-nope").status_code == 401
+
+    # Even the right password waits now: otherwise the guessing could go on.
+    locked = login(client, "admin@example.com", PASSWORD)
+    assert locked.status_code == 429
+    assert locked.json()["error"]["code"] == "too_many_requests"
+    assert locked.headers["Retry-After"] == "900"
+
+    # Another email from the same address isn't locked yet (its limit is 20).
+    add_user(db, "other@example.com", UserRole.REVIEWER)
+    assert login(client, "other@example.com", PASSWORD).status_code == 200
+
+
+def test_old_failures_dont_count(client: TestClient, db: Session, admin: User) -> None:
+    for _ in range(5):
+        login(client, "admin@example.com", "nope-nope")
+    for row in db.scalars(select(AuditLog).where(AuditLog.action == "auth.login_failed")):
+        row.occurred_at = datetime.now(UTC) - timedelta(minutes=16)
+    db.commit()
+
+    assert login(client, "admin@example.com", PASSWORD).status_code == 200
+
+
+def test_twenty_failures_from_one_address_lock_every_email(client: TestClient, admin: User) -> None:
+    for n in range(20):
+        login(client, f"guess{n}@example.com", "nope-nope")  # 1 try each: no email limit
+
+    assert login(client, "admin@example.com", PASSWORD).status_code == 429
