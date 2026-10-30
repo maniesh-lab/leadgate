@@ -17,6 +17,9 @@ dependencies = [
     "psycopg[binary]==3.3.6",
     "alembic==1.20.1",
     "pwdlib[argon2]==0.3.1",
+    "pyjwt==2.15.1",
+    # FastAPI needs it to read form bodies (the OAuth2 login form).
+    "python-multipart==0.0.32",
     "faker==40.43.0",
     "httpx2==2.16.0",
     "beautifulsoup4==4.15.0",
