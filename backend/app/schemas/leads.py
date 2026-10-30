@@ -37,6 +37,8 @@ class LeadRow(LeadSummary):
     enriched_at: datetime | None
     first_seen_at: datetime
     updated_at: datetime
+    # The flags of the lead's latest run item (flags live on run items, not leads).
+    flags: list[str] = []
 
 
 class LeadRunItem(BaseModel):

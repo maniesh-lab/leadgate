@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from contextlib import ExitStack, asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import add_error_handlers, error_docs
 from app.api.routes import (
@@ -80,6 +81,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="leadgate", version="0.1.0", description=DESCRIPTION, lifespan=lifespan)
     app.state.settings = settings
     app.middleware("http")(correlation_id_middleware)
+    if settings.cors_origin_list:
+        # Added last, so it runs first: a browser's preflight gets its answer before
+        # anything else looks at the request. The token travels in a header, not a cookie,
+        # so no credentials are allowed.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origin_list,
+            allow_methods=["*"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+            expose_headers=["X-Request-ID"],
+        )
     add_error_handlers(app)
     app.include_router(health.router, prefix="/api")
     for module in (

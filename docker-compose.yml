@@ -36,6 +36,8 @@ x-backend-env: &backend-env
   LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
   LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
   LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
+  # Browser origins allowed to call the API (empty = same origin only).
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
 
 services:
   db:

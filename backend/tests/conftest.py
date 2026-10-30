@@ -48,6 +48,7 @@ APP_ENV_VARS = [
     "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY",
     "LANGFUSE_BASE_URL",
+    "CORS_ORIGINS",
 ]
 # The password `add_user()` gives every test user.
 PASSWORD = "password-123"
