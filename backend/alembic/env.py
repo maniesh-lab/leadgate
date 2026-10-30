@@ -6,7 +6,7 @@ migration tests do), otherwise from `DATABASE_URL` via `app.config`.
 
 LangGraph's checkpoint tables are created by the checkpointer's own `.setup()`,
 not by Alembic, so `include_object` hides them from autogenerate; otherwise
-Alembic would try to drop them.
+Alembic would try to drop them. It also hides the Postgres-only indexes on SQLite.
 """
 
 from logging.config import fileConfig
@@ -15,9 +15,9 @@ from typing import Any
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-import app.db.models  # noqa: F401  (importing it registers every table on Base.metadata)
 from app.config import get_settings
 from app.db.base import Base, UTCDateTime
+from app.db.models import POSTGRES_ONLY_INDEXES  # (importing it registers every table)
 
 config = context.config
 
@@ -33,6 +33,9 @@ LANGGRAPH_TABLES = {"checkpoints", "checkpoint_blobs", "checkpoint_writes", "che
 def include_object(
     obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any
 ) -> bool:
+    if type_ == "index" and name in POSTGRES_ONLY_INDEXES:
+        # Only compared on Postgres; SQLite never gets them (see app/db/models.py).
+        return context.get_bind().dialect.name == "postgresql"
     return not (type_ == "table" and name in LANGGRAPH_TABLES)
 
 

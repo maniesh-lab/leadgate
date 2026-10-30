@@ -8,8 +8,10 @@ tables; unit tests create them straight from `Base.metadata` on SQLite.
 Status-like columns use the `StrEnum`s below and are stored as plain strings
 with a CHECK constraint (see `str_enum()` in `base.py`).
 
-Indexes: only unique keys and the two queue indexes are here. Phase 9 adds the
-rest after measuring them with EXPLAIN ANALYZE.
+Indexes: each one is backed by an EXPLAIN ANALYZE plan of the query it serves (the
+API's lists, the worker's claim, the check node's duplicate search, the reports); see
+`docs/sql-notes.md` and `scripts/sql_explain.py`. Indexes that were measured and didn't
+help are listed there too.
 """
 
 from datetime import datetime
@@ -17,6 +19,7 @@ from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import (
+    DDL,
     BigInteger,
     CheckConstraint,
     Float,
@@ -25,6 +28,7 @@ from sqlalchemy import (
     Integer,
     Text,
     UniqueConstraint,
+    event,
     false,
     func,
     text,
@@ -164,20 +168,29 @@ class Lead(Base):
     __table_args__ = (
         CheckConstraint("score IS NULL OR score BETWEEN 0 AND 100", name="score_range"),
         CheckConstraint("rating IS NULL OR rating BETWEEN 0 AND 5", name="rating_range"),
+        # `?q=` (name ILIKE '%...%'): a trigram index can serve a search inside the name.
+        # On SQLite (unit tests) this is a plain index; the pg_trgm part is Postgres-only.
+        Index(
+            "ix_leads_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     source: Mapped[str]
-    source_ref: Mapped[str]
+    # source_ref, phone and website_domain are indexed for the check node's duplicate search.
+    source_ref: Mapped[str] = mapped_column(index=True)
     # "osm:node/123", "google_places:<place_id>", "csv:<sha1>", "n8n:<sha1>": unique per lead.
     source_key: Mapped[str] = mapped_column(unique=True)
     raw: Mapped[dict[str, Any]] = mapped_column(JSONType)
 
     name: Mapped[str]
-    phone: Mapped[str | None]
+    phone: Mapped[str | None] = mapped_column(index=True)
     email: Mapped[str | None]
     website: Mapped[str | None]
-    website_domain: Mapped[str | None]
+    website_domain: Mapped[str | None] = mapped_column(index=True)
     address: Mapped[str | None]
     area: Mapped[str | None]
     city: Mapped[str | None]
@@ -197,12 +210,17 @@ class Lead(Base):
     enriched_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     score: Mapped[int | None]
+    # Indexed for `?status=` on the rare statuses (in_review, escalated); a common one is
+    # served by the first_seen_at index instead.
     status: Mapped[LeadStatus] = mapped_column(
-        str_enum(LeadStatus, "status"), default=LeadStatus.NEW
+        str_enum(LeadStatus, "status"), default=LeadStatus.NEW, index=True
     )
     crm_record_id: Mapped[str | None]
     opt_out: Mapped[bool] = mapped_column(server_default=false())
-    first_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
+    # The lead list's default sort (newest first).
+    first_seen_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, server_default=func.now(), index=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, server_default=func.now(), onupdate=func.now()
     )
@@ -249,7 +267,8 @@ class RunItem(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"))
-    lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id"))
+    # A lead's history; run_id needs no index of its own (unique (run_id, lead_id) has it first).
+    lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id"), index=True)
     thread_id: Mapped[str] = mapped_column(unique=True)
     status: Mapped[RunItemStatus] = mapped_column(
         str_enum(RunItemStatus, "status"), default=RunItemStatus.PENDING
@@ -271,6 +290,8 @@ class RunStep(Base):
     """One graph node executing for one run item (written by `@tracked_node`)."""
 
     __tablename__ = "run_steps"
+    # A run item's step timeline (and the reports' look-up of an item's gate step).
+    __table_args__ = (Index("ix_run_steps_run_item_id_started_at", "run_item_id", "started_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     run_item_id: Mapped[int] = mapped_column(ForeignKey("run_items.id"))
@@ -312,12 +333,17 @@ class AuditLog(Base):
     """
 
     __tablename__ = "audit_log"
+    # The audit log filtered by entity (one lead's or one item's story).
+    __table_args__ = (Index("ix_audit_log_entity_type_entity_id", "entity_type", "entity_id"),)
 
     # BIGINT on Postgres (this table grows fastest); SQLite only auto-increments INTEGER.
     id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer(), "sqlite"), primary_key=True
     )
-    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
+    # Newest first, and `?from=` / `?to=` time ranges.
+    occurred_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, server_default=func.now(), index=True
+    )
     actor_type: Mapped[ActorType] = mapped_column(str_enum(ActorType, "actor_type"))
     # A user's email, a node name ("score"), or "worker"
     actor: Mapped[str]
@@ -325,7 +351,7 @@ class AuditLog(Base):
     action: Mapped[str]
     entity_type: Mapped[str]
     entity_id: Mapped[int | None]
-    run_id: Mapped[int | None]
+    run_id: Mapped[int | None] = mapped_column(index=True)
     run_item_id: Mapped[int | None]
     details: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
     correlation_id: Mapped[str | None]
@@ -362,3 +388,18 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+# The lead list's `sort=-score` (best first, unscored last). A plain index on score read
+# backwards would put the unscored (NULL) leads first, so the index says DESC NULLS LAST.
+# Postgres-only: SQLite can't write NULLS LAST in an index (and has no need for it in tests).
+Index("ix_leads_score", Lead.score.desc().nulls_last()).ddl_if(dialect="postgresql")
+POSTGRES_ONLY_INDEXES = {"ix_leads_score"}
+
+# `ix_leads_name_trgm` needs the pg_trgm extension. The migration creates it; this makes
+# `Base.metadata.create_all()` (some Postgres tests) create it too.
+event.listen(
+    Base.metadata,
+    "before_create",
+    DDL("CREATE EXTENSION IF NOT EXISTS pg_trgm").execute_if(dialect="postgresql"),
+)
