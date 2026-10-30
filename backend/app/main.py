@@ -18,7 +18,7 @@ from contextlib import ExitStack, asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.errors import add_error_handlers
-from app.api.routes import auth, health, users
+from app.api.routes import auth, health, rubrics, users
 from app.config import Settings, get_settings
 from app.db.session import make_engine, make_session_factory
 from app.observability.correlation import correlation_id_middleware
@@ -54,6 +54,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.middleware("http")(correlation_id_middleware)
     add_error_handlers(app)
-    for module in (health, auth, users):
+    for module in (health, auth, users, rubrics):
         app.include_router(module.router, prefix="/api")
     return app
