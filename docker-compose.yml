@@ -1,5 +1,24 @@
-# Local stack. Phase 1: db + api. Later phases add migrate, worker and frontend.
+# Local stack: db + migrate (one-shot) + api + worker. Phase 10 adds the frontend.
 # Values come from .env (see .env.example); empty ones fall back to "leadgate".
+
+# The backend services share one image and one set of settings.
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-leadgate}:${POSTGRES_PASSWORD:-leadgate}@db:5432/${POSTGRES_DB:-leadgate}
+  # Only `python -m app.cli seed` reads these (docker compose run --rm api python -m app.cli seed).
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  # Lead sources + website crawler (empty = the defaults / no Google source).
+  OSM_USER_AGENT: ${OSM_USER_AGENT:-}
+  GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+  ENRICH_CACHE_DAYS: ${ENRICH_CACHE_DAYS:-}
+  ENRICH_MAX_PAGES: ${ENRICH_MAX_PAGES:-}
+  # The agents' LLM (empty = fake mode, no network).
+  LLM_MODE: ${LLM_MODE:-}
+  LLM_MODEL: ${LLM_MODEL:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  # true = the api runs the worker loop too (then stop the worker service).
+  RUN_WORKER_IN_API: ${RUN_WORKER_IN_API:-}
 
 services:
   db:
@@ -18,33 +37,42 @@ services:
       timeout: 3s
       retries: 10
 
-  api:
+  # Brings the schema up to date, then exits. api and worker wait for it.
+  migrate:
     build: ./backend
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-leadgate}:${POSTGRES_PASSWORD:-leadgate}@db:5432/${POSTGRES_DB:-leadgate}
-      # Only `python -m app.cli seed` reads these (docker compose run --rm api python -m app.cli seed).
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      # Read by `python -m app.cli collect` / `enrich` (empty = the defaults / no Google source).
-      OSM_USER_AGENT: ${OSM_USER_AGENT:-}
-      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
-      ENRICH_CACHE_DAYS: ${ENRICH_CACHE_DAYS:-}
-      ENRICH_MAX_PAGES: ${ENRICH_MAX_PAGES:-}
-      # The agents' LLM (empty = fake mode, no network).
-      LLM_MODE: ${LLM_MODE:-}
-      LLM_MODEL: ${LLM_MODEL:-}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    ports:
-      - "8000:8000"
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  api:
+    build: ./backend
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/ready')"]
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # Claims jobs from the jobs table and runs the agents (python -m app.worker).
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.worker"]
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # `docker compose stop` sends SIGTERM; the worker finishes its current job first
+    # (a website crawl + LLM calls can take a while), so give it time before SIGKILL.
+    stop_grace_period: 60s
 
 volumes:
   pgdata:

@@ -1,4 +1,4 @@
-# leadgate backend image (API now; the worker reuses it from Phase 6).
+# leadgate backend image: the api, the worker (`python -m app.worker`) and migrate use it.
 FROM python:3.14.8-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
