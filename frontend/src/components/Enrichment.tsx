@@ -1,7 +1,7 @@
 /**
- * What the website visit found for a lead: site signals, contacts, pages fetched. Used
- * on the lead page and in the approval queue's decision dialog (`compact` shows the
- * signals only, so the dialog stays short).
+ * What the website visit found for a lead: site signals, contacts, pages fetched.
+ * `EnrichmentCard` (all of it) is on the lead page; `SignalList` (the signals only, so
+ * the dialog stays short) is in the approval queue's decision dialog.
  */
 import { EmptyState } from "./Page";
 

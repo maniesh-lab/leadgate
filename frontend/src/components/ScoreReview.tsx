@@ -1,7 +1,8 @@
 /**
  * Why a lead scored what it did: the score in big type, each rubric rule with whether it
  * matched and its points, then the LLM's short explanation (written from this breakdown
- * only) and anything extraction couldn't prove. Used on the run item and lead pages.
+ * only) and anything extraction couldn't prove. Used on the run item and lead pages
+ * and in the approval queue's decision dialog.
  */
 import type { Review } from "../api/types";
 
