@@ -16,6 +16,7 @@ import { LeadPage } from "./pages/LeadPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCampaignPage } from "./pages/NewCampaignPage";
+import { QueuePage } from "./pages/QueuePage";
 import { RunItemPage } from "./pages/RunItemPage";
 import { RunPage } from "./pages/RunPage";
 import { RunsPage } from "./pages/RunsPage";
@@ -29,6 +30,7 @@ export const routes: RouteObject[] = [
         element: <Layout />,
         children: [
           { index: true, element: <Navigate to="/campaigns" replace /> },
+          { path: "queue", element: <QueuePage /> },
           { path: "campaigns", element: <CampaignsPage /> },
           {
             path: "campaigns/new",

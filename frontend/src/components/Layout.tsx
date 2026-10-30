@@ -9,6 +9,7 @@ import { ThemeToggle, Wordmark } from "./Brand";
 import { LogOutIcon, PlusIcon } from "./icons";
 
 const NAV = [
+  { to: "/queue", label: "Queue" },
   { to: "/campaigns", label: "Campaigns" },
   { to: "/runs", label: "Runs" },
   { to: "/leads", label: "Leads" },
