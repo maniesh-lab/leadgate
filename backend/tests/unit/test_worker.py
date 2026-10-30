@@ -7,13 +7,11 @@ the campaign's only source is a small CSV file, so nothing touches the network. 
 """
 
 import time
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from datetime import UTC, datetime
 
-import httpx2
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -31,75 +29,18 @@ from app.db.models import (
     User,
     UserRole,
 )
-from app.db.session import make_session_factory
 from app.main import create_app
 from app.services.approvals import decide
 from app.services.runs import create_run
 from app.worker import handlers
-from app.worker.handlers import Deps
 from app.worker.jobs import enqueue
 from app.worker.main import Worker, open_worker
 from tests.agent_world import World
-from tests.fake_web import SMILE, make_crawler
-
-CSV = f"""name,phone,website,category
-Smile Austin Dental,(512) 555-0142,{SMILE},dentist
-Barton Creek Dentistry,(512) 555-0199,,dentist
-"""
+from tests.unit.conftest import Clock
 
 
 class Crash(BaseException):
     """Stands in for the worker process being killed."""
-
-
-class Clock:
-    def __init__(self) -> None:
-        self.now = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
-
-    def __call__(self) -> datetime:
-        return self.now
-
-    def advance(self, seconds: float) -> None:
-        self.now += timedelta(seconds=seconds)
-
-
-@pytest.fixture
-def world(db: Session, tmp_path: Path) -> World:
-    world = World(db)
-    csv_path = tmp_path / "leads.csv"
-    csv_path.write_text(CSV)
-    world.campaign.sources = ["csv"]
-    world.campaign.source_options = {**world.campaign.source_options, "csv_path": str(csv_path)}
-    db.commit()
-    return world
-
-
-@pytest.fixture
-def clock() -> Clock:
-    return Clock()
-
-
-@pytest.fixture
-def deps(world: World, engine: Engine, settings: Settings, clock: Clock) -> Deps:
-    def refuse(request: httpx2.Request) -> httpx2.Response:
-        raise AssertionError(f"unexpected request to {request.url}")
-
-    return Deps(
-        settings=settings,
-        session_factory=make_session_factory(engine),
-        graph=world.graph,
-        llm=world.llm,
-        crawler=make_crawler(world.web),
-        crm=world.crm,
-        notifier=world.notifier,
-        sources_client=httpx2.Client(transport=httpx2.MockTransport(refuse)),
-        now=clock,
-    )
-
-
-@pytest.fixture
-def worker(deps: Deps) -> Worker:
-    return Worker(deps, worker_id="test-worker")
 
 
 def start(world: World, clock: Clock) -> Run:
