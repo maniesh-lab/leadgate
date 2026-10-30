@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db.models import AuditLog, Lead, LeadStatus, RunItemStatus
+from app.services.approvals import NotAwaitingDecision
 from tests.agent_world import World, add_lead
 from tests.unit.conftest import run_jobs
 
@@ -125,6 +126,23 @@ def test_lead_detail_after_a_decision(
         "approved",
         reviewer.email,
     )
+
+
+def test_opt_out_still_succeeds_when_a_reviewer_decided_first(
+    client: TestClient, world: World, started, monkeypatch
+) -> None:
+    def decided_a_moment_ago(*_args, **_kwargs):
+        raise NotAwaitingDecision("run item is resuming")
+
+    monkeypatch.setattr("app.api.routes.leads.decide", decided_a_moment_ago)
+    queue = client.get("/api/approvals/queue", headers=started["as_admin"]).json()
+    lead_id = queue["items"][0]["lead"]["id"]
+
+    response = client.delete(f"/api/leads/{lead_id}/data", headers=started["as_admin"])
+
+    assert response.status_code == 204
+    world.db.expire_all()
+    assert world.db.get(Lead, lead_id).opt_out is True
 
 
 def test_opt_out_wipes_the_lead_and_rejects_its_waiting_items(

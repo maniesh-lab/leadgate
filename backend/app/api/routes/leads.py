@@ -11,6 +11,7 @@ and rejects the lead's items still waiting at the approval gate: their checkpoin
 the old contact data, so they must never be approved (see `app.services.approvals`).
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -34,7 +35,7 @@ from app.db.models import (
 )
 from app.schemas.common import Page, Review
 from app.schemas.leads import LeadDetail, LeadRow, LeadRunItem
-from app.services.approvals import decide
+from app.services.approvals import NotAwaitingDecision, decide
 from app.services.audit import record
 from app.services.privacy import opt_out_lead
 
@@ -156,7 +157,9 @@ def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
         )
     ).all()
     for item_id in waiting:
-        decide(db, item_id, admin, "rejected", OPT_OUT_REASON, datetime.now(UTC))
+        # A reviewer may have decided it a moment ago; the opt-out still stands.
+        with suppress(NotAwaitingDecision):
+            decide(db, item_id, admin, "rejected", OPT_OUT_REASON, datetime.now(UTC))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
