@@ -26,6 +26,9 @@ x-backend-env: &backend-env
   AIRTABLE_TOKEN: ${AIRTABLE_TOKEN:-}
   AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
   AIRTABLE_TABLE: ${AIRTABLE_TABLE:-}
+  # Discord webhooks (empty = messages are only logged).
+  DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+  DISCORD_ADMIN_WEBHOOK_URL: ${DISCORD_ADMIN_WEBHOOK_URL:-}
 
 services:
   db:

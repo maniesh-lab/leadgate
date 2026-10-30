@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     airtable_base_id: str | None = None  # "app…"
     airtable_table: str | None = None  # the table's name or id ("tbl…")
 
+    # Discord webhooks (app/services/notify.py): the leads channel, and the admin channel
+    # for escalations (empty = escalations go to the leads channel too). No leads webhook =
+    # messages are only logged (FakeNotifier). repr=False: the URL holds the webhook's token.
+    discord_webhook_url: str | None = Field(default=None, repr=False)
+    discord_admin_webhook_url: str | None = Field(default=None, repr=False)
+
 
 @lru_cache
 def get_settings() -> Settings:
