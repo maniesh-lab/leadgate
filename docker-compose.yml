@@ -1,5 +1,6 @@
 # Local stack: db + migrate (one-shot) + api + worker. Phase 10 adds the frontend.
 # Values come from .env (see .env.example); empty ones fall back to "leadgate".
+# api + worker also join `leadnet`, the network shared with Switchyard's n8n (see below).
 
 # The backend services share one image and one set of settings.
 x-backend-env: &backend-env
@@ -66,6 +67,11 @@ services:
   api:
     build: ./backend
     environment: *backend-env
+    networks:
+      default:
+      leadnet:
+        # n8n starts runs at http://leadgate-api:8000/api/webhooks/n8n/runs
+        aliases: [leadgate-api]
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -82,6 +88,8 @@ services:
     build: ./backend
     command: ["python", "-m", "app.worker"]
     environment: *backend-env
+    # leadnet: the worker posts run results to n8n (http://n8n:5678/webhook/...).
+    networks: [default, leadnet]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -92,3 +100,11 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  default:
+  # Shared with Switchyard's n8n (its compose file marks it `external`). This file creates
+  # it when it's missing, so `docker compose up` works on a fresh clone; when it already
+  # exists (made by `docker network create leadnet`), compose warns once and uses it.
+  leadnet:
+    name: leadnet
