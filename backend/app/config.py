@@ -89,6 +89,15 @@ class Settings(BaseSettings):
     # The Langfuse server; the SDK's own name for it (LANGFUSE_HOST is the old one).
     langfuse_base_url: str = "https://cloud.langfuse.com"
 
+    # Websites allowed to call the API from a browser (CORS), comma-separated, e.g.
+    # "https://leadgate.example.com". Empty = none: the dashboard is served from the API's
+    # own address (the Vite dev server and nginx both pass `/api` through).
+    cors_origins: str = ""
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
