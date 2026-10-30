@@ -8,6 +8,7 @@ listed in `.env.example`.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,6 +47,14 @@ class Settings(BaseSettings):
     enrich_cache_days: int = Field(default=14, ge=0)
     # Pages fetched per website: the home page plus up to (this - 1) contact/about/... pages.
     enrich_max_pages: int = Field(default=4, ge=1)
+
+    # Which LLM the agents use (see app/agents/llm.py): "fake" answers without any network
+    # (tests, CI, offline demos), "groq" and "openai" call the real APIs through Steadfast.
+    llm_mode: Literal["fake", "groq", "openai"] = "fake"
+    # The model for groq/openai; empty = the default in app/agents/llm.py.
+    llm_model: str | None = None
+    groq_api_key: str | None = Field(default=None, repr=False)
+    openai_api_key: str | None = Field(default=None, repr=False)
 
 
 @lru_cache

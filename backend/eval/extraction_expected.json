@@ -1,0 +1,395 @@
+{
+  "niche": "dentist",
+  "location": "Austin, TX",
+  "how_to_check": "For each case compare expected with the lead's data (OSM tags + its website), fix what is wrong, then set checked to true. Services: treatments or service groups the site lists, at most 10; no payment, insurance or marketing wording; no duplicates. A founding year must be stated as one (\"since 1998\"), not a copyright or staff year.",
+  "cases": [
+    {
+      "source_key": "osm:node/564536984",
+      "name": "Smiles by Dentistry",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/863465762",
+      "name": "Omni Dental Group",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/1236793096",
+      "name": "Austin Dental Works",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/1249567757",
+      "name": "Castle Dental",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/1249567769",
+      "name": "Hammons Family Dental",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/1249568535",
+      "name": "Fastbraces",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/2527535401",
+      "name": "Lone Star Pediatric Dental",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/2663954886",
+      "name": "Tech Ridge Dental",
+      "website": "https://www.techridgedental.com/",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Preventive Dentistry",
+          "Comprehensive examinations",
+          "Dental cleanings",
+          "Fluoride treatments",
+          "Digital x-rays",
+          "Tooth sealants",
+          "Custom night guards",
+          "Athletic mouth guards",
+          "Restorative & Cosmetic Dentistry",
+          "Composite white fillings"
+        ]
+      },
+      "note": "2011 is only the copyright year (© 2011), not a founding year. The site's email is hidden by Cloudflare, so null."
+    },
+    {
+      "source_key": "osm:node/2728727105",
+      "name": "Castle Dental",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/2793750812",
+      "name": "Matthew Home Dentistry",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/2920762431",
+      "name": "Castle Dental",
+      "website": "https://www.castledental.com/dentist-near-me/austin-dentist/35080",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "General Dentistry",
+          "Dental Cleanings",
+          "Fillings",
+          "Dental Implants",
+          "Clear Aligners",
+          "Orthodontics",
+          "Emergency Dental Care",
+          "Cosmetic Dentistry"
+        ]
+      },
+      "note": "checked against the site text; all fields right."
+    },
+    {
+      "source_key": "osm:node/2992260019",
+      "name": "Central Texas Pediatric Dentistry",
+      "website": "https://www.ctpdkid.com/",
+      "checked": true,
+      "expected": {
+        "email": "ctpd@ctpdkid.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Pediatric Dental Checkups",
+          "Teeth Cleaning",
+          "Pediatric Dental Emergencies",
+          "Preventative & Diagnostic Services",
+          "Fillings",
+          "Fluoride Treatments",
+          "Silver Diamine Fluoride Treatment",
+          "Teeth Sealants",
+          "Mouth Guards",
+          "Sedation Dentistry"
+        ]
+      },
+      "note": "the site shows no email; ctpd@ctpdkid.com is the OSM tag."
+    },
+    {
+      "source_key": "osm:node/2992260020",
+      "name": "Dental Smiles Family and Cosmetic",
+      "website": "https://mydentalsmiles.com/",
+      "checked": true,
+      "expected": {
+        "email": "info@mydentalsmiles.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "General Dentistry",
+          "Restorative Dentistry",
+          "Dental Crowns",
+          "Cosmetic Dentistry",
+          "Dental Sedation",
+          "Emergency Dentistry",
+          "Same-Day Crowns",
+          "Laser Dentistry",
+          "Preventive Dentistry"
+        ]
+      },
+      "note": "dropped \"Sedation Dentistry\" (the same service as the menu's \"Dental Sedation\"). The \"since 2010\" lines are staff joining dates, so no founding year."
+    },
+    {
+      "source_key": "osm:node/3157298458",
+      "name": "Castle Dental",
+      "website": "https://www.castledental.com/",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Emergency Dental Care",
+          "Dental Implants",
+          "Teeth Whitening",
+          "Fillings",
+          "Curodont™",
+          "Dental Bridges",
+          "Dentures",
+          "Braces",
+          "Clear Aligners",
+          "Veneers"
+        ]
+      },
+      "note": "\"Curodont™ Dental Bridges\" was two menu items run together; split into \"Curodont™\" and \"Dental Bridges\" (first 10 of the menu kept). No addr:city tag, but the place is inside Austin, so city Austin."
+    },
+    {
+      "source_key": "osm:node/3825322745",
+      "name": "High Point Dentistry",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/3856445942",
+      "name": "Aloha Dental",
+      "website": "https://www.aloha-dental.com/",
+      "checked": true,
+      "expected": {
+        "email": "riverside@aloha-dental.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "General & Family Dentistry",
+          "Fluoride Treatment",
+          "Dental Cleanings",
+          "Dental Exams",
+          "Botox for TMJ",
+          "Emergency Dentistry",
+          "Restorative Dentistry",
+          "Root Canals",
+          "Dentures",
+          "Teeth Extractions"
+        ]
+      },
+      "note": "\"since 2012\" is a staff member, not the practice, so no founding year."
+    },
+    {
+      "source_key": "osm:node/3857696615",
+      "name": "Kunik Orthodontics",
+      "website": "https://www.kunikorthodontics.com/",
+      "checked": true,
+      "expected": {
+        "email": "contact@drkunik.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": 1991,
+        "services": [
+          "Invisalign",
+          "Braces",
+          "Hybrid",
+          "Retainers"
+        ]
+      },
+      "note": "1991 is right (\"since 1991\", \"opened his practice in 1991\"). Kept only treatments: dropped Free Consultation, Payment Plans, Insurance, the two financing items and \"Customized orthodontic treatment plans\" (marketing wording)."
+    },
+    {
+      "source_key": "osm:node/3876692988",
+      "name": "Canvas Dental",
+      "website": "https://canvasdental.com/",
+      "checked": true,
+      "expected": {
+        "email": "smile@canvasdental.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "the website did not load for the crawler; the email is the OSM tag."
+    },
+    {
+      "source_key": "osm:node/4966513023",
+      "name": "Austin Dental Center, PC",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/4966513024",
+      "name": "Brush 32 | Central Austin",
+      "website": null,
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "no website; only city, country and category to check."
+    }
+  ]
+}
