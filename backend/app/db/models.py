@@ -9,7 +9,7 @@ Status-like columns use the `StrEnum`s below and are stored as plain strings
 with a CHECK constraint (see `str_enum()` in `base.py`).
 
 Indexes: each one is backed by an EXPLAIN ANALYZE plan of the query it serves (the
-API's lists, the worker's claim, the check node's duplicate search, the reports); see
+API's lists, the worker's claim, the check node's duplicate search); see
 `docs/sql-notes.md` and `scripts/sql_explain.py`. Indexes that were measured and didn't
 help are listed there too.
 """
@@ -290,7 +290,7 @@ class RunStep(Base):
     """One graph node executing for one run item (written by `@tracked_node`)."""
 
     __tablename__ = "run_steps"
-    # A run item's step timeline (and the reports' look-up of an item's gate step).
+    # A run item's step timeline.
     __table_args__ = (Index("ix_run_steps_run_item_id_started_at", "run_item_id", "started_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -274,8 +274,8 @@ and reading most of a table is what a sequential scan is best at:
 
 - `daily_funnel` (30 of the 90 days): with `ix_audit_log_occurred_at` Postgres can use the
   index for the date range, but it still reads 161k rows and the time is the same (37.8 ms
-  either way). An index on `(action, occurred_at)` was not added: 4 of the ~15 actions are
-  still about 10% of the table.
+  either way). An index on `(action, occurred_at)` was not added: the report's 4 actions
+  are 48k of the window's 161k rows (about 30%), still too many for an index to win.
 - `reviewer_stats` first looked up each approval's gate step with a `LATERAL` subquery. With
   `ix_run_steps_run_item_id_started_at` that's fine, but **without it the query ran for
   minutes**: a scan of 320k steps for each of 49k approvals. It now groups the gate steps
@@ -294,5 +294,5 @@ and reading most of a table is what a sequential scan is best at:
   estimated total (`pg_class.reltuples`) or "next page" links instead of a total.
 - Every index slows down inserts a little. The busiest writer is the audit log (about 10 rows
   per lead), which now has 3 indexes besides its primary key. Loading 50k leads with their
-  whole history took 59 s before these indexes; the cost per row is still small next to an
-  LLM call per lead.
+  whole history (~1M rows) took 59 s without the new indexes and 57 s with them: building
+  the rows in Python is the slow part, and the extra index work doesn't show at this size.
