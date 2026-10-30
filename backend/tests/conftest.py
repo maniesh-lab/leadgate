@@ -27,6 +27,10 @@ APP_ENV_VARS = [
     "GOOGLE_PLACES_API_KEY",
     "ENRICH_CACHE_DAYS",
     "ENRICH_MAX_PAGES",
+    "LLM_MODE",
+    "LLM_MODEL",
+    "GROQ_API_KEY",
+    "OPENAI_API_KEY",
 ]
 
 
