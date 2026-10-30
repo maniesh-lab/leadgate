@@ -44,6 +44,7 @@ def list_rubrics(
 
 @router.get("/{rubric_id}", responses=error_docs(404))
 def get_rubric(rubric_id: int, _user: CurrentUser, db: DbSession) -> RubricOut:
+    """One rubric version and its rules."""
     return RubricOut.model_validate(get_or_404(db, ScoringRubric, rubric_id, "rubric"))
 
 

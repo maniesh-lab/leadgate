@@ -59,6 +59,7 @@ def list_campaigns(
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=error_docs(403, 422))
 def create_campaign(body: CampaignCreate, admin: AdminUser, db: DbSession) -> CampaignOut:
+    """A campaign: what to look for (niche), where, with which sources and rubric."""
     campaign = Campaign(
         name=body.name,
         niche=body.niche,
@@ -78,6 +79,7 @@ def create_campaign(body: CampaignCreate, admin: AdminUser, db: DbSession) -> Ca
 
 @router.get("/{campaign_id}", responses=error_docs(404))
 def get_campaign(campaign_id: int, _user: CurrentUser, db: DbSession) -> CampaignOut:
+    """One campaign."""
     return CampaignOut.model_validate(get_or_404(db, Campaign, campaign_id, "campaign"))
 
 

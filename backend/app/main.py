@@ -17,7 +17,7 @@ from contextlib import ExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.errors import add_error_handlers
+from app.api.errors import add_error_handlers, error_docs
 from app.api.routes import (
     approvals,
     audit,
@@ -34,6 +34,18 @@ from app.db.session import make_engine, make_session_factory
 from app.observability.correlation import correlation_id_middleware
 from app.observability.logging import configure_logging
 from app.worker.main import open_worker
+
+DESCRIPTION = """
+Agents find, enrich, clean and score leads; a human approves each one before it reaches
+the CRM.
+
+**Log in:** `POST /api/auth/login` with your email + password (or the Authorize button)
+gives a token; send it as `Authorization: Bearer <token>`. Admins manage users,
+campaigns and rubrics and start runs; reviewers (and admins) decide on queued leads.
+
+**Errors** always look like `{"error": {"code", "message", "details"}}`.
+**Lists** return `{items, total, page, page_size}` (`?page=1&page_size=50`).
+"""
 
 # How long the shutdown waits for the in-API worker to finish its current job.
 WORKER_STOP_SECONDS = 60
@@ -60,11 +72,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         app.state.engine.dispose()
 
-    app = FastAPI(title="leadgate", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="leadgate", version="0.1.0", description=DESCRIPTION, lifespan=lifespan)
     app.state.settings = settings
     app.middleware("http")(correlation_id_middleware)
     add_error_handlers(app)
-    routers = (health, auth, users, rubrics, campaigns, runs, approvals, leads, audit)
-    for module in routers:
-        app.include_router(module.router, prefix="/api")
+    app.include_router(health.router, prefix="/api")
+    for module in (auth, users, rubrics, campaigns, runs, approvals, leads, audit):
+        # 422 = our error shape, not FastAPI's default one (also in the OpenAPI docs).
+        app.include_router(module.router, prefix="/api", responses=error_docs(422))
     return app
