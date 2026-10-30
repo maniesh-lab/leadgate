@@ -1,6 +1,6 @@
 /**
  * Queries several pages share: the rubrics (to show "web-agency v1" instead of an id) and
- * every campaign (for the campaign filters). Both lists are small, so one page of 200
+ * every open campaign (for the campaign filters; archived ones aren't listed). Both lists are small, so one page of 200
  * holds them all.
  */
 import { useQuery } from "@tanstack/react-query";

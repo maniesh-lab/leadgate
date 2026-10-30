@@ -1,4 +1,4 @@
-/** "Showing 51–100 of 230" with previous / next buttons, under every paged list. */
+/** "51–100 of 230" with previous / next buttons, under every paged list. */
 
 type Props = {
   page: number;

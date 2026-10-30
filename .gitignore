@@ -16,7 +16,7 @@ dist/
 coverage.xml
 htmlcov/
 
-# Node (frontend, later phases)
+# Node (frontend)
 node_modules/
 frontend/dist/
 

@@ -90,8 +90,8 @@ class Settings(BaseSettings):
     langfuse_base_url: str = "https://cloud.langfuse.com"
 
     # Websites allowed to call the API from a browser (CORS), comma-separated, e.g.
-    # "https://leadgate.example.com". Empty = none: the dashboard is served from the API's
-    # own address (the Vite dev server and nginx both pass `/api` through).
+    # "https://leadgate.example.com". Empty = none: the dashboard reaches the API on its own
+    # address (the Vite dev server passes `/api` through; the frontend's nginx will too).
     cors_origins: str = ""
 
     @property
