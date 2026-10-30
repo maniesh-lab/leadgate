@@ -18,6 +18,7 @@ import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCampaignPage } from "./pages/NewCampaignPage";
 import { QueuePage } from "./pages/QueuePage";
+import { RubricsPage } from "./pages/RubricsPage";
 import { RunItemPage } from "./pages/RunItemPage";
 import { RunPage } from "./pages/RunPage";
 import { RunsPage } from "./pages/RunsPage";
@@ -47,6 +48,14 @@ export const routes: RouteObject[] = [
           { path: "leads", element: <LeadsPage /> },
           { path: "leads/:leadId", element: <LeadPage /> },
           { path: "audit", element: <AuditPage /> },
+          {
+            path: "settings/rubrics",
+            element: (
+              <RequireRole allowed="admin">
+                <RubricsPage />
+              </RequireRole>
+            ),
+          },
           { path: "*", element: <EmptyState title="Page not found." /> },
         ],
       },

@@ -93,12 +93,13 @@ describe("protected routes", () => {
 });
 
 describe("roles", () => {
-  it("shows admins the New campaign button in the menu bar and the Start run button", async () => {
+  it("shows admins New campaign and Settings in the menu bar, and the Start run button", async () => {
     fakeApi(campaignsApi(ADMIN));
     renderApp("/campaigns", { user: ADMIN });
 
     const nav = await screen.findByRole("navigation");
     expect(within(nav).getByRole("link", { name: "New campaign" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Settings" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Start run" })).toBeInTheDocument();
   });
 
@@ -109,6 +110,7 @@ describe("roles", () => {
     expect(await screen.findByText("Austin dentists")).toBeInTheDocument();
     const nav = screen.getByRole("navigation");
     expect(within(nav).queryByRole("link", { name: "New campaign" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Leads" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Start run" })).not.toBeInTheDocument();
   });

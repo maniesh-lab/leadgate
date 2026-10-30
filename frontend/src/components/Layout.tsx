@@ -1,13 +1,14 @@
 /**
  * The frame around every logged-in page: a floating pill bar with the mark, the menu,
  * the admin's "New campaign" button, the theme switch and the user, then the page
- * itself (`<Outlet />`). Reviewers don't get the admin-only button.
+ * itself (`<Outlet />`). Reviewers don't get the admin-only button or "Settings".
  */
 import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { ThemeToggle, Wordmark } from "./Brand";
 import { LogOutIcon, PlusIcon } from "./icons";
 
+// Every logged-in user sees these; admins also get "Settings" (ADMIN_NAV).
 const NAV = [
   { to: "/queue", label: "Queue" },
   { to: "/campaigns", label: "Campaigns" },
@@ -15,9 +16,11 @@ const NAV = [
   { to: "/leads", label: "Leads" },
   { to: "/audit", label: "Audit" },
 ];
+const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings" }];
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const nav = user?.role === "admin" ? [...NAV, ...ADMIN_NAV] : NAV;
 
   return (
     <div className="min-h-screen">
@@ -31,7 +34,7 @@ export function Layout() {
           </Link>
 
           <div className="order-last -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:mx-auto sm:w-auto">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
