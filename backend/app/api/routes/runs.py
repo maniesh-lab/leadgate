@@ -12,7 +12,7 @@ from collections.abc import Iterable
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DbSession, Paging, get_or_404, paginate
@@ -74,12 +74,7 @@ def get_run(run_id: int, _user: CurrentUser, db: DbSession) -> RunDetail:
     """The run, its items (in the order they were collected) and the count per status."""
     run = get_or_404(db, Run, run_id, "run")
     campaign = db.get(Campaign, run.campaign_id)
-    rows = db.execute(
-        select(RunItem, Lead.name)
-        .join(Lead, Lead.id == RunItem.lead_id)
-        .where(RunItem.run_id == run.id)
-        .order_by(RunItem.id)
-    ).all()
+    rows = db.execute(run_items_query(run.id)).all()
     items = [item_row(item, name) for item, name in rows]
     counts: dict[str, int] = {}
     for item in items:
@@ -92,11 +87,7 @@ def get_run_item(item_id: int, _user: CurrentUser, db: DbSession) -> RunItemDeta
     """One lead in one run: lead card, step timeline, score breakdown, decision."""
     item = get_or_404(db, RunItem, item_id, "run item")
     run = db.get(Run, item.run_id)
-    steps = db.scalars(
-        select(RunStep)
-        .where(RunStep.run_item_id == item.id)
-        .order_by(RunStep.started_at, RunStep.id)
-    ).all()
+    steps = db.scalars(steps_query(item.id)).all()
     return RunItemDetail(
         id=item.id,
         run_id=item.run_id,
@@ -115,6 +106,25 @@ def get_run_item(item_id: int, _user: CurrentUser, db: DbSession) -> RunItemDeta
         review=reviews_for(db, [item.id])[item.id],
         steps=[StepOut.model_validate(step) for step in steps],
         approval=approval_for(db, item.id),
+    )
+
+
+def run_items_query(run_id: int) -> Select[tuple[RunItem, str]]:
+    """A run's items in the order they were collected, with the lead's name."""
+    return (
+        select(RunItem, Lead.name)
+        .join(Lead, Lead.id == RunItem.lead_id)
+        .where(RunItem.run_id == run_id)
+        .order_by(RunItem.id)
+    )
+
+
+def steps_query(item_id: int) -> Select[tuple[RunStep]]:
+    """A run item's step timeline, oldest first."""
+    return (
+        select(RunStep)
+        .where(RunStep.run_item_id == item_id)
+        .order_by(RunStep.started_at, RunStep.id)
     )
 
 

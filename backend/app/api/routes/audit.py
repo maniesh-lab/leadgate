@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sqlalchemy import select
+from sqlalchemy import Select, select
 
 from app.api.deps import CurrentUser, DbSession, Paging, paginate
 from app.api.errors import error_docs
@@ -35,6 +35,35 @@ def list_audit(
     occurred_to: Annotated[datetime | None, Query(alias="to", description="before")] = None,
 ) -> Page[AuditOut]:
     """Audit rows, newest first."""
+    stmt = audit_query(
+        run_id=run_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        actor=actor,
+        action=action,
+        occurred_from=occurred_from,
+        occurred_to=occurred_to,
+    )
+    rows, total = paginate(db, stmt, paging)
+    return Page(
+        items=[AuditOut.model_validate(row) for (row,) in rows],
+        total=total,
+        page=paging.page,
+        page_size=paging.page_size,
+    )
+
+
+def audit_query(
+    *,
+    run_id: int | None = None,
+    entity_type: str | None = None,
+    entity_id: int | None = None,
+    actor: str | None = None,
+    action: str | None = None,
+    occurred_from: datetime | None = None,
+    occurred_to: datetime | None = None,
+) -> Select[tuple[AuditLog]]:
+    """The audit log's query (also measured by `scripts/sql_explain.py`)."""
     stmt = select(AuditLog).order_by(AuditLog.occurred_at.desc(), AuditLog.id.desc())
     filters = [
         (AuditLog.run_id, run_id),
@@ -50,13 +79,7 @@ def list_audit(
         stmt = stmt.where(AuditLog.occurred_at >= as_utc(occurred_from))
     if occurred_to is not None:
         stmt = stmt.where(AuditLog.occurred_at < as_utc(occurred_to))
-    rows, total = paginate(db, stmt, paging)
-    return Page(
-        items=[AuditOut.model_validate(row) for (row,) in rows],
-        total=total,
-        page=paging.page,
-        page_size=paging.page_size,
-    )
+    return stmt
 
 
 def as_utc(moment: datetime) -> datetime:
