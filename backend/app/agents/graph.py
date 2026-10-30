@@ -6,8 +6,9 @@
 `build_graph(checkpointer)` takes the checkpointer as an argument: tests pass
 LangGraph's `InMemorySaver`, and Phase 6 passes the Postgres one, so the same graph
 survives a crash there. Nodes get their helpers (DB session, LLM, crawler, CRM,
-notifier) from `AgentContext`, passed on every `invoke`. Use `app.agents.runner` to
-start and resume a lead instead of calling the graph directly.
+notifier) from `AgentContext`, passed on every `invoke`. Each node is wrapped by
+`app.agents.tracking.tracked_node()` (run_steps + audit rows). Use `app.agents.runner`
+to start and resume a lead instead of calling the graph directly.
 """
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -22,17 +23,24 @@ from app.agents.nodes.extract import extract
 from app.agents.nodes.route import after_route, route
 from app.agents.nodes.score import score
 from app.agents.state import AgentContext, LeadState
+from app.agents.tracking import tracked_node
+
+NODES = {
+    "enrich": enrich,
+    "extract": extract,
+    "check": check,
+    "score": score,
+    "approval_gate": approval_gate,
+    "route": route,
+    "act": act,
+}
 
 
 def build_graph(checkpointer: BaseCheckpointSaver) -> CompiledStateGraph:
     builder = StateGraph(LeadState, context_schema=AgentContext)
-    builder.add_node("enrich", enrich)
-    builder.add_node("extract", extract)
-    builder.add_node("check", check)
-    builder.add_node("score", score)
-    builder.add_node("approval_gate", approval_gate)
-    builder.add_node("route", route)
-    builder.add_node("act", act)
+    # Every node is wrapped, so each call on a run item leaves a run_steps + audit row.
+    for name, node in NODES.items():
+        builder.add_node(name, tracked_node(name, node))
 
     builder.add_edge(START, "enrich")
     builder.add_edge("enrich", "extract")
