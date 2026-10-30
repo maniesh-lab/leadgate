@@ -7,7 +7,8 @@ call on a run item it:
    so even a crash mid-node leaves a trace
 2. runs the node
 3. sets the row to `completed` (output, duration) or `failed` (error), adds an audit
-   row (`lead.enriched`, `lead.scored`, ... or `node.failed`), and commits
+   row (`lead.enriched`, `lead.scored`, ... or `node.failed`; plus `crm.written` when
+   `act` wrote the lead to the CRM), and commits
 
 Two special cases:
 - `approval_gate` pausing (LangGraph's `interrupt()` raises `GraphInterrupt`) is not a
@@ -106,6 +107,9 @@ def run_tracked(
 
     finish(step, context, started, StepStatus.COMPLETED, output=compact(dict(update)))
     audit(session, state, NODE_ACTIONS[name], name, step.output)
+    if name == "act" and update.get("crm_record_id"):
+        # Its own row too, so "what went to the CRM" is one audit filter away.
+        audit(session, state, "crm.written", name, {"crm_record_id": update["crm_record_id"]})
     session.commit()
     return update
 

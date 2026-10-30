@@ -73,7 +73,7 @@ def run_item(context: AgentContext, state: LeadState) -> RunItem | None:
 
 
 def crm_fields(state: LeadState) -> dict:
-    """The record the CRM gets (Phase 8 maps these onto the Airtable table's fields)."""
+    """The record the CRM gets (`AirtableCRM` maps these onto the table's fields)."""
     extracted = state["extracted"]
     return {
         "name": extracted["name"],

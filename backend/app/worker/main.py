@@ -35,8 +35,8 @@ from app.db.models import Job
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
 from app.observability.logging import configure_logging
-from app.services.crm import FakeCRM
-from app.services.notify import FakeNotifier
+from app.services.crm import make_crm
+from app.services.notify import make_notifier
 from app.sources.base import make_http_client
 from app.worker.handlers import HANDLERS, Deps, give_up
 from app.worker.jobs import claim_next, mark_done, mark_failed, recover_stale
@@ -125,6 +125,8 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
         llm = make_llm(settings)
         stack.callback(llm.close)
         crawler_client = stack.enter_context(make_crawler_client(settings.osm_user_agent))
+        # Airtable, Discord and the n8n callback (same User-Agent and timeout as the sources).
+        outbound_client = stack.enter_context(make_http_client(settings.osm_user_agent))
         deps = Deps(
             settings=settings,
             session_factory=make_session_factory(engine),
@@ -133,9 +135,9 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
             crawler=Crawler(
                 crawler_client, settings.osm_user_agent, max_pages=settings.enrich_max_pages
             ),
-            # Phase 8 swaps in the Airtable CRM and the Discord notifier.
-            crm=FakeCRM(),
-            notifier=FakeNotifier(),
+            # Airtable / Discord when their settings are set, else the in-memory fakes.
+            crm=make_crm(settings, outbound_client),
+            notifier=make_notifier(settings, outbound_client),
             sources_client=stack.enter_context(make_http_client(settings.osm_user_agent)),
         )
         yield Worker(deps, worker_id)
