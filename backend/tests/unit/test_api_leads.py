@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.db.models import AuditLog, Lead, LeadStatus, RunItemStatus
+from app.db.models import AuditLog, Lead, LeadStatus, Run, RunItem, RunItemStatus, RunTrigger
 from app.services.approvals import NotAwaitingDecision
 from tests.agent_world import World, add_lead
 from tests.unit.conftest import run_jobs
@@ -56,6 +56,29 @@ def test_filters(client: TestClient, world: World, as_reviewer) -> None:
     assert get("q=a_s") == ["Beta_Smiles 100%"]
     assert get("q=a%25s") == []
     assert get("has_email=true&q=delta") == ["Delta Orthodontics"]
+
+
+def test_list_shows_each_leads_latest_flags(client: TestClient, world: World, as_reviewer) -> None:
+    leads = leads_world(world)
+    newer_run = Run(
+        campaign_id=world.campaign.id, trigger=RunTrigger.MANUAL, rubric_id=world.campaign.rubric_id
+    )
+    world.db.add(newer_run)
+    world.db.commit()
+    world.db.add(
+        RunItem(run_id=newer_run.id, lead_id=leads["alpha"].id, thread_id="newer", flags=["closed"])
+    )
+    world.db.commit()
+
+    page = client.get("/api/leads?sort=name", headers=as_reviewer).json()
+    assert {lead["name"]: lead["flags"] for lead in page["items"]} == {
+        "Alpha Dental": ["closed"],  # from the newer run, not the first one
+        "Beta_Smiles 100%": ["closed"],
+        "Delta Orthodontics": [],  # never in a run
+        "Gamma Dental": [],
+    }
+    detail = client.get(f"/api/leads/{leads['alpha'].id}", headers=as_reviewer).json()
+    assert detail["flags"] == ["closed"]
 
 
 def test_bad_filters_are_refused(client: TestClient, world: World, as_reviewer) -> None:

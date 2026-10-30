@@ -85,8 +85,12 @@ def list_leads(
         sort=sort,
     )
     rows, total = paginate(db, stmt, paging)
+    flags = latest_flags(db, [lead.id for (lead,) in rows])
     return Page(
-        items=[LeadRow.model_validate(lead) for (lead,) in rows],
+        items=[
+            LeadRow.model_validate(lead).model_copy(update={"flags": flags.get(lead.id, [])})
+            for (lead,) in rows
+        ],
         total=total,
         page=paging.page,
         page_size=paging.page_size,
@@ -144,7 +148,8 @@ def get_lead(lead_id: int, _user: CurrentUser, db: DbSession) -> LeadDetail:
     if enrichment is not None:
         enrichment = {key: value for key, value in enrichment.items() if key != "text"}
     return LeadDetail(
-        **LeadRow.model_validate(lead).model_dump(),
+        **LeadRow.model_validate(lead).model_dump(exclude={"flags"}),
+        flags=history[0].flags if history else [],
         source_ref=lead.source_ref,
         services=lead.services or [],
         established_year=lead.established_year,
@@ -186,6 +191,19 @@ def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
         with suppress(NotAwaitingDecision):
             decide(db, item_id, admin, "rejected", OPT_OUT_REASON, datetime.now(UTC))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def latest_flags(db: Session, lead_ids: list[int]) -> dict[int, list[str]]:
+    """lead id -> the flags of its newest run item, for one page of the lead list."""
+    rows = db.execute(
+        select(RunItem.lead_id, RunItem.flags)
+        .where(RunItem.lead_id.in_(lead_ids))
+        .order_by(RunItem.lead_id, RunItem.created_at.desc(), RunItem.id.desc())
+    ).all()
+    flags: dict[int, list[str]] = {}
+    for lead_id, item_flags in rows:
+        flags.setdefault(lead_id, item_flags)  # the first row per lead is its newest
+    return flags
 
 
 def lead_history(db: Session, lead_id: int) -> list[LeadRunItem]:
