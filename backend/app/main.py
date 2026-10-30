@@ -1,6 +1,7 @@
 """FastAPI app factory.
 
-`create_app()` builds the app: logging, the DB engine, middleware and routers.
+`create_app()` builds the app: logging, the DB engine + session factory, middleware,
+the error handlers (one JSON error shape, see `app.api.errors`) and the routers.
 Uvicorn calls it with `--factory` (see the Dockerfile); tests call it directly
 with their own `Settings`, so nothing is created at import time. It refuses to build
 the app without JWT_SECRET (no login could work).
@@ -16,9 +17,10 @@ from contextlib import ExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routes import health
+from app.api.errors import add_error_handlers
+from app.api.routes import auth, health, users
 from app.config import Settings, get_settings
-from app.db.session import make_engine
+from app.db.session import make_engine, make_session_factory
 from app.observability.correlation import correlation_id_middleware
 from app.observability.logging import configure_logging
 from app.worker.main import open_worker
@@ -37,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.engine = make_engine(settings.database_url)
+        app.state.session_factory = make_session_factory(app.state.engine)
         with ExitStack() as stack:
             if settings.run_worker_in_api:
                 worker = stack.enter_context(open_worker(settings))
@@ -48,6 +51,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine.dispose()
 
     app = FastAPI(title="leadgate", version="0.1.0", lifespan=lifespan)
+    app.state.settings = settings
     app.middleware("http")(correlation_id_middleware)
-    app.include_router(health.router, prefix="/api")
+    add_error_handlers(app)
+    for module in (health, auth, users):
+        app.include_router(module.router, prefix="/api")
     return app
