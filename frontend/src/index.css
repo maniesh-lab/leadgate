@@ -1,20 +1,151 @@
 @import "tailwindcss";
 
-/* A few shared looks, so pages don't repeat long class lists. */
+/*
+ * The design system. Colours are named tokens (CSS variables), set once per theme:
+ * dark is the default, `<html data-theme="light">` switches to light (src/lib/theme.ts).
+ * Pages only use the token names (bg-surface, text-muted, border-line, ...), so both
+ * themes always match. Punchy colour is kept for meaning: the accent, statuses, scores.
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #05070b;
+  --glow: rgb(34 211 238 / 0.09);
+  --surface: #0a0e15;
+  --surface-2: #111620;
+  --line: #1a212d;
+  --line-strong: #283141;
+  --fg: #e9edf4;
+  --muted: #8b95a8;
+  --faint: #5a6578;
+  --accent: #22d3ee;
+  --accent-2: #3b82f6;
+  --accent-text: #67e8f9;
+  --button: #f3f5f9;
+  --button-text: #05070b;
+
+  --green-bg: rgb(16 185 129 / 0.14);
+  --green: #34d399;
+  --amber-bg: rgb(245 158 11 / 0.14);
+  --amber: #fbbf24;
+  --red-bg: rgb(244 63 94 / 0.14);
+  --red: #fb7185;
+  --blue-bg: rgb(34 211 238 / 0.12);
+  --blue: #67e8f9;
+  --violet-bg: rgb(139 92 246 / 0.16);
+  --violet: #a78bfa;
+  --gray-bg: rgb(148 163 184 / 0.12);
+  --gray: #a3adbf;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7fa;
+  --glow: rgb(59 130 246 / 0.08);
+  --surface: #ffffff;
+  --surface-2: #f0f3f8;
+  --line: #e3e7ee;
+  --line-strong: #cfd6e1;
+  --fg: #0b1020;
+  --muted: #536074;
+  --faint: #8792a5;
+  --accent: #0891b2;
+  --accent-2: #2563eb;
+  --accent-text: #0e7490;
+  --button: #0b1020;
+  --button-text: #ffffff;
+
+  --green-bg: #d1fae5;
+  --green: #047857;
+  --amber-bg: #fef3c7;
+  --amber: #b45309;
+  --red-bg: #ffe4e6;
+  --red: #be123c;
+  --blue-bg: #cffafe;
+  --blue: #0e7490;
+  --violet-bg: #ede9fe;
+  --violet: #6d28d9;
+  --gray-bg: #eef1f5;
+  --gray: #475569;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-text: var(--accent-text);
+  --color-button: var(--button);
+  --color-button-text: var(--button-text);
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    /* A soft glow at the top of every page. */
+    background-image: radial-gradient(70% 45% at 50% -12%, var(--glow), transparent 70%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  ::selection {
+    background: rgb(34 211 238 / 0.3);
+  }
+}
+
 @layer components {
-  .input {
-    @apply w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none;
+  /* The signature look: italic serif with a cyan -> blue gradient. One per page, at most. */
+  .text-gradient {
+    @apply font-display italic;
+    background: linear-gradient(100deg, var(--accent) 10%, var(--accent-2) 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    padding-right: 0.08em; /* italics lean out of their box; keep the last letter whole */
   }
-  .btn {
-    @apply inline-flex items-center justify-center rounded border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50;
-  }
-  .btn-primary {
-    @apply inline-flex items-center justify-center rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50;
+  /* Small spaced capitals for labels: "STATUS", "PIPELINE". */
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium tracking-[0.18em] text-faint uppercase;
   }
   .card {
-    @apply rounded-lg border border-slate-200 bg-white p-4;
+    @apply rounded-2xl border border-line bg-surface p-5;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-fg placeholder:text-faint transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line-strong px-4 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface-2 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-button px-4 py-2 text-sm font-semibold text-button-text transition-opacity hover:opacity-85 disabled:opacity-50;
   }
   .link {
-    @apply text-sky-700 hover:underline;
+    @apply text-accent-text underline-offset-4 hover:underline;
+  }
+  /* Tables: one class on <table>, so pages don't repeat cell styles. */
+  .data-table {
+    @apply w-full text-left text-sm;
+  }
+  .data-table th {
+    @apply border-b border-line px-4 py-3 font-mono text-[11px] font-medium tracking-[0.14em] text-faint uppercase;
+  }
+  .data-table td {
+    @apply border-b border-line px-4 py-3 align-top;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .data-table tbody tr {
+    @apply transition-colors hover:bg-surface-2/60;
   }
 }

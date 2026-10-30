@@ -1,9 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>leadgate</title>
+    <script>
+      // Apply the saved theme before the page draws (dark unless "light" was chosen).
+      try {
+        if (localStorage.getItem("leadgate.theme") === "light") {
+          document.documentElement.dataset.theme = "light";
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

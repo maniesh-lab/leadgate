@@ -1,4 +1,8 @@
-/** The browser entry point: mounts the app into `#root` in index.html. */
+/** The browser entry point: loads the fonts and styles, mounts the app into `#root`. */
+import "@fontsource-variable/inter";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
