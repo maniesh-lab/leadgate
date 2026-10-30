@@ -60,7 +60,14 @@ export function RunPage() {
             {moving && <span className="ml-2 text-faint">· updating every few seconds</span>}
           </>
         }
-        actions={<StatusBadge status={data.status} />}
+        actions={
+          <>
+            <StatusBadge status={data.status} />
+            <Link to={`/audit?run_id=${data.id}`} className="btn px-3 py-1.5">
+              Audit trail
+            </Link>
+          </>
+        }
       />
 
       {STAT_LABELS.some(([key]) => key in stats) && (

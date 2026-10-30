@@ -13,6 +13,7 @@ const NAV = [
   { to: "/campaigns", label: "Campaigns" },
   { to: "/runs", label: "Runs" },
   { to: "/leads", label: "Leads" },
+  { to: "/audit", label: "Audit" },
 ];
 
 export function Layout() {
