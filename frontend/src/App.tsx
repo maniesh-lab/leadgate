@@ -13,6 +13,7 @@ import { Layout } from "./components/Layout";
 import { EmptyState } from "./components/Page";
 import { AuditPage } from "./pages/AuditPage";
 import { CampaignsPage } from "./pages/CampaignsPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { LeadPage } from "./pages/LeadPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -31,7 +32,8 @@ export const routes: RouteObject[] = [
       {
         element: <Layout />,
         children: [
-          { index: true, element: <Navigate to="/campaigns" replace /> },
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: "dashboard", element: <DashboardPage /> },
           { path: "queue", element: <QueuePage /> },
           { path: "campaigns", element: <CampaignsPage /> },
           {
