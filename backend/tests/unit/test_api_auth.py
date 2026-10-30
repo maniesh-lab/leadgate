@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.security import create_access_token
 from app.db.models import AuditLog, User, UserRole
+from app.main import create_app
 from tests.conftest import PASSWORD, TEST_JWT_SECRET, add_user
 
 
@@ -147,3 +148,23 @@ def test_unknown_path_uses_the_error_shape(client: TestClient) -> None:
     assert response.json() == {
         "error": {"code": "not_found", "message": "Not Found", "details": None}
     }
+
+
+def test_a_crash_uses_the_error_shape_without_details(settings) -> None:
+    app = create_app(settings)
+
+    @app.get("/api/boom")
+    def boom() -> None:
+        raise RuntimeError("secret internals")
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/api/boom")
+    assert response.status_code == 500
+    assert response.json() == {
+        "error": {
+            "code": "internal_error",
+            "message": "something went wrong on our side",
+            "details": None,
+        }
+    }
+    assert "secret internals" not in response.text
