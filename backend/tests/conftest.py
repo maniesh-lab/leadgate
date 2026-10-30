@@ -39,6 +39,15 @@ APP_ENV_VARS = [
     "GROQ_API_KEY",
     "OPENAI_API_KEY",
     "RUN_WORKER_IN_API",
+    "AIRTABLE_TOKEN",
+    "AIRTABLE_BASE_ID",
+    "AIRTABLE_TABLE",
+    "DISCORD_WEBHOOK_URL",
+    "DISCORD_ADMIN_WEBHOOK_URL",
+    "N8N_WEBHOOK_SECRET",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "LANGFUSE_BASE_URL",
 ]
 # The password `add_user()` gives every test user.
 PASSWORD = "password-123"

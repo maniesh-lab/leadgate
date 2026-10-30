@@ -1,8 +1,9 @@
 """What every lead source shares: the `RawLead` it returns and the `LeadSource` base class.
 
-A source turns "niche + city" (or a CSV file) into `RawLead`s. The three sources
-(`csv_mapped.py`, `osm.py`, `google_places.py`) all subclass `LeadSource`, so
-`app.services.ingestion` can run any of them the same way and upsert the results.
+A source turns "niche + city" (or a CSV file, or the leads n8n sent) into `RawLead`s.
+The campaign sources (`csv_mapped.py`, `osm.py`, `google_places.py`) and the n8n one
+(`inline.py`) all subclass `LeadSource`, so `app.services.ingestion` can run any of
+them the same way and upsert the results.
 
 A source never crashes on one bad row: it calls `self.skip()` (log + count) and moves
 on. Problems that stop the whole source (no network, bad API key) raise `SourceError`.
@@ -82,7 +83,8 @@ class LeadSource(ABC):
 
 
 def make_http_client(user_agent: str) -> httpx2.Client:
-    """The HTTP client the OSM and Google sources use (tests pass a mocked one instead)."""
+    """An HTTP client with leadgate's User-Agent: for the OSM and Google sources, and the
+    worker's outbound calls (Airtable, Discord, the n8n callback). Tests pass mocked ones."""
     return httpx2.Client(headers={"User-Agent": user_agent}, timeout=HTTP_TIMEOUT_SECONDS)
 
 

@@ -28,6 +28,8 @@ dependencies = [
     "psycopg-pool==3.3.3",
     "steadfast-llm[groq]==0.3.0",
     "phonenumbers==9.0.42",
+    # Tracing (off without keys). Brings the OpenTelemetry SDK + OTLP exporter it's built on.
+    "langfuse==5.0.4",
 ]
 
 [project.optional-dependencies]

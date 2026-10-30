@@ -35,8 +35,9 @@ from app.db.models import Job
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
 from app.observability.logging import configure_logging
-from app.services.crm import FakeCRM
-from app.services.notify import FakeNotifier
+from app.observability.tracing import make_tracer
+from app.services.crm import make_crm
+from app.services.notify import make_notifier
 from app.sources.base import make_http_client
 from app.worker.handlers import HANDLERS, Deps, give_up
 from app.worker.jobs import claim_next, mark_done, mark_failed, recover_stale
@@ -87,10 +88,7 @@ class Worker:
         with structlog.contextvars.bound_contextvars(**context):
             log.info("job_started", type=job.type, attempt=job.attempts)
             try:
-                handler = HANDLERS.get(job.type)
-                if handler is None:
-                    raise NotImplementedError(f"no handler for {job.type.value} jobs yet")
-                handler(self.deps, session, job.payload)
+                HANDLERS[job.type](self.deps, session, job.payload)
             except Exception as exc:
                 session.rollback()
                 log.exception("job_error", type=job.type)
@@ -122,9 +120,13 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
         engine = make_engine(settings.database_url)
         stack.callback(engine.dispose)
         checkpointer = stack.enter_context(open_checkpointer(settings.database_url))
-        llm = make_llm(settings)
+        tracer = make_tracer(settings)
+        stack.callback(tracer.close)  # sends the last spans to Langfuse
+        llm = make_llm(settings, tracer)
         stack.callback(llm.close)
         crawler_client = stack.enter_context(make_crawler_client(settings.osm_user_agent))
+        # Airtable, Discord and the n8n callback (same User-Agent and timeout as the sources).
+        outbound_client = stack.enter_context(make_http_client(settings.osm_user_agent))
         deps = Deps(
             settings=settings,
             session_factory=make_session_factory(engine),
@@ -133,10 +135,12 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
             crawler=Crawler(
                 crawler_client, settings.osm_user_agent, max_pages=settings.enrich_max_pages
             ),
-            # Phase 8 swaps in the Airtable CRM and the Discord notifier.
-            crm=FakeCRM(),
-            notifier=FakeNotifier(),
+            # Airtable / Discord when their settings are set, else the in-memory fakes.
+            crm=make_crm(settings, outbound_client),
+            notifier=make_notifier(settings, outbound_client),
             sources_client=stack.enter_context(make_http_client(settings.osm_user_agent)),
+            callback_client=outbound_client,
+            tracer=tracer,
         )
         yield Worker(deps, worker_id)
 

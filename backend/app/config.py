@@ -67,6 +67,28 @@ class Settings(BaseSettings):
     # own `python -m app.worker` process: for free hosting with a single process.
     run_worker_in_api: bool = False
 
+    # The CRM approved leads go to (app/services/crm.py). All three set = Airtable;
+    # otherwise the worker keeps them in memory (FakeCRM).
+    airtable_token: str | None = Field(default=None, repr=False)
+    airtable_base_id: str | None = None  # "app…"
+    airtable_table: str | None = None  # the table's name or id ("tbl…")
+
+    # Discord webhooks (app/services/notify.py): the leads channel, and the admin channel
+    # for escalations (empty = escalations go to the leads channel too). No leads webhook =
+    # messages are only logged (FakeNotifier). repr=False: the URL holds the webhook's token.
+    discord_webhook_url: str | None = Field(default=None, repr=False)
+    discord_admin_webhook_url: str | None = Field(default=None, repr=False)
+
+    # Shared with Switchyard's n8n: n8n sends it as `X-Webhook-Secret` to start a run, and
+    # leadgate sends it back with the results callback. Empty = the n8n webhook is off (503).
+    n8n_webhook_secret: str | None = Field(default=None, min_length=32, repr=False)
+
+    # Langfuse tracing (app/observability/tracing.py): on only when both keys are set.
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = Field(default=None, repr=False)
+    # The Langfuse server; the SDK's own name for it (LANGFUSE_HOST is the old one).
+    langfuse_base_url: str = "https://cloud.langfuse.com"
+
 
 @lru_cache
 def get_settings() -> Settings:

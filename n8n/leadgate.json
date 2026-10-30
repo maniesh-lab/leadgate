@@ -1,0 +1,151 @@
+{
+  "name": "leadgate runs",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6f0c1d52-8a0e-4a51-9d41-3f2f1b8e0a01",
+      "name": "Run now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [1],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "6f0c1d52-8a0e-4a51-9d41-3f2f1b8e0a02",
+      "name": "Every Monday 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 200],
+      "disabled": true,
+      "notes": "Turn on to start a run every week (each run posts approved leads to Airtable + Discord)."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "niche",
+              "value": "dentist",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "location",
+              "value": "Austin, TX",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "callback_url",
+              "value": "http://n8n:5678/webhook/leadgate-results",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6f0c1d52-8a0e-4a51-9d41-3f2f1b8e0a03",
+      "name": "What to look for",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 100],
+      "notes": "leadgate uses the newest campaign with this niche + location, or makes one."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://leadgate-api:8000/api/webhooks/n8n/runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Request-ID",
+              "value": "=n8n-{{ $execution.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ niche: $json.niche, location: $json.location, callback_url: $json.callback_url }) }}",
+        "options": {}
+      },
+      "id": "6f0c1d52-8a0e-4a51-9d41-3f2f1b8e0a04",
+      "name": "Start a leadgate run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "leadgateSecret0001",
+          "name": "leadgate webhook secret"
+        }
+      },
+      "notes": "Answers {run_id, campaign_id, status}. The run waits for a human in leadgate's approval queue."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leadgate-results",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "6f0c1d52-8a0e-4a51-9d41-3f2f1b8e0a05",
+      "name": "Run results from leadgate",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 420],
+      "webhookId": "2b7c9a4e-5d3f-4e8a-9c1b-6a0d4e2f7b15",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "leadgateSecret0001",
+          "name": "leadgate webhook secret"
+        }
+      },
+      "notes": "leadgate posts each finished run here (same X-Webhook-Secret header)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// One line per finished run: how many leads went where.\nconst run = $input.first().json.body;\nconst count = (route) => run.leads.filter((lead) => lead.route === route).length;\nreturn [{\n  json: {\n    run_id: run.run_id,\n    status: run.status,\n    leads: run.leads.length,\n    approved: count('notify'),\n    escalated: count('escalate'),\n    rejected: count('skip'),\n    in_crm: run.leads.filter((lead) => lead.crm_record_id).map((lead) => lead.name),\n  },\n}];\n"
+      },
+      "id": "6f0c1d52-8a0e-4a51-9d41-3f2f1b8e0a06",
+      "name": "Summarize the run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 420]
+    }
+  ],
+  "connections": {
+    "Run now": {
+      "main": [[{ "node": "What to look for", "type": "main", "index": 0 }]]
+    },
+    "Every Monday 09:00": {
+      "main": [[{ "node": "What to look for", "type": "main", "index": 0 }]]
+    },
+    "What to look for": {
+      "main": [[{ "node": "Start a leadgate run", "type": "main", "index": 0 }]]
+    },
+    "Run results from leadgate": {
+      "main": [[{ "node": "Summarize the run", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "id": "leadgateRuns00001",
+  "tags": []
+}

@@ -17,6 +17,7 @@ has a dialect-specific `insert()` for each, picked in `upsert_lead()`.
 
 `collect_campaign()` runs every source a campaign lists (`osm`, `google_places`,
 `csv`) and commits after each one, so one failing source doesn't lose the others' leads.
+`collect_inline()` saves the leads an n8n webhook sent instead (the `n8n` source).
 """
 
 from collections.abc import Iterable
@@ -35,6 +36,7 @@ from app.db.models import Campaign, Lead
 from app.sources.base import LeadSource, RawLead, SourceError
 from app.sources.csv_mapped import CsvSource
 from app.sources.google_places import GooglePlacesSource, expire_cached_content
+from app.sources.inline import InlineSource
 from app.sources.osm import OsmSource
 
 log = structlog.get_logger(__name__)
@@ -112,6 +114,14 @@ def collect_campaign(
             log.warning("source_failed", source=name, campaign_id=campaign.id, error=str(exc))
         outcomes.append(outcome)
     return outcomes
+
+
+def collect_inline(session: Session, leads: list[dict[str, Any]]) -> list[SourceOutcome]:
+    """Upsert the leads sent with an n8n webhook (`app.sources.inline`). Commits."""
+    source = InlineSource(leads)
+    outcome = SourceOutcome(source=source.name, result=ingest_source(session, source))
+    session.commit()
+    return [outcome]
 
 
 def make_source(
