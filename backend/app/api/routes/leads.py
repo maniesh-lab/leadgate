@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response, status
-from sqlalchemy import ColumnElement, Text, cast, exists, func, or_, select
+from sqlalchemy import ColumnElement, Select, Text, cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import AdminUser, CurrentUser, DbSession, Paging, get_or_404, paginate
@@ -73,6 +73,39 @@ def list_leads(
     sort: Sort = "-first_seen_at",
 ) -> Page[LeadRow]:
     """Leads, newest first unless `sort` says otherwise (`-` = descending)."""
+    stmt = leads_query(
+        status=status,
+        campaign_id=campaign_id,
+        area=area,
+        min_score=min_score,
+        max_score=max_score,
+        has_email=has_email,
+        flag=flag,
+        q=q,
+        sort=sort,
+    )
+    rows, total = paginate(db, stmt, paging)
+    return Page(
+        items=[LeadRow.model_validate(lead) for (lead,) in rows],
+        total=total,
+        page=paging.page,
+        page_size=paging.page_size,
+    )
+
+
+def leads_query(
+    *,
+    status: LeadStatus | None = None,
+    campaign_id: int | None = None,
+    area: str | None = None,
+    min_score: int | None = None,
+    max_score: int | None = None,
+    has_email: bool | None = None,
+    flag: str | None = None,
+    q: str | None = None,
+    sort: Sort = "-first_seen_at",
+) -> Select[tuple[Lead]]:
+    """The lead list's query (also measured by `scripts/sql_explain.py`)."""
     stmt = select(Lead)
     if status is not None:
         stmt = stmt.where(Lead.status == status)
@@ -98,15 +131,7 @@ def list_leads(
         )
     if q is not None:
         stmt = stmt.where(Lead.name.ilike(f"%{escape_like(q.strip())}%", escape="\\"))
-    stmt = stmt.order_by(SORTS[sort], Lead.id)
-
-    rows, total = paginate(db, stmt, paging)
-    return Page(
-        items=[LeadRow.model_validate(lead) for (lead,) in rows],
-        total=total,
-        page=paging.page,
-        page_size=paging.page_size,
-    )
+    return stmt.order_by(SORTS[sort], Lead.id)
 
 
 @router.get("/{lead_id}", responses=error_docs(404))
@@ -164,15 +189,7 @@ def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
 
 
 def lead_history(db: Session, lead_id: int) -> list[LeadRunItem]:
-    rows = db.execute(
-        select(RunItem, Run.campaign_id, Campaign.name, Approval, User.email)
-        .join(Run, Run.id == RunItem.run_id)
-        .join(Campaign, Campaign.id == Run.campaign_id)
-        .outerjoin(Approval, Approval.run_item_id == RunItem.id)
-        .outerjoin(User, User.id == Approval.reviewer_id)
-        .where(RunItem.lead_id == lead_id)
-        .order_by(RunItem.created_at.desc(), RunItem.id.desc())
-    ).all()
+    rows = db.execute(lead_history_query(lead_id)).all()
     return [
         LeadRunItem(
             run_item_id=item.id,
@@ -190,6 +207,19 @@ def lead_history(db: Session, lead_id: int) -> list[LeadRunItem]:
         )
         for item, campaign_id, campaign_name, approval, email in rows
     ]
+
+
+def lead_history_query(lead_id: int) -> Select[tuple[RunItem, int, str, Approval, str]]:
+    """Every run item of the lead, newest first, with its campaign and decision."""
+    return (
+        select(RunItem, Run.campaign_id, Campaign.name, Approval, User.email)
+        .join(Run, Run.id == RunItem.run_id)
+        .join(Campaign, Campaign.id == Run.campaign_id)
+        .outerjoin(Approval, Approval.run_item_id == RunItem.id)
+        .outerjoin(User, User.id == Approval.reviewer_id)
+        .where(RunItem.lead_id == lead_id)
+        .order_by(RunItem.created_at.desc(), RunItem.id.desc())
+    )
 
 
 def has_flag(flag: str) -> ColumnElement[bool]:

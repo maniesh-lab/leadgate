@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import Select, select
 
 from app.api.deps import DbSession, Paging, ReviewerUser, paginate
 from app.api.errors import error_docs
@@ -34,17 +34,7 @@ def approval_queue(
     campaign_id: Annotated[int | None, Query(description="only this campaign's items")] = None,
 ) -> Page[QueueItem]:
     """Run items waiting for a decision, oldest first."""
-    stmt = (
-        select(RunItem, Lead, Run.campaign_id, Campaign.name)
-        .join(Lead, Lead.id == RunItem.lead_id)
-        .join(Run, Run.id == RunItem.run_id)
-        .join(Campaign, Campaign.id == Run.campaign_id)
-        .where(RunItem.status == RunItemStatus.AWAITING_APPROVAL)
-        .order_by(RunItem.created_at, RunItem.id)
-    )
-    if campaign_id is not None:
-        stmt = stmt.where(Run.campaign_id == campaign_id)
-    rows, total = paginate(db, stmt, paging)
+    rows, total = paginate(db, queue_query(campaign_id), paging)
     reviews = reviews_for(db, [item.id for item, *_ in rows])
     items = [
         QueueItem(
@@ -63,6 +53,21 @@ def approval_queue(
         for item, lead, item_campaign_id, campaign_name in rows
     ]
     return Page(items=items, total=total, page=paging.page, page_size=paging.page_size)
+
+
+def queue_query(campaign_id: int | None = None) -> Select[tuple[RunItem, Lead, int, str]]:
+    """The approval queue's query (also measured by `scripts/sql_explain.py`)."""
+    stmt = (
+        select(RunItem, Lead, Run.campaign_id, Campaign.name)
+        .join(Lead, Lead.id == RunItem.lead_id)
+        .join(Run, Run.id == RunItem.run_id)
+        .join(Campaign, Campaign.id == Run.campaign_id)
+        .where(RunItem.status == RunItemStatus.AWAITING_APPROVAL)
+        .order_by(RunItem.created_at, RunItem.id)
+    )
+    if campaign_id is not None:
+        stmt = stmt.where(Run.campaign_id == campaign_id)
+    return stmt
 
 
 @router.post("/run-items/{item_id}/decision", responses=error_docs(404, 409, 422))
