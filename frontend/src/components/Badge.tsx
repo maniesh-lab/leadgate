@@ -5,12 +5,12 @@
  */
 import type { ReactNode } from "react";
 
-type Tone = "gray" | "blue" | "amber" | "green" | "red" | "violet";
+type Tone = "gray" | "cyan" | "amber" | "green" | "red" | "violet";
 
 // The colours come from the theme tokens in index.css (--green, --green-bg, ...).
 const TONES: Record<Tone, string> = {
   gray: "bg-(--gray-bg) text-(--gray)",
-  blue: "bg-(--blue-bg) text-(--blue)",
+  cyan: "bg-(--cyan-bg) text-(--cyan)",
   amber: "bg-(--amber-bg) text-(--amber)",
   green: "bg-(--green-bg) text-(--green)",
   red: "bg-(--red-bg) text-(--red)",
@@ -23,10 +23,10 @@ const STATUS_TONES: Record<string, Tone> = {
   queued: "gray",
   pending: "gray",
   skip: "gray",
-  collecting: "blue",
-  running: "blue",
-  started: "blue",
-  resuming: "blue",
+  collecting: "cyan",
+  running: "cyan",
+  started: "cyan",
+  resuming: "cyan",
   in_review: "amber",
   waiting_approval: "amber",
   awaiting_approval: "amber",

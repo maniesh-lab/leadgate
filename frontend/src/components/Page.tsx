@@ -1,7 +1,7 @@
 /**
  * Building blocks every page uses: the page header (small label, big title, a line of
- * explanation, buttons on the right), the empty state, and the "label above value"
- * facts of the detail pages.
+ * explanation, buttons on the right), the empty state, the "label above value"
+ * facts of the detail pages, and the big-number stats of the run page.
  */
 import type { ReactNode } from "react";
 

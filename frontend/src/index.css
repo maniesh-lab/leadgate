@@ -22,6 +22,7 @@
   --accent: #22d3ee;
   --accent-2: #3b82f6;
   --accent-text: #67e8f9;
+  --selection: rgb(34 211 238 / 0.3);
   --button: #f3f5f9;
   --button-text: #05070b;
 
@@ -31,8 +32,8 @@
   --amber: #fbbf24;
   --red-bg: rgb(244 63 94 / 0.14);
   --red: #fb7185;
-  --blue-bg: rgb(34 211 238 / 0.12);
-  --blue: #67e8f9;
+  --cyan-bg: rgb(34 211 238 / 0.12);
+  --cyan: #67e8f9;
   --violet-bg: rgb(139 92 246 / 0.16);
   --violet: #a78bfa;
   --gray-bg: rgb(148 163 184 / 0.12);
@@ -53,6 +54,7 @@
   --accent: #0891b2;
   --accent-2: #2563eb;
   --accent-text: #0e7490;
+  --selection: rgb(8 145 178 / 0.2);
   --button: #0b1020;
   --button-text: #ffffff;
 
@@ -62,8 +64,8 @@
   --amber: #b45309;
   --red-bg: #ffe4e6;
   --red: #be123c;
-  --blue-bg: #cffafe;
-  --blue: #0e7490;
+  --cyan-bg: #cffafe;
+  --cyan: #0e7490;
   --violet-bg: #ede9fe;
   --violet: #6d28d9;
   --gray-bg: #eef1f5;
@@ -99,7 +101,7 @@
     min-height: 100vh;
   }
   ::selection {
-    background: rgb(34 211 238 / 0.3);
+    background: var(--selection);
   }
 }
 

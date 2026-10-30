@@ -93,7 +93,7 @@ describe("protected routes", () => {
 });
 
 describe("roles", () => {
-  it("shows admins the admin-only menu entry and the Start run button", async () => {
+  it("shows admins the New campaign button in the menu bar and the Start run button", async () => {
     fakeApi(campaignsApi(ADMIN));
     renderApp("/campaigns", { user: ADMIN });
 

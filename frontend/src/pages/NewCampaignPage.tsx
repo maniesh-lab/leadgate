@@ -147,7 +147,7 @@ export function NewCampaignPage() {
             {SOURCES.map((source) => (
               <label
                 key={source.name}
-                className="flex cursor-pointer gap-3 rounded-xl border border-line p-3 transition-colors hover:border-line-strong has-checked:border-accent/60 has-checked:bg-(--blue-bg)"
+                className="flex cursor-pointer gap-3 rounded-xl border border-line p-3 transition-colors hover:border-line-strong has-checked:border-accent/60 has-checked:bg-(--cyan-bg)"
               >
                 <input
                   type="checkbox"
