@@ -4,8 +4,27 @@ No network: `tests.fake_web` answers every request from a dict of URL -> answer,
 `FakeClock` stands in for time, so the 1 s waits between requests take no time.
 """
 
-from app.enrichment.crawler import MAX_PAGE_BYTES, start_url
-from tests.fake_web import FIXTURES, SMILE, SMILE_SITE, FakeClock, FakeWeb, make_crawler
+import httpx2
+import pytest
+
+from app.enrichment.crawler import (
+    MAX_PAGE_BYTES,
+    Crawler,
+    PrivateAddressError,
+    is_public,
+    make_crawler_client,
+    public_only,
+    start_url,
+)
+from tests.fake_web import (
+    FIXTURES,
+    SMILE,
+    SMILE_SITE,
+    USER_AGENT,
+    FakeClock,
+    FakeWeb,
+    make_crawler,
+)
 
 
 def test_crawls_the_home_page_and_its_contact_and_about_pages() -> None:
@@ -199,3 +218,89 @@ def test_a_huge_page_is_cut_at_the_size_cap() -> None:
 def test_start_url_adds_a_scheme_when_missing() -> None:
     assert start_url(" www.smile.test ") == "http://www.smile.test"
     assert start_url("https://smile.test/") == "https://smile.test/"
+
+
+# --- Only public addresses (SSRF guard) ---
+
+
+def guarded_crawler(web: FakeWeb, dns: dict[str, list[str]]) -> Crawler:
+    """A crawler whose client has the real `public_only` hook, with `dns` as the resolver."""
+    client = httpx2.Client(
+        transport=httpx2.MockTransport(web),
+        event_hooks={"request": [public_only(lambda host: dns.get(host, []))]},
+    )
+    clock = FakeClock()
+    return Crawler(client, USER_AGENT, clock=clock, sleep=clock.sleep)
+
+
+@pytest.mark.parametrize(
+    ("address", "public"),
+    [
+        ("93.184.215.14", True),
+        ("2606:4700::1111", True),
+        ("127.0.0.1", False),
+        ("10.0.0.5", False),
+        ("172.18.0.3", False),  # a compose service
+        ("192.168.1.1", False),
+        ("169.254.169.254", False),  # cloud metadata
+        ("100.64.0.1", False),  # carrier-grade NAT
+        ("0.0.0.0", False),
+        ("::1", False),
+        ("fd00::1", False),
+        ("::ffff:127.0.0.1", False),
+    ],
+)
+def test_is_public(address: str, public: bool) -> None:
+    assert is_public(address) is public
+
+
+def test_refuses_a_site_on_a_private_address_without_sending_anything() -> None:
+    web = FakeWeb({"http://intranet.test/": ("html", "<p>secret</p>")})
+    crawler = guarded_crawler(web, {"intranet.test": ["10.0.0.5"]})
+
+    pages = crawler.crawl("intranet.test")
+
+    assert [(page.url, page.error) for page in pages] == [
+        ("http://intranet.test", "not a public address")
+    ]
+    assert web.requests == []
+
+
+def test_refuses_an_ip_literal_like_the_api_itself() -> None:
+    web = FakeWeb({})
+    pages = guarded_crawler(web, {}).crawl("http://127.0.0.1:8000/api/ready")
+
+    assert pages[0].error == "not a public address"
+    assert web.requests == []
+
+
+def test_refuses_a_redirect_to_the_cloud_metadata_address() -> None:
+    web = FakeWeb(
+        {
+            "http://evil.test/robots.txt": ("status", "404"),
+            "http://evil.test/": ("redirect", "http://169.254.169.254/latest/meta-data/"),
+        }
+    )
+    crawler = guarded_crawler(web, {"evil.test": ["93.184.215.14"]})
+
+    pages = crawler.crawl("evil.test")
+
+    assert pages[0].error == "not a public address"
+    assert pages[0].final_url == "http://169.254.169.254/latest/meta-data/"
+    assert not any("169.254" in url for url in web.requests)
+
+
+def test_a_public_site_is_crawled_as_usual() -> None:
+    web = FakeWeb(SMILE_SITE)
+    dns = {"www.smileaustin.test": ["93.184.215.14"]}
+
+    pages = guarded_crawler(web, dns).crawl("www.smileaustin.test")
+
+    assert pages[0].error is None and pages[0].parsed is not None
+
+
+def test_the_real_client_has_the_guard() -> None:
+    # The hook refuses before anything is sent, so this makes no network request.
+    client = make_crawler_client(USER_AGENT, resolve=lambda _host: ["192.168.1.20"])
+    with client, pytest.raises(PrivateAddressError):
+        client.get("http://printer.test/")
