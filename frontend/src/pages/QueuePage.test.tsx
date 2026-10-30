@@ -46,8 +46,12 @@ function setup(decide: (id: number) => unknown = () => reply(200, {})) {
   const { calls } = fakeApi({
     "GET /api/auth/me": () => REVIEWER,
     "GET /api/campaigns": () => page([]),
+    // Once item 1 is decided (by us or, on a 409, by someone else) it leaves the queue.
     "GET /api/approvals/queue": () =>
-      page([queueItem(1, "Bright Smiles"), queueItem(2, "Lake Dental")]),
+      page([
+        ...(decisions.length === 0 ? [queueItem(1, "Bright Smiles")] : []),
+        queueItem(2, "Lake Dental"),
+      ]),
     "GET /api/leads/10": () => ({ enrichment: null }),
     "GET /api/leads/20": () => ({ enrichment: null }),
     "POST /api/run-items/1/decision": (_url, init) => {
@@ -113,7 +117,14 @@ describe("QueuePage", () => {
     );
     const dialog = await openFirst();
     await userEvent.click(within(dialog).getByRole("button", { name: /Approve/ }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("not awaiting approval");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Someone else got here first: run item 1 is not awaiting approval",
+    );
+
+    // Closing reloads the queue, which no longer holds the item.
+    await userEvent.keyboard("{Escape}");
+    expect(await screen.findByText("Lake Dental")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Bright Smiles")).not.toBeInTheDocument());
   });
 
   it("closes with Esc", async () => {

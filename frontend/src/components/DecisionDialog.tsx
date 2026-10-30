@@ -5,8 +5,9 @@
  * are ignored while typing the reason).
  *
  * The decision is `POST /api/run-items/{id}/decision`. A 409 means the item isn't
- * waiting any more (someone else decided first): the message says so and the queue
- * reloads. After a decision the queue page opens the next item (`onDecided`).
+ * waiting any more (someone else decided first): the dialog stays open and says so,
+ * and the queue page reloads the list when it closes. After a decision the queue page
+ * opens the next item (`onDecided`).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
@@ -48,11 +49,6 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
       // Statuses change everywhere: the queue, the run, the lead.
       queryClient.invalidateQueries();
       onDecided();
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 409) {
-        queryClient.invalidateQueries({ queryKey: ["approvals"] });
-      }
     },
   });
 
@@ -184,7 +180,7 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
 
         {(problem || decide.error) && (
           <p role="alert" className="text-sm text-(--red)">
-            {problem ?? describeError(decide.error)}
+            {problem ?? decisionError(decide.error)}
           </p>
         )}
 
@@ -210,4 +206,12 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
       </div>
     </div>
   );
+}
+
+/** A 409 gets a plain explanation; anything else the API's own message. */
+function decisionError(error: unknown): string {
+  if (error instanceof ApiError && error.status === 409) {
+    return `Someone else got here first: ${error.message}. Close this to reload the queue.`;
+  }
+  return describeError(error);
 }

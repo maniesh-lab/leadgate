@@ -4,7 +4,7 @@
  * reviewer can work down the list with A and R. The campaign filter and the page live
  * in the URL (`/queue?campaign_id=3`), like the other lists.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { api } from "../api/client";
@@ -24,6 +24,7 @@ export function QueuePage() {
   const page = Number(params.get("page") ?? 1);
   const campaignId = params.get("campaign_id") ?? "";
   const [openId, setOpenId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   const queue = useQuery({
     queryKey: ["approvals", "queue", { page, campaignId }],
@@ -42,6 +43,12 @@ export function QueuePage() {
   function openNext() {
     const index = items.findIndex((item) => item.run_item_id === openId);
     setOpenId(items[index + 1]?.run_item_id ?? null);
+  }
+
+  /** Closing reloads the list: after a 409 the item may be gone (someone else decided). */
+  function close() {
+    setOpenId(null);
+    queryClient.invalidateQueries({ queryKey: ["approvals"] });
   }
 
   function update(key: string, value: string) {
@@ -159,7 +166,7 @@ export function QueuePage() {
         </>
       )}
 
-      {open && <DecisionDialog item={open} onClose={() => setOpenId(null)} onDecided={openNext} />}
+      {open && <DecisionDialog item={open} onClose={close} onDecided={openNext} />}
     </section>
   );
 }
