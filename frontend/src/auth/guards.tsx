@@ -31,10 +31,10 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
-export function RequireRole({ role, children }: { role: UserRole; children: ReactNode }) {
+export function RequireRole({ allowed, children }: { allowed: UserRole; children: ReactNode }) {
   const { user } = useAuth();
-  if (user?.role !== role) {
-    return <p className="text-slate-600">This page is for {role}s only.</p>;
+  if (user?.role !== allowed) {
+    return <p className="text-slate-600">This page is for {allowed}s only.</p>;
   }
   return children;
 }

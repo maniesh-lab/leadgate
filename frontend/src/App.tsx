@@ -8,9 +8,11 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { ApiError } from "./api/client";
 import { AuthProvider } from "./auth/AuthProvider";
-import { RequireAuth } from "./auth/guards";
+import { RequireAuth, RequireRole } from "./auth/guards";
 import { Layout } from "./components/Layout";
+import { CampaignsPage } from "./pages/CampaignsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { NewCampaignPage } from "./pages/NewCampaignPage";
 
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
@@ -21,6 +23,15 @@ export const routes: RouteObject[] = [
         element: <Layout />,
         children: [
           { index: true, element: <Navigate to="/campaigns" replace /> },
+          { path: "campaigns", element: <CampaignsPage /> },
+          {
+            path: "campaigns/new",
+            element: (
+              <RequireRole allowed="admin">
+                <NewCampaignPage />
+              </RequireRole>
+            ),
+          },
           { path: "*", element: <p className="text-slate-600">Page not found.</p> },
         ],
       },
