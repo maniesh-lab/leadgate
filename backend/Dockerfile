@@ -16,6 +16,8 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 # The public demo's leads (`python -m app.cli demo`; the worker reads the CSV from here).
 COPY demo ./demo
+# Render's start command: migrate, then the API (render.yaml).
+COPY render-start.sh ./
 
 RUN useradd --create-home --uid 1000 leadgate
 USER leadgate
