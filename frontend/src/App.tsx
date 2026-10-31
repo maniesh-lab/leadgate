@@ -11,6 +11,7 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { RequireAuth, RequireRole } from "./auth/guards";
 import { Layout } from "./components/Layout";
 import { EmptyState } from "./components/Page";
+import { AccountPage } from "./pages/AccountPage";
 import { AuditPage } from "./pages/AuditPage";
 import { CampaignsPage } from "./pages/CampaignsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -50,6 +51,7 @@ export const routes: RouteObject[] = [
           { path: "leads", element: <LeadsPage /> },
           { path: "leads/:leadId", element: <LeadPage /> },
           { path: "audit", element: <AuditPage /> },
+          { path: "account", element: <AccountPage /> },
           {
             path: "settings/rubrics",
             element: (

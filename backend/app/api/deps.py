@@ -3,7 +3,8 @@
 - `DbSession`: a session for this request, closed (and rolled back if not committed)
   when the request ends. Routes commit themselves.
 - `CurrentUser`: the user whose token came in `Authorization: Bearer <token>`; 401 if
-  the token is missing, bad or expired, or the user is gone or deactivated.
+  the token is missing, bad or expired, the user is gone or deactivated, or the token
+  was ended early (its version is older than the user's: the password changed).
 - `require_role(...)`: 403 unless the user has one of the roles. `AdminUser` and
   `ReviewerUser` are the two the routes use (an admin can do anything a reviewer can).
 - `PageParams` + `paginate()`: `?page=&page_size=` and the `{items, total, page,
@@ -60,14 +61,16 @@ def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)], db: DbSession, settings: AppSettings
 ) -> User:
     try:
-        user_id = read_access_token(token, settings.jwt_secret)
+        claims = read_access_token(token, settings.jwt_secret)
     except jwt.ExpiredSignatureError as exc:
         raise unauthorized("the login has expired; log in again") from exc
     except jwt.InvalidTokenError as exc:
         raise unauthorized("invalid login token") from exc
-    user = db.get(User, user_id)
+    user = db.get(User, claims.user_id)
     if user is None or not user.is_active:
         raise unauthorized("this user no longer exists or is deactivated")
+    if claims.version != user.token_version:
+        raise unauthorized("this login was ended (the password changed); log in again")
     return user
 
 

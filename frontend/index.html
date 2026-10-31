@@ -4,14 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>leadgate</title>
-    <script>
-      // Apply the saved theme before the page draws (dark unless "light" was chosen).
-      try {
-        if (localStorage.getItem("leadgate.theme") === "light") {
-          document.documentElement.dataset.theme = "light";
-        }
-      } catch {}
-    </script>
+    <!-- Runs before the page draws, so a light-mode user never sees a dark flash. -->
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

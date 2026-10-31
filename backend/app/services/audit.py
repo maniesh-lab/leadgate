@@ -1,9 +1,11 @@
 """The audit trail: one append-only `audit_log` row per thing that happened.
 
 Everyone writes through `record()`: the `@tracked_node` wrapper (one row per graph
-node), the worker (`run.started`, `lead.collected`, `run.completed`, ...) and the
-approval service (`approval.approved` / `approval.rejected`). Rows are only ever
-added; on Postgres a trigger blocks UPDATE and DELETE (see the initial migration).
+node), the worker (`run.started`, `lead.collected`, `run.completed`, ...), the
+approval service (`approval.approved` / `approval.rejected`) and the API routes
+(`auth.login_failed`, `user.password_changed`, users, rubrics, campaigns, leads,
+webhooks). Rows are only ever added; on Postgres a trigger blocks UPDATE and DELETE
+(see the initial migration).
 
 `record()` only adds the row to the session: the caller commits it together with the
 change it describes, so the audit row and the change land (or fail) together.

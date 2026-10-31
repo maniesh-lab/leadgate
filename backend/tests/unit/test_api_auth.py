@@ -168,3 +168,93 @@ def test_a_crash_uses_the_error_shape_without_details(settings) -> None:
         }
     }
     assert "secret internals" not in response.text
+
+
+# --- Slowing down password guessing ---
+
+
+def test_a_failed_login_leaves_an_audit_row(client: TestClient, db: Session, admin: User) -> None:
+    login(client, "admin@example.com", "nope-nope")
+    row = db.scalars(select(AuditLog).where(AuditLog.action == "auth.login_failed")).one()
+    assert (row.actor, row.entity_type, row.entity_id) == ("admin@example.com", "user", admin.id)
+    assert row.details == {"ip": "testclient"}
+
+
+def test_five_failures_lock_the_email_for_15_minutes(
+    client: TestClient, db: Session, admin: User
+) -> None:
+    for _ in range(5):
+        assert login(client, "admin@example.com", "nope-nope").status_code == 401
+
+    # Even the right password waits now: otherwise the guessing could go on.
+    locked = login(client, "admin@example.com", PASSWORD)
+    assert locked.status_code == 429
+    assert locked.json()["error"]["code"] == "too_many_requests"
+    assert locked.headers["Retry-After"] == "900"
+
+    # Another email from the same address isn't locked yet (its limit is 20).
+    add_user(db, "other@example.com", UserRole.REVIEWER)
+    assert login(client, "other@example.com", PASSWORD).status_code == 200
+
+
+def test_old_failures_dont_count(client: TestClient, db: Session, admin: User) -> None:
+    for _ in range(5):
+        login(client, "admin@example.com", "nope-nope")
+    for row in db.scalars(select(AuditLog).where(AuditLog.action == "auth.login_failed")):
+        row.occurred_at = datetime.now(UTC) - timedelta(minutes=16)
+    db.commit()
+
+    assert login(client, "admin@example.com", PASSWORD).status_code == 200
+
+
+def test_twenty_failures_from_one_address_lock_every_email(client: TestClient, admin: User) -> None:
+    for n in range(20):
+        login(client, f"guess{n}@example.com", "nope-nope")  # 1 try each: no email limit
+
+    assert login(client, "admin@example.com", PASSWORD).status_code == 429
+
+
+# --- Changing your password ---
+
+
+def change(client: TestClient, headers: dict[str, str], current: str, new: str):
+    body = {"current_password": current, "new_password": new}
+    return client.post("/api/auth/password", json=body, headers=headers)
+
+
+def test_changing_the_password_ends_older_tokens(
+    client: TestClient, db: Session, reviewer: User, as_reviewer: dict[str, str]
+) -> None:
+    other_browser = login(client, "reviewer@example.com", PASSWORD).json()["access_token"]
+
+    response = change(client, as_reviewer, PASSWORD, "a-new-password")
+    assert response.status_code == 200
+    fresh = {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+    # This browser goes on with the fresh token; every older token is over.
+    assert client.get("/api/auth/me", headers=fresh).status_code == 200
+    for old in (as_reviewer, {"Authorization": f"Bearer {other_browser}"}):
+        ended = client.get("/api/auth/me", headers=old)
+        assert ended.status_code == 401
+        assert "password changed" in ended.json()["error"]["message"]
+
+    assert login(client, "reviewer@example.com", PASSWORD).status_code == 401
+    assert login(client, "reviewer@example.com", "a-new-password").status_code == 200
+    row = db.scalars(select(AuditLog).where(AuditLog.action == "user.password_changed")).one()
+    assert (row.actor, row.entity_id) == ("reviewer@example.com", reviewer.id)
+
+
+def test_the_current_password_must_be_right(
+    client: TestClient, reviewer: User, as_reviewer: dict[str, str]
+) -> None:
+    wrong = change(client, as_reviewer, "not-it", "a-new-password")
+    # 400, not 401: the frontend logs the user out on a 401.
+    assert wrong.status_code == 400
+    assert wrong.json()["error"]["message"] == "the current password is wrong"
+    assert client.get("/api/auth/me", headers=as_reviewer).status_code == 200
+
+
+def test_the_new_password_needs_8_characters(
+    client: TestClient, reviewer: User, as_reviewer: dict[str, str]
+) -> None:
+    assert change(client, as_reviewer, PASSWORD, "short").status_code == 422

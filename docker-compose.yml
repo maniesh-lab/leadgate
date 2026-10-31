@@ -68,7 +68,11 @@ services:
 
   api:
     build: ./backend
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      # Trust X-Forwarded-For from the frontend's nginx, so the login limit sees each
+      # browser's own address. Safe here: the api port only listens on 127.0.0.1.
+      FORWARDED_ALLOW_IPS: "*"
     networks:
       default:
       leadnet:

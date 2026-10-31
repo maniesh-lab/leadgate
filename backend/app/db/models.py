@@ -126,6 +126,8 @@ class User(Base):
     password_hash: Mapped[str]
     role: Mapped[UserRole] = mapped_column(str_enum(UserRole, "role"))
     is_active: Mapped[bool] = mapped_column(server_default=true())
+    # In every login token; bumping it (a password change) ends the user's older tokens.
+    token_version: Mapped[int] = mapped_column(default=0, server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
 

@@ -1,13 +1,14 @@
 /**
  * The frame around every logged-in page: a floating pill bar with the mark, the menu,
- * the admin's "New campaign" button, the theme switch and the user, then the page
- * itself (`<Outlet />`) and the footer. Reviewers don't get the admin-only button or "Settings".
+ * the admin's "New campaign" button, the theme switch, the account link and log out,
+ * then the page itself (`<Outlet />`) and the footer. Reviewers don't get the
+ * admin-only button or "Settings".
  */
 import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { ThemeToggle, Wordmark } from "./Brand";
 import { Footer } from "./Footer";
-import { LogOutIcon, PlusIcon } from "./icons";
+import { LogOutIcon, PlusIcon, UserIcon } from "./icons";
 
 // Every logged-in user sees these; admins also get "Settings" (ADMIN_NAV).
 const NAV = [
@@ -69,6 +70,14 @@ export function Layout() {
               <div className="text-xs font-medium">{user?.email}</div>
               <div className="eyebrow text-[10px]">{user?.role}</div>
             </div>
+            <Link
+              to="/account"
+              aria-label="Account"
+              title="Account"
+              className="flex size-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+            >
+              <UserIcon />
+            </Link>
             <button
               type="button"
               onClick={logout}

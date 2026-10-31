@@ -1,7 +1,8 @@
 /**
  * Dark or light. Dark is the default; the choice is saved in localStorage and applied as
- * `<html data-theme="...">`, which switches every colour token in index.css. index.html
- * applies the saved choice before the page draws, so it never flashes the wrong theme.
+ * `<html data-theme="...">`, which switches every colour token in index.css.
+ * `public/theme.js` (loaded first by index.html) applies the saved choice before the page
+ * draws, so it never flashes the wrong theme.
  */
 export type Theme = "dark" | "light";
 
