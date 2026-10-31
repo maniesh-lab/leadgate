@@ -45,6 +45,7 @@ export function CampaignsPage() {
   return (
     <section>
       <PageHeader
+        tone="blue"
         eyebrow={archived ? "Pipeline · archived" : "Pipeline"}
         title={<span className="text-gradient">Campaigns</span>}
         subtitle="What to look for, where, and which rubric scores it. Each run collects the leads again and sends them through the agents."

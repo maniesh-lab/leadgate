@@ -1,13 +1,15 @@
 /**
  * A small one-series bar chart for the dashboard, in plain HTML (no chart library).
- * Bars grow from the baseline in the accent colour, with 2px gaps and rounded tops;
+ * Bars grow from the baseline in the chart's topic colour (`color`, a CSS colour such as
+ * "var(--collected)"; a bar's own `color` wins, e.g. the score ramp), with 2px gaps and
+ * rounded tops;
  * hovering or focusing a bar shows its label and detail in the line above, so every
  * value is readable without colour. Each bar is a button with an aria-label, so
  * keyboards and screen readers reach it too.
  */
 import { useState } from "react";
 
-export type Bar = { label: string; value: number; detail: string };
+export type Bar = { label: string; value: number; detail: string; color?: string };
 
 type Props = {
   bars: Bar[];
@@ -15,9 +17,11 @@ type Props = {
   summary: string;
   /** Label every bar (few bars), or only the first and last (one bar per day). */
   labelAll?: boolean;
+  /** The bars' colour (a CSS colour); the accent when not given. */
+  color?: string;
 };
 
-export function BarChart({ bars, summary, labelAll = false }: Props) {
+export function BarChart({ bars, summary, labelAll = false, color = "var(--accent)" }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   const max = Math.max(1, ...bars.map((bar) => bar.value));
   const active = hovered === null ? null : bars[hovered];
@@ -46,10 +50,13 @@ export function BarChart({ bars, summary, labelAll = false }: Props) {
             className="flex h-full flex-1 cursor-default items-end outline-none focus-visible:bg-surface-2"
           >
             <span
-              className={`block w-full rounded-t-[4px] bg-accent transition-opacity ${
+              className={`block w-full rounded-t-[4px] transition-opacity ${
                 hovered !== null && hovered !== index ? "opacity-40" : ""
               }`}
-              style={{ height: bar.value === 0 ? 0 : `${Math.max((bar.value / max) * 100, 2)}%` }}
+              style={{
+                height: bar.value === 0 ? 0 : `${Math.max((bar.value / max) * 100, 2)}%`,
+                background: bar.color ?? color,
+              }}
             />
           </button>
         ))}

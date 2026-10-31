@@ -1,20 +1,28 @@
 /**
  * Building blocks every page uses: the page header (small label, big title, a line of
- * explanation, buttons on the right), the empty state, the "label above value"
- * facts of the detail pages, and the big-number stats of the run page.
+ * explanation, buttons on the right, the page's tone), the empty state, the "label above
+ * value" facts of the detail pages, the big-number stats of the run page and the
+ * dashboard, and the small topic-colour dot.
  */
 import type { ReactNode } from "react";
+
+/** A part of the app's colour (index.css `.tone-*`); none = the cyan brand. */
+export type Tone = "amber" | "orange" | "blue" | "green";
 
 type HeaderProps = {
   eyebrow: string;
   title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  /** Colours the title's accent word one plain colour instead of the cyan gradient. */
+  tone?: Tone;
 };
 
-export function PageHeader({ eyebrow, title, subtitle, actions }: HeaderProps) {
+export function PageHeader({ eyebrow, title, subtitle, actions, tone }: HeaderProps) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div
+      className={`mb-8 flex flex-wrap items-end justify-between gap-4 ${tone ? `tone-${tone}` : ""}`}
+    >
       <div className="min-w-0">
         <p className="eyebrow mb-3">{eyebrow}</p>
         <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">{title}</h1>
@@ -55,12 +63,26 @@ export function Fact({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-/** A big number with a label under it, for run stats. */
-export function Stat({ label, value }: { label: string; value: ReactNode }) {
+/**
+ * A big number with a label under it, for run stats and the dashboard. `tone` (a CSS
+ * colour, e.g. "var(--approved)") puts a dot of the topic's colour before the label;
+ * the number stays in the text colour.
+ */
+export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: string }) {
   return (
     <div>
       <div className="text-2xl font-semibold tabular-nums">{value}</div>
-      <div className="eyebrow mt-1 text-[10px]">{label}</div>
+      <div className="eyebrow mt-1 flex items-center gap-1.5 text-[10px]">
+        {tone && <Dot color={tone} />}
+        {label}
+      </div>
     </div>
+  );
+}
+
+/** A small round mark in a topic colour, next to the label that names it. */
+export function Dot({ color }: { color: string }) {
+  return (
+    <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: color }} />
   );
 }

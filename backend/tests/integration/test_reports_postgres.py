@@ -294,11 +294,14 @@ def test_campaign_conversion(db: Session, world: dict) -> None:
 def test_every_report_runs_on_a_fake_history(db: Session) -> None:
     insert_fake_leads(db, 300, seed=5)
     counts = insert_fake_history(db, seed=5)
+    # The fake history is dated up to the real clock, so the reports must end on the real
+    # today, not the fixed TODAY of the hand-built world (a lead made "today" fell out).
+    today = datetime.now(UTC).date()
     for name in REPORTS:
-        assert report(db, name), name
-    funnel = report(db, ReportName.DAILY_FUNNEL, days=365)
+        assert run_report(db, name, today), name
+    funnel = run_report(db, ReportName.DAILY_FUNNEL, today, days=365)
     assert sum(row["collected"] for row in funnel) == counts.run_items
-    conversion = report(db, ReportName.CAMPAIGN_CONVERSION)
+    conversion = run_report(db, ReportName.CAMPAIGN_CONVERSION, today)
     assert sum(row["collected"] for row in conversion) == counts.run_items
 
 

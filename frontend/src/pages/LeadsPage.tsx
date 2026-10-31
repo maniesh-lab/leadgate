@@ -71,6 +71,7 @@ export function LeadsPage() {
   return (
     <section>
       <PageHeader
+        tone="orange"
         eyebrow="Pipeline"
         title={<span className="text-gradient">Leads</span>}
         subtitle="Every business the sources found, cleaned and scored by the agents. Filter, sort, and open one to see why it scored what it did."

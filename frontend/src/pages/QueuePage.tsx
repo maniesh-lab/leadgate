@@ -64,6 +64,7 @@ export function QueuePage() {
   return (
     <section>
       <PageHeader
+        tone="amber"
         eyebrow="Human in the loop"
         title={
           <>

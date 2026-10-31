@@ -11,9 +11,10 @@ import { Link, useSearchParams } from "react-router";
 import { api } from "../api/client";
 import type { Page, QueueItem, Report, ReportName } from "../api/types";
 import { BarChart } from "../components/BarChart";
-import { PageHeader, Stat } from "../components/Page";
+import { Dot, PageHeader, Stat } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDuration } from "../lib/format";
+import { scoreColor } from "../lib/score";
 
 const PERIODS = [7, 30, 90];
 
@@ -73,6 +74,14 @@ const pct = (value: number | null) => (value === null ? "—" : `${value}%`);
 const sum = <Row,>(rows: Row[], pick: (row: Row) => number) =>
   rows.reduce((total, row) => total + pick(row), 0);
 
+/** Each thing the dashboard counts keeps one colour (tokens in index.css). */
+const TOPIC = {
+  waiting: "var(--amber)",
+  collected: "var(--collected)",
+  approved: "var(--approved)",
+  escalated: "var(--violet)",
+};
+
 export function DashboardPage() {
   const [params, setParams] = useSearchParams();
   const days = PERIODS.includes(Number(params.get("days"))) ? Number(params.get("days")) : 30;
@@ -119,39 +128,57 @@ export function DashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Link to="/queue" className="card transition-colors hover:border-line-strong">
-          <Stat label="Waiting for review" value={waiting.data ?? "…"} />
+        <Link
+          to="/queue"
+          className="card border-t-2 transition-colors hover:border-line-strong"
+          style={{ borderTopColor: TOPIC.waiting }}
+        >
+          <Stat label="Waiting for review" value={waiting.data ?? "…"} tone={TOPIC.waiting} />
         </Link>
-        <div className="card">
+        <div className="card border-t-2" style={{ borderTopColor: TOPIC.collected }}>
           <Stat
             label={`Collected · ${days}d`}
             value={funnel.data ? sum(rows, (r) => r.collected) : "…"}
+            tone={TOPIC.collected}
           />
         </div>
-        <div className="card">
-          <Stat label={`Approved · ${days}d`} value={funnel.data ? approved : "…"} />
+        <div className="card border-t-2" style={{ borderTopColor: TOPIC.approved }}>
+          <Stat
+            label={`Approved · ${days}d`}
+            value={funnel.data ? approved : "…"}
+            tone={TOPIC.approved}
+          />
           {approved + rejected > 0 && (
             <p className="mt-2 text-xs text-muted">
               {Math.round((100 * approved) / (approved + rejected))}% of decisions
             </p>
           )}
         </div>
-        <div className="card">
+        <div className="card border-t-2" style={{ borderTopColor: TOPIC.escalated }}>
           <Stat
             label={`Escalated · ${days}d`}
             value={funnel.data ? sum(rows, (r) => r.escalated) : "…"}
+            tone={TOPIC.escalated}
           />
         </div>
-        <div className="card col-span-2 lg:col-span-1">
-          <Stat label="Approved · all time" value={total.data?.at(-1)?.running_total ?? "…"} />
+        <div
+          className="card col-span-2 border-t-2 lg:col-span-1"
+          style={{ borderTopColor: TOPIC.approved }}
+        >
+          <Stat
+            label="Approved · all time"
+            value={total.data?.at(-1)?.running_total ?? "…"}
+            tone={TOPIC.approved}
+          />
         </div>
       </div>
       {funnel.error && <ErrorMessage error={funnel.error} />}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Collected per day" note="New leads the sources found.">
+        <Card title="Collected per day" note="New leads the sources found." tone={TOPIC.collected}>
           {funnel.data && (
             <BarChart
+              color={TOPIC.collected}
               summary={`${sum(rows, (r) => r.collected)} collected in ${days} days · hover a bar`}
               bars={rows.map((r) => ({
                 label: dayLabel(r.day),
@@ -161,9 +188,14 @@ export function DashboardPage() {
             />
           )}
         </Card>
-        <Card title="Approved per day" note="Leads a reviewer sent on to the CRM.">
+        <Card
+          title="Approved per day"
+          note="Leads a reviewer sent on to the CRM."
+          tone={TOPIC.approved}
+        >
           {funnel.data && (
             <BarChart
+              color={TOPIC.approved}
               summary={`${approved} approved, ${rejected} rejected · hover a bar`}
               bars={rows.map((r) => ({
                 label: dayLabel(r.day),
@@ -188,10 +220,24 @@ export function DashboardPage() {
   );
 }
 
-function Card({ title, note, children }: { title: string; note: string; children: ReactNode }) {
+function Card({
+  title,
+  note,
+  tone,
+  children,
+}: {
+  title: string;
+  note: string;
+  /** The chart's topic colour: a dot before the title, the same colour as its bars. */
+  tone?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="card min-w-0">
-      <h2 className="font-semibold">{title}</h2>
+      <h2 className="flex items-center gap-2 font-semibold">
+        {tone && <Dot color={tone} />}
+        {title}
+      </h2>
       <p className="mb-4 text-xs text-muted">{note}</p>
       {children}
     </div>
@@ -216,7 +262,7 @@ function ReportBody<Row>({
 function ScoreCard() {
   const buckets = useReport<Bucket>("score_distribution");
   return (
-    <Card title="Score distribution" note="Every scored lead, by score.">
+    <Card title="Score distribution" note="Every scored lead, by score." tone={scoreColor(60)}>
       <ReportBody query={buckets}>
         {(rows) => (
           <BarChart
@@ -225,6 +271,8 @@ function ScoreCard() {
             bars={rows.map((r) => ({
               label: r.bucket,
               value: r.leads,
+              // The bucket's own step of the score ramp ("40-59" -> the 40s colour).
+              color: scoreColor(Number.parseInt(r.bucket, 10)),
               detail: `${r.leads} leads · ${r.approved} approved · ${r.rejected} rejected`,
             }))}
           />

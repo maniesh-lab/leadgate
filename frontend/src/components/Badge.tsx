@@ -4,6 +4,7 @@
  * on every page; flags are monospace chips; a score is a bold number with a bar.
  */
 import type { ReactNode } from "react";
+import { scoreColor } from "../lib/score";
 
 type Tone = "gray" | "cyan" | "amber" | "green" | "red" | "violet";
 
@@ -75,7 +76,7 @@ export function FlagBadge({ flag }: { flag: string }) {
   );
 }
 
-/** A score out of 100: the number in bold and a short bar in the accent gradient. */
+/** A score out of 100: the number in bold and a short bar in the score's orange step. */
 export function ScoreMeter({ score }: { score: number | null | undefined }) {
   if (score === null || score === undefined) return <span className="text-faint">—</span>;
   return (
@@ -83,8 +84,8 @@ export function ScoreMeter({ score }: { score: number | null | undefined }) {
       <span className="w-7 text-right font-semibold tabular-nums">{score}</span>
       <span className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-2">
         <span
-          className="block h-full rounded-full bg-linear-to-r from-accent to-accent-2"
-          style={{ width: `${Math.max(score, 3)}%` }}
+          className="block h-full rounded-full"
+          style={{ width: `${Math.max(score, 3)}%`, background: scoreColor(score) }}
         />
       </span>
     </span>
