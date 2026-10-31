@@ -4,7 +4,7 @@
 it links to that look like contact / about / team / services pages
 (`extract_html.pick_links`). `app.services.enrichment` calls it once per lead.
 
-The rules (PLAN §4):
+The rules (PLAN §4, plus 10c's public-addresses-only):
 - robots.txt is read once per site and obeyed (RFC 9309: a 4xx answer means no
   rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer.
 - at least 1 s between two requests to the same domain (robots.txt included)
