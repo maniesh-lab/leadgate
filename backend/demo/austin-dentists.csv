@@ -1,0 +1,13 @@
+name,phone,email,website,address,category,rating,review_count,business_status
+Barton Creek Family Dental,(512) 555-0101,,http://bartoncreekdental.example,"3801 S Lamar Blvd, Austin, TX 78704",dentist,4.8,214,operational
+Congress Avenue Dentistry,(512) 555-0102,,,"1100 Congress Ave, Austin, TX 78701",dentist,4.6,87,operational
+Hyde Park Smiles,(512) 555-0103,hello@hydeparksmiles.example,https://hydeparksmiles.example,"4300 Duval St, Austin, TX 78751",dentist,4.9,156,operational
+Mueller Dental Studio,(512) 555-0104,,https://muellerdental.example,"1900 Aldrich St, Austin, TX 78723",dentist,4.2,41,operational
+East Riverside Dental Care,(512) 555-0105,,,"2400 E Riverside Dr, Austin, TX 78741",dentist,3.7,12,operational
+Zilker Dental Group,(512) 555-0106,,https://zilkerdental.example,"2000 S Lamar Blvd, Austin, TX 78704",dentist,4.5,63,operational
+Allandale Pharmacy,(512) 555-0107,,,"2200 W Anderson Ln, Austin, TX 78757",pharmacy,4.4,95,operational
+Barton Creek Family Dental South,(512) 555-0101,,,"5000 S 1st St, Austin, TX 78745",dentist,4.7,58,operational
+Old Town Dental Clinic,(512) 555-0109,,https://oldtowndental.example,"600 W 28th St, Austin, TX 78705",dentist,4.1,23,closed_permanently
+Cherrywood Dental,(512) 555-0110,,,"3300 Manor Rd, Austin, TX 78723",dentist,,,operational
+Westlake Hills Dentistry,(512) 555-0111,,https://westlakehillsdentistry.example,"3600 Bee Caves Rd, Austin, TX 78746",dentist,4.8,302,operational
+Crestview Kids Dental,(512) 555-0112,,http://crestviewkids.example,"7900 Burnet Rd, Austin, TX 78757",dentist,4.6,120,operational

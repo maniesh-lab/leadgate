@@ -49,7 +49,8 @@ def fake_lead(fake: Faker) -> dict[str, Any]:
     ref = fake.uuid4()
 
     has_website = rnd.random() < 0.7
-    domain = f"{fake.domain_word()}-{ref[:6]}.com" if has_website else None
+    # .example is reserved (RFC 2606): a fake website never points at a real business.
+    domain = f"{fake.domain_word()}-{ref[:6]}.example" if has_website else None
     enrichment = None
     if has_website:
         https, mobile = rnd.random() < 0.8, rnd.random() < 0.7

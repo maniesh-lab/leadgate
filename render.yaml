@@ -1,0 +1,96 @@
+# The live demo on Render (free plan): the API (with the worker inside it) and the
+# dashboard as a static site. The database is Neon's free Postgres, not Render's (Render's
+# free Postgres is deleted after 30 days). This Blueprint mirrors the services the demo runs
+# on; to make your own copy: Render → New → Blueprint → this repo, then fill in the
+# `sync: false` values and swap the two onrender.com addresses for your services' own.
+# Data: run `alembic upgrade head`, `python -m app.cli seed` and
+# `python -m app.cli demo --history 1000` once against the Neon database.
+services:
+  # FastAPI + the job worker in one process (RUN_WORKER_IN_API). Free instances sleep after
+  # 15 minutes idle; the first request after that waits about a minute.
+  - type: web
+    name: leadgate-api
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: main
+    autoDeploy: false
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    # Migrations run on every start (one instance, so no race), then the API.
+    dockerCommand: ./render-start.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL # Neon's direct (not pooled) address, as postgresql+psycopg://...
+        sync: false
+      - key: JWT_SECRET # openssl rand -hex 32
+        sync: false
+      - key: LLM_MODE
+        value: fake
+      - key: RUN_WORKER_IN_API
+        value: "true"
+      - key: DEMO_REVIEWER_EMAIL
+        value: demo@leadgate.example
+      - key: DEMO_REVIEWER_PASSWORD
+        value: approve-some-leads
+      # The proxies in front of the API, so uvicorn reads each visitor's own address from
+      # X-Forwarded-For (the login limit counts by it) and ignores any address a visitor
+      # makes up: Render's local proxy, Render's 10.x edge, and Cloudflare's published
+      # ranges (cloudflare.com/ips-v4 + ips-v6, read 2026-10-31), which sit in front of Render.
+      - key: FORWARDED_ALLOW_IPS
+        value: "127.0.0.1,10.0.0.0/8,173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22,2400:cb00::/32,2606:4700::/32,2803:f800::/32,2405:b500::/32,2405:8100::/32,2a06:98c0::/29,2c0f:f248::/32"
+      # The dashboard calls the API on its own address (see the static site below).
+      - key: CORS_ORIGINS
+        value: https://leadgate-ocu8.onrender.com
+      - key: PORT
+        value: "8000"
+
+  # The dashboard: Vite's build served from Render's CDN. It calls the API on the API's own
+  # address (VITE_API_URL + the API's CORS_ORIGINS), not through a rewrite here: Render's
+  # rewrite proxy would give every visitor the same address, and one visitor's failed
+  # logins would then lock everyone out.
+  - type: web
+    name: leadgate
+    runtime: static
+    branch: main
+    autoDeploy: false
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: NODE_VERSION
+        value: 26.12.1
+      - key: VITE_API_URL
+        value: https://leadgate-api-uyb8.onrender.com
+      - key: VITE_DEMO_EMAIL
+        value: demo@leadgate.example
+      - key: VITE_DEMO_PASSWORD
+        value: approve-some-leads
+    # Any path is a page of the app: React Router reads the URL.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # The headers of frontend/security-headers.conf (connect-src also allows the API's
+    # address) plus HSTS (onrender.com also sends its own, longer HSTS).
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://leadgate-api-uyb8.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable

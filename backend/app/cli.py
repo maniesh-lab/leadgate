@@ -14,6 +14,9 @@
   ADMIN_EMAIL); the worker then resumes the item
 - `show-run --run <id>`: the run's status, stats and items, and any node that completed
   twice for one item (there should be none, even after the worker was killed)
+- `demo [--history N]`: the public demo's reviewer + campaign, and a new run when its
+  queue runs low (`app.db.demo`); `--history N` adds N fake leads with a decided
+  history for the dashboard (once: skipped when fake leads exist)
 
 Each command opens its own DB connection from DATABASE_URL. The real work lives in
 other modules (`app.db.seed`, `app.db.fake_data`, `app.services.*`); this file only
@@ -32,6 +35,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
+from app.db.demo import set_up_demo
 from app.db.fake_data import insert_fake_leads
 from app.db.fake_history import insert_fake_history
 from app.db.models import Campaign, Lead, Run, RunItem, RunStep, StepStatus, User
@@ -283,6 +287,42 @@ def describe_run(session: Session, run: Run) -> str:
     return "\n".join(lines)
 
 
+def cmd_demo(settings: Settings, args: argparse.Namespace) -> int:
+    if not settings.demo_reviewer_email or not settings.demo_reviewer_password:
+        print("DEMO_REVIEWER_EMAIL and DEMO_REVIEWER_PASSWORD must be set.")
+        return 1
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            if args.history:
+                has_fake = session.scalar(select(Lead.id).where(Lead.source == "fake").limit(1))
+                if has_fake is None:
+                    inserted = insert_fake_leads(session, args.history)
+                    counts = insert_fake_history(session, waiting=False)
+                    print(f"history: {inserted} fake leads, {counts.summary()}")
+                else:
+                    print("history: fake leads already there, skipped")
+            try:
+                result = set_up_demo(
+                    session,
+                    settings.demo_reviewer_email,
+                    settings.demo_reviewer_password,
+                    datetime.now(UTC),
+                )
+            except (LookupError, ValueError) as exc:
+                print(f"error: {exc}")
+                return 1
+    finally:
+        engine.dispose()
+    print(f"demo reviewer {settings.demo_reviewer_email}: {result.reviewer}")
+    print(f"demo campaign {result.campaign_id}: {result.waiting} items waiting or on their way")
+    if result.run_id is not None:
+        print(f"run {result.run_id} queued; the worker takes its leads to the approval gate")
+    else:
+        print("no new run needed")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="leadgate tools")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -344,6 +384,14 @@ def build_parser() -> argparse.ArgumentParser:
     show_parser = commands.add_parser("show-run", help="a run's status, items and steps")
     show_parser.add_argument("--run", type=int, required=True, help="run id")
     show_parser.set_defaults(handler=cmd_show_run)
+
+    demo_parser = commands.add_parser(
+        "demo", help="set up the public demo (reviewer, campaign) and refill its queue"
+    )
+    demo_parser.add_argument(
+        "--history", type=int, metavar="N", help="also add N fake leads with a decided history"
+    )
+    demo_parser.set_defaults(handler=cmd_demo)
 
     return parser
 

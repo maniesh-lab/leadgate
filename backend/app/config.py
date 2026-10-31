@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # repr=False: never shown when the settings object is printed (e.g. in a traceback).
     admin_password: str | None = Field(default=None, repr=False)
 
+    # The public demo's reviewer, created by `python -m app.cli demo` and shown on the
+    # login page. Its password can't be changed and failed logins don't lock it.
+    demo_reviewer_email: str | None = None
+    demo_reviewer_password: str | None = Field(default=None, repr=False)
+
     # Signs the API's login tokens (HS256). The API refuses to start without it; the CLI
     # and the worker don't need it. At least 32 characters: `openssl rand -hex 32`.
     jwt_secret: str | None = Field(default=None, min_length=32, repr=False)

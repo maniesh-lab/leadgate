@@ -1,10 +1,14 @@
-/** The login form: email + password -> a token, then back to the page you came from. */
+/**
+ * The login form: email + password -> a token, then back to the page you came from.
+ * On the public demo it also shows the demo reviewer's login, one click away.
+ */
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { describeError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { ThemeToggle, Wordmark } from "../components/Brand";
 import { ArrowRightIcon } from "../components/icons";
+import { demoLogin } from "../lib/demo";
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -14,23 +18,35 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const demo = demoLogin();
 
   // Where RequireAuth sent us from (e.g. /leads?status=new); the start page otherwise.
   const from = (location.state as { from?: string } | null)?.from ?? "/";
   if (user) return <Navigate to={from} replace />;
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  async function logIn(asEmail: string, asPassword: string) {
     setBusy(true);
     setError(null);
     try {
-      await login(email, password);
+      await login(asEmail, asPassword);
       navigate(from, { replace: true });
     } catch (err) {
       setError(describeError(err));
     } finally {
       setBusy(false);
     }
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void logIn(email, password);
+  }
+
+  function logInAsDemo() {
+    if (!demo) return;
+    setEmail(demo.email);
+    setPassword(demo.password);
+    void logIn(demo.email, demo.password);
   }
 
   return (
@@ -82,6 +98,29 @@ export function LoginPage() {
             {!busy && <ArrowRightIcon />}
           </button>
         </form>
+
+        {demo && (
+          <section aria-label="Demo login" className="card mt-4">
+            <p className="eyebrow text-[10px]">Just looking?</p>
+            <p className="mt-2 text-sm text-muted">
+              Log in as the demo reviewer and approve or reject a few made-up leads:
+            </p>
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-sm">
+              <dt className="text-muted">email</dt>
+              <dd className="break-all">{demo.email}</dd>
+              <dt className="text-muted">password</dt>
+              <dd className="break-all">{demo.password}</dd>
+            </dl>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={logInAsDemo}
+              className="btn mt-4 w-full py-2.5"
+            >
+              Use the demo login
+            </button>
+          </section>
+        )}
       </div>
     </main>
   );

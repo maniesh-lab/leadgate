@@ -138,3 +138,10 @@ def test_cli_fake_data_with_history(
     assert "inserted 30 fake leads" in out
     assert "history: " in out
     assert "30 run_items" in out
+
+
+def test_fake_history_without_waiting_items(db: Session) -> None:
+    insert_fake_leads(db, 200, seed=5)
+    insert_fake_history(db, seed=5, waiting=False)
+    assert count(db, RunItem, RunItem.status == RunItemStatus.AWAITING_APPROVAL) == 0
+    assert count(db, RunItem) == 200

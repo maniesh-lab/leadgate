@@ -12,7 +12,8 @@ and audit rows, `app.services.approvals` for the decision):
   about 10 audit rows, a `process_item` job (and a `resume_item` job once decided)
 - a few fake reviewers decide each item after a wait (some decide faster than others);
   a decision that would land after `now` hasn't happened yet, so that item still waits
-  at the gate, like a real queue
+  at the gate, like a real queue (`waiting=False`: it was decided a minute ago instead;
+  the public demo's queue holds only real items, see `app.db.demo`)
 - a few items fail in `extract`; about 1 in 10 carries a `possible_duplicate` flag
 
 The lead's own `status` and `score` are rewritten to match its item (approved,
@@ -148,7 +149,11 @@ class RunPlan:
 
 
 def insert_fake_history(
-    session: Session, now: datetime | None = None, seed: int | None = None
+    session: Session,
+    now: datetime | None = None,
+    seed: int | None = None,
+    *,
+    waiting: bool = True,
 ) -> HistoryCounts:
     """Give every fake lead without a run item a run history (see the module docstring)."""
     now = now or datetime.now(UTC)
@@ -181,7 +186,7 @@ def insert_fake_history(
         by_run[(campaign_id, f"{lead['first_seen_at']:%Y-%m-%d}")].append(lead)
 
     plans = [
-        plan_run(rnd, campaign_id, run_leads, now)
+        plan_run(rnd, campaign_id, run_leads, now, waiting)
         for (campaign_id, _day), run_leads in sorted(
             by_run.items(), key=lambda entry: entry[1][0]["first_seen_at"]
         )
@@ -253,7 +258,11 @@ def fake_campaigns(
 
 
 def plan_run(
-    rnd: random.Random, campaign_id: int, leads: list[dict[str, Any]], now: datetime
+    rnd: random.Random,
+    campaign_id: int,
+    leads: list[dict[str, Any]],
+    now: datetime,
+    waiting: bool = True,
 ) -> RunPlan:
     created_at = leads[0]["first_seen_at"] - timedelta(minutes=1)
     trigger = RunTrigger.N8N if rnd.random() < 0.3 else RunTrigger.SCHEDULE
@@ -261,11 +270,13 @@ def plan_run(
         campaign_id=campaign_id,
         trigger=trigger,
         created_at=created_at,
-        items=[plan_item(rnd, lead, now) for lead in leads],
+        items=[plan_item(rnd, lead, now, waiting) for lead in leads],
     )
 
 
-def plan_item(rnd: random.Random, lead: dict[str, Any], now: datetime) -> ItemPlan:
+def plan_item(
+    rnd: random.Random, lead: dict[str, Any], now: datetime, waiting: bool = True
+) -> ItemPlan:
     """The item's story: its steps, and (unless it failed or still waits) the decision."""
     start = lead["first_seen_at"]
     item = ItemPlan(lead=lead, status=RunItemStatus.DONE, score=None, flags=[], created_at=start)
@@ -299,6 +310,8 @@ def plan_item(rnd: random.Random, lead: dict[str, Any], now: datetime) -> ItemPl
     item.reviewer = rnd.choice(list(REVIEWERS))
     wait = timedelta(minutes=REVIEWERS[item.reviewer] * rnd.lognormvariate(0, 0.8))
     decided_at = gate_start + wait
+    if decided_at > now and not waiting:
+        decided_at = max(gate_start, now - timedelta(minutes=1))
     if decided_at > now:
         item.status = RunItemStatus.AWAITING_APPROVAL
         item.reviewer = None
