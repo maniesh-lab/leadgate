@@ -2,8 +2,10 @@
 # file, as its own compose project, so it never touches your local data or ports:
 #   cd frontend; npm run e2e:up; npm run e2e; npm run e2e:down
 # It uses fixed test values and the fake LLM, and turns every outside service off (Google,
-# Groq/OpenAI, Airtable, Discord, n8n, Langfuse), even when .env holds real keys. Only the
-# frontend is published, on 127.0.0.1:8081 (the local stack keeps 8080).
+# Groq/OpenAI, Airtable, Discord, Langfuse), even when .env holds real keys. The n8n webhook
+# stays on with a test secret, because the test starts its run through it (no callback URL,
+# so nothing is posted back). Only the frontend is published, on 127.0.0.1:8081 (the local
+# stack keeps 8080).
 
 # Override the matching keys of the base file's backend settings.
 x-e2e-env: &e2e-env
