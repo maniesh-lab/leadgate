@@ -1,8 +1,8 @@
 /**
  * The frame around every logged-in page: a floating pill bar with the mark, the menu
- * (the active item shows a dot in its page's tone), the admin's "New campaign" button, the theme switch, the account link and log out,
- * then the page itself (`<Outlet />`) and the footer. Reviewers don't get the
- * admin-only button or "Settings".
+ * (the active item shows a dot in its page's tone), the admin's "New campaign" button,
+ * the theme switch, the account link and log out, then the page itself (`<Outlet />`)
+ * and the footer. Reviewers don't get the admin-only button or "Settings".
  */
 import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
