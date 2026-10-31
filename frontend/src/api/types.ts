@@ -10,6 +10,7 @@ type Schemas = components["schemas"];
 export type User = Schemas["UserOut"];
 export type UserRole = Schemas["UserRole"];
 export type Token = Schemas["Token"];
+export type PasswordChange = Schemas["PasswordChange"];
 
 export type Rubric = Schemas["RubricOut"];
 export type Campaign = Schemas["CampaignOut"];

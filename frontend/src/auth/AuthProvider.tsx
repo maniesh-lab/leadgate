@@ -1,6 +1,7 @@
 /**
  * Who is logged in. Holds the token, loads the user behind it (`GET /api/auth/me`), and
- * offers `login()` / `logout()`. Every page reads it through `useAuth()`.
+ * offers `login()` / `logout()`, plus `swapToken()` for the fresh token a password change
+ * hands back. Every page reads it through `useAuth()`.
  *
  * A token is only good for JWT_EXPIRE_MINUTES (no refresh tokens), so when any API call
  * answers 401 the client calls `logout()` and the protected routes send the user to
@@ -20,6 +21,8 @@ type AuthValue = {
   error: Error | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Swap in a new token for the same user (after a password change ends the old one). */
+  swapToken: (token: string) => void;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -51,12 +54,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(answer.access_token);
   }, []);
 
+  const swapToken = useCallback(
+    (next: string) => {
+      // Same user: seed the cache, so the page doesn't blink through "Loading…".
+      queryClient.setQueryData(["me", next], me.data);
+      setToken(next);
+      setTokenState(next);
+    },
+    [queryClient, me.data],
+  );
+
   const value: AuthValue = {
     user: token ? (me.data ?? null) : null,
     loading: token !== null && me.isPending,
     error: token ? me.error : null,
     login,
     logout,
+    swapToken,
   };
   return <AuthContext value={value}>{children}</AuthContext>;
 }
