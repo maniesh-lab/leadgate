@@ -5,6 +5,12 @@
  * dark is the default, `<html data-theme="light">` switches to light (src/lib/theme.ts).
  * Pages only use the token names (bg-surface, text-muted, border-line, ...), so both
  * themes always match. Punchy colour is kept for meaning: the accent, statuses, scores.
+ *
+ * Topic colours: each thing the dashboard counts keeps one colour everywhere. Collected
+ * = blue, approved = green, waiting = amber, escalated = violet (the last two are the
+ * status colours). Scores use a 5-step orange ramp, one step per 20 points, low to high
+ * (src/lib/score.ts). Blue, green and the orange ramp were checked with a colour-blind
+ * and contrast validator in both themes; the numbers next to them stay in text colours.
  */
 
 :root,
@@ -12,6 +18,7 @@
   color-scheme: dark;
   --bg: #05070b;
   --glow: rgb(34 211 238 / 0.09);
+  --glow-2: rgb(144 133 233 / 0.07);
   --surface: #0a0e15;
   --surface-2: #111620;
   --line: #1a212d;
@@ -38,12 +45,22 @@
   --violet: #a78bfa;
   --gray-bg: rgb(148 163 184 / 0.12);
   --gray: #a3adbf;
+
+  --collected: #3987e5;
+  --approved: #199e70;
+  /* Score ramp, low -> high: on dark, a higher score is brighter. */
+  --score-1: #7c2d12;
+  --score-2: #c2410c;
+  --score-3: #ea580c;
+  --score-4: #fb923c;
+  --score-5: #fdba74;
 }
 
 [data-theme="light"] {
   color-scheme: light;
   --bg: #f6f7fa;
   --glow: rgb(59 130 246 / 0.08);
+  --glow-2: rgb(124 58 237 / 0.05);
   --surface: #ffffff;
   --surface-2: #f0f3f8;
   --line: #e3e7ee;
@@ -70,6 +87,15 @@
   --violet: #6d28d9;
   --gray-bg: #eef1f5;
   --gray: #475569;
+
+  --collected: #2a78d6;
+  --approved: #1baf7a;
+  /* On light, a higher score is darker. */
+  --score-1: #fb923c;
+  --score-2: #ea580c;
+  --score-3: #c2410c;
+  --score-4: #9a3412;
+  --score-5: #7c2d12;
 }
 
 @theme inline {
@@ -95,8 +121,10 @@
 @layer base {
   body {
     @apply bg-bg font-sans text-fg antialiased;
-    /* A soft glow at the top of every page. */
-    background-image: radial-gradient(70% 45% at 50% -12%, var(--glow), transparent 70%);
+    /* A soft cyan glow at the top of every page, and a violet one low on the right. */
+    background-image:
+      radial-gradient(70% 45% at 50% -12%, var(--glow), transparent 70%),
+      radial-gradient(45% 40% at 100% 100%, var(--glow-2), transparent 70%);
     background-attachment: fixed;
     min-height: 100vh;
   }
