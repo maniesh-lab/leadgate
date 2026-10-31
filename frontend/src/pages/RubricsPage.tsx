@@ -125,6 +125,7 @@ export function RubricsPage() {
   return (
     <section>
       <PageHeader
+        tone="orange"
         eyebrow="Settings"
         title={
           <>

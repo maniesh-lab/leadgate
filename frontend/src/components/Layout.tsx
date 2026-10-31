@@ -1,6 +1,6 @@
 /**
- * The frame around every logged-in page: a floating pill bar with the mark, the menu,
- * the admin's "New campaign" button, the theme switch, the account link and log out,
+ * The frame around every logged-in page: a floating pill bar with the mark, the menu
+ * (the active item shows a dot in its page's tone), the admin's "New campaign" button, the theme switch, the account link and log out,
  * then the page itself (`<Outlet />`) and the footer. Reviewers don't get the
  * admin-only button or "Settings".
  */
@@ -9,17 +9,19 @@ import { useAuth } from "../auth/AuthProvider";
 import { ThemeToggle, Wordmark } from "./Brand";
 import { Footer } from "./Footer";
 import { LogOutIcon, PlusIcon, UserIcon } from "./icons";
+import { Dot } from "./Page";
 
-// Every logged-in user sees these; admins also get "Settings" (ADMIN_NAV).
+// Every logged-in user sees these; admins also get "Settings" (ADMIN_NAV). `dot` is the
+// page's tone (PageHeader's `tone`), shown as a dot on the active item.
 const NAV = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/queue", label: "Queue" },
-  { to: "/campaigns", label: "Campaigns" },
-  { to: "/runs", label: "Runs" },
-  { to: "/leads", label: "Leads" },
-  { to: "/audit", label: "Audit" },
+  { to: "/dashboard", label: "Dashboard", dot: "var(--accent)" },
+  { to: "/queue", label: "Queue", dot: "var(--tone-amber-1)" },
+  { to: "/campaigns", label: "Campaigns", dot: "var(--tone-blue-1)" },
+  { to: "/runs", label: "Runs", dot: "var(--tone-violet-1)" },
+  { to: "/leads", label: "Leads", dot: "var(--tone-orange-1)" },
+  { to: "/audit", label: "Audit", dot: "var(--tone-green-1)" },
 ];
-const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings" }];
+const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings", dot: "var(--tone-orange-1)" }];
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -42,14 +44,19 @@ export function Layout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                  `flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm whitespace-nowrap transition-colors ${
                     isActive
                       ? "border-line-strong bg-surface-2 text-fg"
                       : "border-transparent text-muted hover:text-fg"
                   }`
                 }
               >
-                {item.label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && <Dot color={item.dot} />}
+                    {item.label}
+                  </>
+                )}
               </NavLink>
             ))}
           </div>

@@ -1,22 +1,33 @@
 /**
  * Building blocks every page uses: the page header (small label, big title, a line of
- * explanation, buttons on the right), the empty state, the "label above value"
- * facts of the detail pages, and the big-number stats of the run page.
+ * explanation, buttons on the right, the page's tone), the empty state, the "label above
+ * value" facts of the detail pages, the big-number stats of the run page and the
+ * dashboard, and the small topic-colour dot.
  */
 import type { ReactNode } from "react";
+
+/** A part of the app's colour (index.css `.tone-*`); none = the cyan brand. */
+export type Tone = "amber" | "orange" | "blue" | "violet" | "green";
 
 type HeaderProps = {
   eyebrow: string;
   title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  /** Colours the title's accent word and the dot by the small label. */
+  tone?: Tone;
 };
 
-export function PageHeader({ eyebrow, title, subtitle, actions }: HeaderProps) {
+export function PageHeader({ eyebrow, title, subtitle, actions, tone }: HeaderProps) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div
+      className={`mb-8 flex flex-wrap items-end justify-between gap-4 ${tone ? `tone-${tone}` : ""}`}
+    >
       <div className="min-w-0">
-        <p className="eyebrow mb-3">{eyebrow}</p>
+        <p className="eyebrow mb-3 flex items-center gap-2">
+          <Dot color="var(--grad-from, var(--accent))" />
+          {eyebrow}
+        </p>
         <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">{title}</h1>
         {subtitle && <p className="mt-3 max-w-2xl text-muted">{subtitle}</p>}
       </div>

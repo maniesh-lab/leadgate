@@ -108,6 +108,7 @@ export function NewCampaignPage() {
   return (
     <section className="max-w-2xl">
       <PageHeader
+        tone="blue"
         eyebrow="Pipeline · new"
         title={
           <>

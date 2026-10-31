@@ -19,7 +19,7 @@ export function ScoreReview({ review, score }: { review: Review; score: number |
       <div className="flex items-baseline justify-between">
         <span className="eyebrow">Score</span>
         <span>
-          <span className="text-gradient text-5xl leading-none">{score ?? "—"}</span>
+          <span className="tone-orange text-gradient text-5xl leading-none">{score ?? "—"}</span>
           <span className="ml-1 text-sm text-faint">/ 100</span>
         </span>
       </div>

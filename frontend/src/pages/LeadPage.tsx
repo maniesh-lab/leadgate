@@ -33,6 +33,7 @@ export function LeadPage() {
   return (
     <section className="space-y-6">
       <PageHeader
+        tone="orange"
         eyebrow={`Lead · ${data.category ?? data.source}`}
         title={data.name}
         subtitle={[data.address, data.city].filter(Boolean).join(" · ") || undefined}

@@ -35,6 +35,7 @@ export function RunItemPage() {
   return (
     <section className="space-y-6">
       <PageHeader
+        tone="violet"
         eyebrow={`Run #${data.run_id} · item ${data.id}`}
         title={
           <Link to={`/leads/${lead.id}`} className="hover:underline">

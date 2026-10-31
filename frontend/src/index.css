@@ -4,13 +4,19 @@
  * The design system. Colours are named tokens (CSS variables), set once per theme:
  * dark is the default, `<html data-theme="light">` switches to light (src/lib/theme.ts).
  * Pages only use the token names (bg-surface, text-muted, border-line, ...), so both
- * themes always match. Punchy colour is kept for meaning: the accent, statuses, scores.
+ * themes always match. Punchy colour is kept for meaning: the accent, statuses, topics,
+ * scores, and each part of the app's tone (below).
  *
  * Topic colours: each thing the dashboard counts keeps one colour everywhere. Collected
  * = blue, approved = green, waiting = amber, escalated = violet (the last two are the
  * status colours). Scores use a 5-step orange ramp, one step per 20 points, low to high
  * (src/lib/score.ts). Blue, green and the orange ramp were checked with a colour-blind
  * and contrast validator in both themes; the numbers next to them stay in text colours.
+ *
+ * Page tones: each part of the app has a colour for its title's accent word, the dot by
+ * its small label and its dot in the menu: the queue amber, leads and rubrics orange,
+ * campaigns blue, runs violet, the audit log green; the dashboard, account and login keep
+ * the cyan brand. Two stops each (`--tone-*-1/2`), deeper on light for contrast.
  */
 
 :root,
@@ -54,6 +60,18 @@
   --score-3: #ea580c;
   --score-4: #fb923c;
   --score-5: #fdba74;
+
+  /* Page tones: the two ends of a page title's accent word (.tone-*). */
+  --tone-amber-1: #fbbf24;
+  --tone-amber-2: #f97316;
+  --tone-orange-1: #fb923c;
+  --tone-orange-2: #f43f5e;
+  --tone-blue-1: #60a5fa;
+  --tone-blue-2: #818cf8;
+  --tone-violet-1: #a78bfa;
+  --tone-violet-2: #f472b6;
+  --tone-green-1: #34d399;
+  --tone-green-2: #22d3ee;
 }
 
 [data-theme="light"] {
@@ -96,6 +114,17 @@
   --score-3: #c2410c;
   --score-4: #9a3412;
   --score-5: #7c2d12;
+
+  --tone-amber-1: #d97706;
+  --tone-amber-2: #ea580c;
+  --tone-orange-1: #ea580c;
+  --tone-orange-2: #e11d48;
+  --tone-blue-1: #2563eb;
+  --tone-blue-2: #4f46e5;
+  --tone-violet-1: #7c3aed;
+  --tone-violet-2: #db2777;
+  --tone-green-1: #059669;
+  --tone-green-2: #0891b2;
 }
 
 @theme inline {
@@ -134,14 +163,42 @@
 }
 
 @layer components {
-  /* The signature look: italic serif with a cyan -> blue gradient. One per page, at most. */
+  /*
+   * The signature look: italic serif with a gradient. One per page, at most. Cyan -> blue
+   * by default; a page's tone (.tone-* on its header, see PageHeader) swaps the two ends,
+   * so each part of the app has its own colour: the queue amber, leads orange, ...
+   */
   .text-gradient {
     @apply font-display italic;
-    background: linear-gradient(100deg, var(--accent) 10%, var(--accent-2) 90%);
+    background: linear-gradient(
+      100deg,
+      var(--grad-from, var(--accent)) 10%,
+      var(--grad-to, var(--accent-2)) 90%
+    );
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     padding-right: 0.08em; /* italics lean out of their box; keep the last letter whole */
+  }
+  .tone-amber {
+    --grad-from: var(--tone-amber-1);
+    --grad-to: var(--tone-amber-2);
+  }
+  .tone-orange {
+    --grad-from: var(--tone-orange-1);
+    --grad-to: var(--tone-orange-2);
+  }
+  .tone-blue {
+    --grad-from: var(--tone-blue-1);
+    --grad-to: var(--tone-blue-2);
+  }
+  .tone-violet {
+    --grad-from: var(--tone-violet-1);
+    --grad-to: var(--tone-violet-2);
+  }
+  .tone-green {
+    --grad-from: var(--tone-green-1);
+    --grad-to: var(--tone-green-2);
   }
   /* Small spaced capitals for labels: "STATUS", "PIPELINE". */
   .eyebrow {
