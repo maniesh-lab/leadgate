@@ -13,10 +13,9 @@
  * (src/lib/score.ts). Blue, green and the orange ramp were checked with a colour-blind
  * and contrast validator in both themes; the numbers next to them stay in text colours.
  *
- * Page tones: each part of the app has a colour for its title's accent word, the dot by
- * its small label and its dot in the menu: the queue amber, leads and rubrics orange,
- * campaigns blue, runs violet, the audit log green; the dashboard, account and login keep
- * the cyan brand. Two stops each (`--tone-*-1/2`), deeper on light for contrast.
+ * Page tones: each part of the app has one plain colour for its title's accent word and
+ * its dot in the menu: the queue amber, leads and rubrics orange, campaigns blue, runs
+ * green; every other page keeps the cyan brand. Deeper on light for contrast.
  */
 
 :root,
@@ -24,7 +23,6 @@
   color-scheme: dark;
   --bg: #05070b;
   --glow: rgb(34 211 238 / 0.09);
-  --glow-2: rgb(144 133 233 / 0.07);
   --surface: #0a0e15;
   --surface-2: #111620;
   --line: #1a212d;
@@ -61,24 +59,17 @@
   --score-4: #fb923c;
   --score-5: #fdba74;
 
-  /* Page tones: the two ends of a page title's accent word (.tone-*). */
-  --tone-amber-1: #fbbf24;
-  --tone-amber-2: #f97316;
-  --tone-orange-1: #fb923c;
-  --tone-orange-2: #f43f5e;
-  --tone-blue-1: #60a5fa;
-  --tone-blue-2: #818cf8;
-  --tone-violet-1: #a78bfa;
-  --tone-violet-2: #f472b6;
-  --tone-green-1: #34d399;
-  --tone-green-2: #22d3ee;
+  /* Page tones: one plain colour for a page title's accent word (.tone-*). */
+  --tone-amber: #fbbf24;
+  --tone-orange: #fb923c;
+  --tone-blue: #60a5fa;
+  --tone-green: #34d399;
 }
 
 [data-theme="light"] {
   color-scheme: light;
   --bg: #f6f7fa;
   --glow: rgb(59 130 246 / 0.08);
-  --glow-2: rgb(124 58 237 / 0.05);
   --surface: #ffffff;
   --surface-2: #f0f3f8;
   --line: #e3e7ee;
@@ -115,16 +106,10 @@
   --score-4: #9a3412;
   --score-5: #7c2d12;
 
-  --tone-amber-1: #d97706;
-  --tone-amber-2: #ea580c;
-  --tone-orange-1: #ea580c;
-  --tone-orange-2: #e11d48;
-  --tone-blue-1: #2563eb;
-  --tone-blue-2: #4f46e5;
-  --tone-violet-1: #7c3aed;
-  --tone-violet-2: #db2777;
-  --tone-green-1: #059669;
-  --tone-green-2: #0891b2;
+  --tone-amber: #b45309;
+  --tone-orange: #c2410c;
+  --tone-blue: #1d4ed8;
+  --tone-green: #047857;
 }
 
 @theme inline {
@@ -150,10 +135,8 @@
 @layer base {
   body {
     @apply bg-bg font-sans text-fg antialiased;
-    /* A soft cyan glow at the top of every page, and a violet one low on the right. */
-    background-image:
-      radial-gradient(70% 45% at 50% -12%, var(--glow), transparent 70%),
-      radial-gradient(45% 40% at 100% 100%, var(--glow-2), transparent 70%);
+    /* A soft glow at the top of every page. */
+    background-image: radial-gradient(70% 45% at 50% -12%, var(--glow), transparent 70%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -164,9 +147,9 @@
 
 @layer components {
   /*
-   * The signature look: italic serif with a gradient. One per page, at most. Cyan -> blue
-   * by default; a page's tone (.tone-* on its header, see PageHeader) swaps the two ends,
-   * so each part of the app has its own colour: the queue amber, leads orange, ...
+   * The signature look: italic serif with a cyan -> blue gradient. One per page, at most.
+   * A page's tone (.tone-* on its header, see PageHeader) makes it one plain colour
+   * instead: the queue amber, leads orange, ...
    */
   .text-gradient {
     @apply font-display italic;
@@ -181,24 +164,20 @@
     padding-right: 0.08em; /* italics lean out of their box; keep the last letter whole */
   }
   .tone-amber {
-    --grad-from: var(--tone-amber-1);
-    --grad-to: var(--tone-amber-2);
+    --grad-from: var(--tone-amber);
+    --grad-to: var(--tone-amber);
   }
   .tone-orange {
-    --grad-from: var(--tone-orange-1);
-    --grad-to: var(--tone-orange-2);
+    --grad-from: var(--tone-orange);
+    --grad-to: var(--tone-orange);
   }
   .tone-blue {
-    --grad-from: var(--tone-blue-1);
-    --grad-to: var(--tone-blue-2);
-  }
-  .tone-violet {
-    --grad-from: var(--tone-violet-1);
-    --grad-to: var(--tone-violet-2);
+    --grad-from: var(--tone-blue);
+    --grad-to: var(--tone-blue);
   }
   .tone-green {
-    --grad-from: var(--tone-green-1);
-    --grad-to: var(--tone-green-2);
+    --grad-from: var(--tone-green);
+    --grad-to: var(--tone-green);
   }
   /* Small spaced capitals for labels: "STATUS", "PIPELINE". */
   .eyebrow {

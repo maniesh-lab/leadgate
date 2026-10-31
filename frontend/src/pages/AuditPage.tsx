@@ -69,7 +69,6 @@ export function AuditPage() {
   return (
     <section>
       <PageHeader
-        tone="green"
         eyebrow="Every step, on record"
         title={
           <>

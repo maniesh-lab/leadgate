@@ -55,7 +55,7 @@ export function RunsPage() {
   return (
     <section>
       <PageHeader
-        tone="violet"
+        tone="green"
         eyebrow="Activity"
         title={<span className="text-gradient">Runs</span>}
         subtitle="Each run collects a campaign's leads and takes every one through enrich, extract, check and score, up to a human's approval."

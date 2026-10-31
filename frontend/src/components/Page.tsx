@@ -7,14 +7,14 @@
 import type { ReactNode } from "react";
 
 /** A part of the app's colour (index.css `.tone-*`); none = the cyan brand. */
-export type Tone = "amber" | "orange" | "blue" | "violet" | "green";
+export type Tone = "amber" | "orange" | "blue" | "green";
 
 type HeaderProps = {
   eyebrow: string;
   title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
-  /** Colours the title's accent word and the dot by the small label. */
+  /** Colours the title's accent word one plain colour instead of the cyan gradient. */
   tone?: Tone;
 };
 
@@ -24,10 +24,7 @@ export function PageHeader({ eyebrow, title, subtitle, actions, tone }: HeaderPr
       className={`mb-8 flex flex-wrap items-end justify-between gap-4 ${tone ? `tone-${tone}` : ""}`}
     >
       <div className="min-w-0">
-        <p className="eyebrow mb-3 flex items-center gap-2">
-          <Dot color="var(--grad-from, var(--accent))" />
-          {eyebrow}
-        </p>
+        <p className="eyebrow mb-3">{eyebrow}</p>
         <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">{title}</h1>
         {subtitle && <p className="mt-3 max-w-2xl text-muted">{subtitle}</p>}
       </div>

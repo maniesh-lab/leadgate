@@ -15,13 +15,13 @@ import { Dot } from "./Page";
 // page's tone (PageHeader's `tone`), shown as a dot on the active item.
 const NAV = [
   { to: "/dashboard", label: "Dashboard", dot: "var(--accent)" },
-  { to: "/queue", label: "Queue", dot: "var(--tone-amber-1)" },
-  { to: "/campaigns", label: "Campaigns", dot: "var(--tone-blue-1)" },
-  { to: "/runs", label: "Runs", dot: "var(--tone-violet-1)" },
-  { to: "/leads", label: "Leads", dot: "var(--tone-orange-1)" },
-  { to: "/audit", label: "Audit", dot: "var(--tone-green-1)" },
+  { to: "/queue", label: "Queue", dot: "var(--tone-amber)" },
+  { to: "/campaigns", label: "Campaigns", dot: "var(--tone-blue)" },
+  { to: "/runs", label: "Runs", dot: "var(--tone-green)" },
+  { to: "/leads", label: "Leads", dot: "var(--tone-orange)" },
+  { to: "/audit", label: "Audit", dot: "var(--accent)" },
 ];
-const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings", dot: "var(--tone-orange-1)" }];
+const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings", dot: "var(--tone-orange)" }];
 
 export function Layout() {
   const { user, logout } = useAuth();

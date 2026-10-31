@@ -46,7 +46,7 @@ export function RunPage() {
   return (
     <section className="space-y-6">
       <PageHeader
-        tone="violet"
+        tone="green"
         eyebrow={`Run · ${data.trigger}`}
         title={
           <>
