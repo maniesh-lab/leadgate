@@ -59,10 +59,12 @@ services:
       timeout: 3s
       retries: 10
 
-  # Brings the schema up to date, then exits. api and worker wait for it.
+  # Brings the schema up to date and, when ADMIN_EMAIL is set, seeds the admin + the two
+  # rubrics (safe to repeat: existing rows are left alone), then exits. api and worker wait
+  # for it, so `docker compose up --build` is the one command for a fresh clone.
   migrate:
     build: ./backend
-    command: ["alembic", "upgrade", "head"]
+    command: ["sh", "-c", "alembic upgrade head && if [ -n \"$$ADMIN_EMAIL\" ]; then python -m app.cli seed; fi"]
     environment: *backend-env
     depends_on:
       db:
