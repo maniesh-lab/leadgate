@@ -111,7 +111,7 @@ sequenceDiagram
   participant API
   participant DB as Postgres
   participant W as Worker
-  R->>API: POST /api/run-items/{id}/decision {approved, reason}
+  R->>API: POST /api/run-items/{id}/decision {decision, reason}
   API->>DB: SELECT run_item ... FOR UPDATE
   alt item isn't awaiting approval
     API-->>R: 409 (someone else got here first)
@@ -169,7 +169,8 @@ erDiagram
   → 429. The public demo's reviewer login is exempt from the per-email lock (its password
   is on the login page); the per-address limit still applies.
 - The crawler refuses private and internal addresses on every request and redirect hop.
-- The dashboard is served with a strict Content-Security-Policy (only its own address),
+- The dashboard is served with a strict Content-Security-Policy (only its own address; on
+  the live demo, also the API's),
   no framing, `nosniff`, and HSTS on the live demo.
 - No live outside calls in tests or CI: the LLM runs in fake mode and every outside
   service is faked.

@@ -62,7 +62,7 @@ def login(
     """
     email = form.username.strip().lower()[:254]
     # Behind nginx this is the browser's address: uvicorn reads X-Forwarded-For from
-    # the proxies FORWARDED_ALLOW_IPS trusts (see docker-compose.yml).
+    # the proxies FORWARDED_ALLOW_IPS trusts (see docker-compose.yml and render.yaml).
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
     if too_many_failures(db, email, ip, now, lock_email=not is_demo(email, settings)):

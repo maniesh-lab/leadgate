@@ -17,7 +17,8 @@ refills itself while the demo is awake:
 
 The sites don't exist, so their findings are written here (`SITES`) and stored as fresh
 enrichment before each run: the `enrich` node finds them cached and never crawls.
-Dashboard history comes from `fake-data --history` (`--history N` on the command).
+Dashboard history: `demo --history N` (the same code as `fake-data --history`, with
+`waiting=False`, so no fake item waits at the gate).
 """
 
 from dataclasses import dataclass

@@ -11,7 +11,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY app ./app
 RUN pip install .
-# Migrations: the compose `migrate` service runs `alembic upgrade head` with this image.
+# Migrations: the compose `migrate` service and render-start.sh run `alembic upgrade head`.
 COPY alembic.ini ./
 COPY alembic ./alembic
 # The public demo's leads (`python -m app.cli demo`; the worker reads the CSV from here).
