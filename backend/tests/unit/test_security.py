@@ -7,6 +7,7 @@ import pytest
 
 from app.auth.security import (
     ALGORITHM,
+    TokenClaims,
     create_access_token,
     dummy_hash,
     hash_password,
@@ -32,7 +33,7 @@ SECRET = "s" * 32
 
 def test_token_round_trip() -> None:
     token = create_access_token(7, SECRET, 60, datetime.now(UTC))
-    assert read_access_token(token, SECRET) == 7
+    assert read_access_token(token, SECRET).user_id == 7
 
 
 def test_expired_token_is_refused() -> None:
@@ -58,3 +59,14 @@ def test_token_without_a_user_id_is_refused() -> None:
 def test_dummy_hash_is_made_once() -> None:
     assert dummy_hash() is dummy_hash()
     assert not verify_password("anything", dummy_hash())
+
+
+def test_the_token_carries_the_users_token_version() -> None:
+    token = create_access_token(7, SECRET, 60, datetime.now(UTC), version=3)
+    assert read_access_token(token, SECRET) == TokenClaims(user_id=7, version=3)
+
+
+def test_a_token_from_before_versions_counts_as_version_0() -> None:
+    claims = {"sub": "7", "exp": datetime.now(UTC) + timedelta(minutes=5)}
+    old = jwt.encode(claims, SECRET, algorithm=ALGORITHM)
+    assert read_access_token(old, SECRET).version == 0

@@ -26,6 +26,11 @@ class Token(BaseModel):
     token_type: Literal["bearer"] = "bearer"
 
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class UserOut(FromRow):
     id: int
     email: str

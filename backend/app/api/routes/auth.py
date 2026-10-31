@@ -1,4 +1,5 @@
-"""Logging in: `POST /api/auth/login` (email + password -> token) and `GET /api/auth/me`.
+"""Logging in: `POST /api/auth/login` (email + password -> token), `GET /api/auth/me`,
+and `POST /api/auth/password` (change your own password).
 
 Login takes the standard OAuth2 password form (`username` = the email, `password`), so
 the "Authorize" button in the OpenAPI docs works. The answer is a JWT the frontend
@@ -9,6 +10,9 @@ Guessing passwords is slowed down: every failed login is an `auth.login_failed` 
 MAX_FAILS_PER_IP from one address, within LOGIN_WINDOW the answer is 429 until the
 window has passed, even for the right password. The rows live in Postgres, so the limit
 holds across API processes and restarts (no Redis).
+
+A password change bumps the user's `token_version`, which ends every older token (other
+browsers, a stolen token); the answer is a fresh token so this browser stays logged in.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -22,9 +26,10 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import AppSettings, CorrelationId, CurrentUser, DbSession, unauthorized
 from app.api.errors import error_docs
-from app.auth.security import create_access_token, dummy_hash, verify_password
+from app.auth.security import create_access_token, dummy_hash, hash_password, verify_password
+from app.config import Settings
 from app.db.models import ActorType, AuditLog, User
-from app.schemas.users import Token, UserOut
+from app.schemas.users import PasswordChange, Token, UserOut
 from app.services.audit import record
 
 log = structlog.get_logger(__name__)
@@ -86,9 +91,40 @@ def login(
         # One message for every case, so it doesn't tell which emails exist.
         raise unauthorized("wrong email or password")
 
-    token = create_access_token(user.id, settings.jwt_secret, settings.jwt_expire_minutes, now)
+    token = make_token(user, settings, now)
     log.info("login", user_id=user.id)
     return Token(access_token=token)
+
+
+@router.post("/password", responses=error_docs(400, 401, 422))
+def change_password(
+    body: PasswordChange,
+    user: CurrentUser,
+    db: DbSession,
+    settings: AppSettings,
+    correlation_id: CorrelationId,
+) -> Token:
+    """Change your own password (the current one is needed). Logs out your other browsers.
+
+    The answer is a new token for this browser: the old one stops working.
+    """
+    # 400, not 401: a 401 would make the frontend log the user out.
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "the current password is wrong")
+    user.password_hash = hash_password(body.new_password)
+    user.token_version += 1
+    record(
+        db,
+        actor_type=ActorType.USER,
+        actor=user.email,
+        action="user.password_changed",
+        entity_type="user",
+        entity_id=user.id,
+        correlation_id=correlation_id,
+    )
+    db.commit()
+    log.info("password_changed", user_id=user.id)
+    return Token(access_token=make_token(user, settings, datetime.now(UTC)))
 
 
 @router.get("/me", responses=error_docs(401))
@@ -105,3 +141,9 @@ def too_many_failures(db: Session, email: str, ip: str, now: datetime) -> bool:
     by_email = db.scalar(recent.where(AuditLog.actor == email)) or 0
     by_ip = db.scalar(recent.where(AuditLog.details["ip"].as_string() == ip)) or 0
     return by_email >= MAX_FAILS_PER_EMAIL or by_ip >= MAX_FAILS_PER_IP
+
+
+def make_token(user: User, settings: Settings, now: datetime) -> str:
+    return create_access_token(
+        user.id, settings.jwt_secret, settings.jwt_expire_minutes, now, user.token_version
+    )
