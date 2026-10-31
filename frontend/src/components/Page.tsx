@@ -55,12 +55,26 @@ export function Fact({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-/** A big number with a label under it, for run stats. */
-export function Stat({ label, value }: { label: string; value: ReactNode }) {
+/**
+ * A big number with a label under it, for run stats and the dashboard. `tone` (a CSS
+ * colour, e.g. "var(--approved)") puts a dot of the topic's colour before the label;
+ * the number stays in the text colour.
+ */
+export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: string }) {
   return (
     <div>
       <div className="text-2xl font-semibold tabular-nums">{value}</div>
-      <div className="eyebrow mt-1 text-[10px]">{label}</div>
+      <div className="eyebrow mt-1 flex items-center gap-1.5 text-[10px]">
+        {tone && <Dot color={tone} />}
+        {label}
+      </div>
     </div>
+  );
+}
+
+/** A small round mark in a topic colour, next to the label that names it. */
+export function Dot({ color }: { color: string }) {
+  return (
+    <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: color }} />
   );
 }
