@@ -1,2 +1,7 @@
 node_modules
 dist
+# The e2e test and its output aren't part of the app image.
+e2e
+playwright.config.ts
+playwright-report
+test-results
