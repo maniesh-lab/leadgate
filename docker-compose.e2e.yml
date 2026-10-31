@@ -1,0 +1,52 @@
+# The stack the Playwright test runs against (frontend/e2e/): docker-compose.yml plus this
+# file, as its own compose project, so it never touches your local data or ports:
+#   cd frontend; npm run e2e:up; npm run e2e; npm run e2e:down
+# It uses fixed test values and the fake LLM, and turns every outside service off (Google,
+# Groq/OpenAI, Airtable, Discord, Langfuse), even when .env holds real keys. The n8n webhook
+# stays on with a test secret, because the test starts its run through it (no callback URL,
+# so nothing is posted back). Only the frontend is published, on 127.0.0.1:8081 (the local
+# stack keeps 8080).
+
+# Override the matching keys of the base file's backend settings.
+x-e2e-env: &e2e-env
+  LLM_MODE: fake
+  # Test-only values (not secrets); frontend/e2e/setup.ts uses the same ones.
+  ADMIN_EMAIL: e2e-admin@example.com
+  ADMIN_PASSWORD: e2e-admin-password
+  JWT_SECRET: e2e-only-jwt-secret-not-used-anywhere-else
+  N8N_WEBHOOK_SECRET: e2e-only-webhook-secret-not-used-anywhere-else
+  GOOGLE_PLACES_API_KEY: ""
+  GROQ_API_KEY: ""
+  OPENAI_API_KEY: ""
+  AIRTABLE_TOKEN: ""
+  AIRTABLE_BASE_ID: ""
+  AIRTABLE_TABLE: ""
+  DISCORD_WEBHOOK_URL: ""
+  DISCORD_ADMIN_WEBHOOK_URL: ""
+  LANGFUSE_PUBLIC_KEY: ""
+  LANGFUSE_SECRET_KEY: ""
+  RUN_WORKER_IN_API: ""
+
+services:
+  db:
+    ports: !reset []
+
+  # Migrate, then create the admin + rubrics, before the api starts.
+  migrate:
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli seed"]
+    environment: *e2e-env
+
+  api:
+    environment: *e2e-env
+    ports: !reset []
+    # Off `leadnet`: n8n must never reach this stack under the `leadgate-api` name.
+    networks: !override
+      default:
+
+  worker:
+    environment: *e2e-env
+    networks: !override [default]
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:8081:80"
