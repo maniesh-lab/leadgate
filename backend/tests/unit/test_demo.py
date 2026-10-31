@@ -136,3 +136,22 @@ def test_cli_demo_needs_the_seeded_rubrics(engine: Engine, settings: Settings, c
     settings.demo_reviewer_password = DEMO_PASSWORD
     assert main(["demo"], settings) == 1
     assert "run `python -m app.cli seed` first" in capsys.readouterr().out
+
+
+def test_the_worker_refills_the_demo_queue_every_minute(
+    world: World, worker, clock, settings: Settings
+) -> None:
+    demo(world.db)
+    run_jobs(worker, clock)
+    for item in waiting_items(world.db):
+        item.status = RunItemStatus.DONE
+    world.db.commit()
+
+    worker.recover_now_and_then()  # no demo login set: nothing to refill
+    assert run_jobs(worker, clock) == 0
+
+    settings.demo_reviewer_email = DEMO_EMAIL
+    clock.advance(61)
+    worker.recover_now_and_then()
+    assert run_jobs(worker, clock) == 13
+    assert len(waiting_items(world.db)) == 12

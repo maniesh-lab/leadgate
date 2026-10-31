@@ -1,7 +1,8 @@
 """The public demo's data: a demo reviewer, a demo campaign and a queue that never runs dry.
 
-`python -m app.cli demo` calls `set_up_demo()`. Safe to run again and again (a daily job
-does, see .github/workflows/demo-refill.yml):
+`python -m app.cli demo` calls `set_up_demo()` (safe to run again and again), and the
+worker calls `refill_queue()` every minute when DEMO_REVIEWER_EMAIL is set, so the queue
+refills itself while the demo is awake:
 
 - the demo reviewer (DEMO_REVIEWER_EMAIL / DEMO_REVIEWER_PASSWORD): created, or its
   password set back to the configured one. The login page shows this login to everyone,
@@ -162,14 +163,26 @@ def set_up_demo(
     reviewer = ensure_reviewer(session, reviewer_email, reviewer_password)
     campaign = ensure_campaign(session)
     session.commit()
-
     waiting = queued_items(session, campaign)
-    run_id = None
-    if waiting < REFILL_BELOW and not run_in_progress(session, campaign):
-        prepare_leads(session, now)
-        run = create_run(session, campaign, now, trigger=RunTrigger.SCHEDULE)  # commits
-        run_id = run.id
-    return DemoResult(reviewer, campaign.id, waiting, run_id)
+    return DemoResult(reviewer, campaign.id, waiting, refill(session, campaign, waiting, now))
+
+
+def refill_queue(session: Session, now: datetime) -> int | None:
+    """The worker's check: a new run when the demo campaign's queue runs low. Commits.
+
+    Returns the new run's id, or None (no demo campaign yet, or enough items waiting).
+    """
+    campaign = session.scalars(select(Campaign).where(Campaign.name == CAMPAIGN_NAME)).first()
+    if campaign is None:
+        return None
+    return refill(session, campaign, queued_items(session, campaign), now)
+
+
+def refill(session: Session, campaign: Campaign, waiting: int, now: datetime) -> int | None:
+    if waiting >= REFILL_BELOW or run_in_progress(session, campaign):
+        return None
+    prepare_leads(session, now)
+    return create_run(session, campaign, now, trigger=RunTrigger.SCHEDULE).id  # commits
 
 
 def ensure_reviewer(session: Session, email: str, password: str) -> str:

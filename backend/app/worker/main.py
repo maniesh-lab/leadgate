@@ -3,7 +3,9 @@
 `python -m app.worker` (the compose `worker` service) runs `main()`:
 
 1. on startup, jobs left `running` by a dead worker go back in the queue
-   (`recover_stale()`; checked again every minute, for other workers that died)
+   (`recover_stale()`; checked again every minute, for other workers that died); on the
+   public demo (DEMO_REVIEWER_EMAIL set) the same minute check refills its approval
+   queue (`app.db.demo.refill_queue()`)
 2. loop: claim the next due job → run its handler → done, retry later, or give up
 3. when the queue is empty, wait POLL_SECONDS and look again
 4. on SIGTERM / SIGINT (`docker compose stop`, Ctrl+C): finish the current job, then exit
@@ -31,6 +33,7 @@ from app.agents.checkpoint import open_checkpointer
 from app.agents.graph import build_graph
 from app.agents.llm import make_llm
 from app.config import Settings, get_settings
+from app.db.demo import refill_queue
 from app.db.models import Job
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
@@ -105,6 +108,8 @@ class Worker:
             return
         with self.deps.session_factory() as session:
             recover_stale(session, now)
+            if self.deps.settings.demo_reviewer_email:
+                refill_queue(session, now)
         self.last_recover = now
 
     def stop(self, *_signal_args: object) -> None:
