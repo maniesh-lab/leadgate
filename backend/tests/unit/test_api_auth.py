@@ -1,15 +1,18 @@
 """Tests for login, `/auth/me`, roles, `/users` and the shared error shape."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.security import create_access_token
+from app.config import Settings
 from app.db.models import AuditLog, User, UserRole
 from app.main import create_app
-from tests.conftest import PASSWORD, TEST_JWT_SECRET, add_user
+from tests.conftest import PASSWORD, TEST_JWT_SECRET, add_user, auth_headers
 
 
 def login(client: TestClient, email: str, password: str):
@@ -258,3 +261,38 @@ def test_the_new_password_needs_8_characters(
     client: TestClient, reviewer: User, as_reviewer: dict[str, str]
 ) -> None:
     assert change(client, as_reviewer, PASSWORD, "short").status_code == 422
+
+
+# --- The public demo's reviewer ---
+
+
+DEMO_EMAIL = "demo@example.com"
+
+
+@pytest.fixture
+def demo_client(settings: Settings) -> Iterator[TestClient]:
+    """The API with DEMO_REVIEWER_EMAIL set (the public demo's reviewer)."""
+    settings.demo_reviewer_email = DEMO_EMAIL
+    with TestClient(create_app(settings)) as test_client:
+        yield test_client
+
+
+def test_the_demo_password_cant_be_changed(demo_client: TestClient, db: Session) -> None:
+    user = add_user(db, DEMO_EMAIL, UserRole.REVIEWER)
+    body = {"current_password": PASSWORD, "new_password": "a-new-password"}
+    response = demo_client.post("/api/auth/password", json=body, headers=auth_headers(user))
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == "the demo account's password can't be changed"
+    assert login(demo_client, DEMO_EMAIL, PASSWORD).status_code == 200
+
+
+def test_failed_logins_dont_lock_the_demo_login(demo_client: TestClient, db: Session) -> None:
+    add_user(db, DEMO_EMAIL, UserRole.REVIEWER)
+    for _ in range(6):
+        assert login(demo_client, DEMO_EMAIL, "nope-nope").status_code == 401
+    assert login(demo_client, DEMO_EMAIL, PASSWORD).status_code == 200
+
+    # The per-address limit still counts them.
+    for _ in range(14):
+        login(demo_client, DEMO_EMAIL, "nope-nope")
+    assert login(demo_client, DEMO_EMAIL, PASSWORD).status_code == 429

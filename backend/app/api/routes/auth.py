@@ -13,6 +13,11 @@ holds across API processes and restarts (no Redis).
 
 A password change bumps the user's `token_version`, which ends every older token (other
 browsers, a stolen token); the answer is a fresh token so this browser stays logged in.
+
+The public demo's reviewer (DEMO_REVIEWER_EMAIL) is different: its password is on the
+login page, so changing it is refused (403; it would lock every visitor out), and failed
+logins for that email don't lock it (anyone could lock it for 15 minutes). The
+per-address limit still applies.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -60,7 +65,7 @@ def login(
     # the proxies FORWARDED_ALLOW_IPS trusts (see docker-compose.yml).
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
-    if too_many_failures(db, email, ip, now):
+    if too_many_failures(db, email, ip, now, lock_email=not is_demo(email, settings)):
         log.warning("login_rate_limited", email=email, ip=ip)
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -96,7 +101,7 @@ def login(
     return Token(access_token=token)
 
 
-@router.post("/password", responses=error_docs(400, 401, 422))
+@router.post("/password", responses=error_docs(400, 401, 403, 422))
 def change_password(
     body: PasswordChange,
     user: CurrentUser,
@@ -106,8 +111,13 @@ def change_password(
 ) -> Token:
     """Change your own password (the current one is needed). Logs out your other browsers.
 
-    The answer is a new token for this browser: the old one stops working.
+    The answer is a new token for this browser: the old one stops working. 403 for the
+    public demo account.
     """
+    if is_demo(user.email, settings):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "the demo account's password can't be changed"
+        )
     # 400, not 401: a 401 would make the frontend log the user out.
     if not verify_password(body.current_password, user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "the current password is wrong")
@@ -133,14 +143,27 @@ def me(user: CurrentUser) -> UserOut:
     return UserOut.model_validate(user)
 
 
-def too_many_failures(db: Session, email: str, ip: str, now: datetime) -> bool:
-    """True if this email or this address failed too often within LOGIN_WINDOW."""
+def too_many_failures(
+    db: Session, email: str, ip: str, now: datetime, *, lock_email: bool = True
+) -> bool:
+    """True if this email (unless `lock_email` is off) or this address failed too often
+    within LOGIN_WINDOW."""
     recent = select(func.count()).where(
         AuditLog.action == LOGIN_FAILED, AuditLog.occurred_at >= now - LOGIN_WINDOW
     )
-    by_email = db.scalar(recent.where(AuditLog.actor == email)) or 0
     by_ip = db.scalar(recent.where(AuditLog.details["ip"].as_string() == ip)) or 0
-    return by_email >= MAX_FAILS_PER_EMAIL or by_ip >= MAX_FAILS_PER_IP
+    if by_ip >= MAX_FAILS_PER_IP:
+        return True
+    if not lock_email:
+        return False
+    by_email = db.scalar(recent.where(AuditLog.actor == email)) or 0
+    return by_email >= MAX_FAILS_PER_EMAIL
+
+
+def is_demo(email: str, settings: Settings) -> bool:
+    """The public demo's reviewer (its login is on the login page)."""
+    demo = settings.demo_reviewer_email
+    return bool(demo) and email.strip().lower() == demo.strip().lower()
 
 
 def make_token(user: User, settings: Settings, now: datetime) -> str:

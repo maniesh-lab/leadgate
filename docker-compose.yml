@@ -8,6 +8,9 @@ x-backend-env: &backend-env
   # Read by `python -m app.cli seed` (creates the admin) and `decide` (ADMIN_EMAIL = default reviewer).
   ADMIN_EMAIL: ${ADMIN_EMAIL:-}
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  # The public demo's reviewer (`python -m app.cli demo`; empty = no demo login).
+  DEMO_REVIEWER_EMAIL: ${DEMO_REVIEWER_EMAIL:-}
+  DEMO_REVIEWER_PASSWORD: ${DEMO_REVIEWER_PASSWORD:-}
   # The API's login tokens (the api refuses to start without JWT_SECRET).
   JWT_SECRET: ${JWT_SECRET:-}
   JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-}
