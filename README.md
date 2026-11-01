@@ -113,7 +113,7 @@ uvicorn app.main:create_app --factory --reload          # API on http://localhos
 python -m app.worker                                    # the worker, in a second terminal
 ```
 
-Set `DATABASE_URL` in `.env` for this (e.g. `postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate`). The dashboard:
+For this, `.env` needs `DATABASE_URL` (e.g. `postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate`) as well as `JWT_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. The dashboard:
 
 ```bash
 cd frontend
@@ -134,11 +134,12 @@ python -m app.cli ingest leads.csv --mapping mapping.json   # import any CSV
 
 ## API
 
-All under `/api`. Logged-in users can read; admins change things.
+All under `/api`. Any login can read (except the user list); admins set things up; reviewers (and admins) decide.
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | `POST` | `/auth/login` | anyone | Email + password → a login token (60 min) |
+| `GET` | `/auth/me` | logged in | Who you are |
 | `POST` | `/auth/password` | logged in | Change your password; ends every older token |
 | `GET`, `POST` | `/users` | admin | List users, add a reviewer |
 | `GET`, `POST`, `PATCH` | `/campaigns`, `/campaigns/{id}` | admin to change | Niche, location, sources, rubric |
@@ -150,7 +151,7 @@ All under `/api`. Logged-in users can read; admins change things.
 | `DELETE` | `/leads/{id}/data` | admin | Opt-out: wipe the lead's contact data |
 | `GET` | `/audit` | logged in | The audit trail, with filters (login records: admins only) |
 | `GET`, `POST` | `/rubrics`, `/rubrics/{id}` | admin to change | Scoring rules; an edit makes a new version |
-| `GET` | `/reports/{name}` | logged in | The dashboard's SQL reports |
+| `GET` | `/reports`, `/reports/{name}` | logged in | The dashboard's SQL reports: the list, and one report |
 | `POST` | `/webhooks/n8n/runs` | `X-Webhook-Secret` | n8n starts a run |
 | `GET` | `/health`, `/ready` | anyone | `/ready` also checks the database |
 
@@ -262,15 +263,16 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **An opted-out lead's old data stays in its LangGraph checkpoint** (approvals are blocked, but the checkpoint isn't wiped).
 - **Failed run items can't be retried** from the dashboard; a new run collects the lead again.
 - **The demo's public reviewer login** can read everything a reviewer can (made-up data, no login records), and the live API's docs page is public (every endpoint still needs a login).
+- **Small hardening left undone:** the API's own JSON answers carry no security headers (the live API is HTTPS-only anyway: `onrender.com` is on the browsers' HSTS preload list), the local nginx shows its version, and the local database password defaults to `leadgate` (its port only listens on 127.0.0.1).
 - **With Langfuse or Groq keys set, lead data leaves your server:** the LLM prompts and a cut-down copy of each lead go to those services.
 
 ## Legal and ethics
 
-- **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Cached Google content other than the place id is wiped after 30 days.
+- **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Cached Google content other than the place id and name is wiped after 30 days.
 - **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages, and there are no login walls, CAPTCHA solving or proxies.
 - **Public business data only:** a business's own listing and public website. Any lead can be opted out: its contact data is wiped and it's never collected or crawled again.
-- **Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)** (ODbL 1.0), also credited in the dashboard's footer.
+- **Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)** (ODbL 1.0), also credited in the dashboard's footer. The ODbL covers OpenStreetMap's data, not leadgate's code; the few saved Overpass answers in the tests are small extracts.
 
 ## License
 
-All rights reserved. The code is public so it can be read and reviewed, not reused; see [LICENSE](LICENSE). Built by [Manish Pandeya](https://github.com/maniesh-lab).
+All rights reserved. The code is public so it can be read and reviewed, not reused; see [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL). Built by [Manish Pandeya](https://github.com/maniesh-lab).
