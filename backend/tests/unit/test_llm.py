@@ -4,6 +4,7 @@ No network: the retry loop runs on `ScriptedProvider`, which replays canned repl
 """
 
 import pytest
+import structlog
 from pydantic import BaseModel
 
 from app.agents.llm import FakeLLM, LLMError, SteadfastLLM, make_llm, scripted_llm
@@ -58,6 +59,22 @@ def test_steadfast_llm_gives_up_after_three_tries() -> None:
         ask(llm)
     assert caught.value.problems == ["legs must be 4"]
     assert len(provider.prompts) == 3
+    llm.close()
+
+
+def test_steadfast_llm_runs_each_call_in_the_callers_log_context() -> None:
+    # The worker binds job_id + correlation_id per job; Steadfast's log lines must carry
+    # the current job's, not the first job's (the event loop is reused across jobs).
+    llm, _ = scripted_llm(['{"name": "Rex", "legs": 4}', '{"name": "Rex", "legs": 4}'])
+    seen = []
+
+    def note_job(_pet: Pet) -> None:
+        seen.append(structlog.contextvars.get_contextvars().get("job_id"))
+
+    for job_id in (1, 2):
+        with structlog.contextvars.bound_contextvars(job_id=job_id):
+            ask(llm, validators=[note_job])
+    assert seen == [1, 2]
     llm.close()
 
 

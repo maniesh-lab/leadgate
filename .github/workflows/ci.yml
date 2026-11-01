@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# The jobs only read the code; the token gets nothing more, whatever the repo default is.
+permissions:
+  contents: read
+
 jobs:
   # Lint + every test that runs on SQLite (the Postgres tests skip themselves here).
   backend-unit:
@@ -36,6 +40,14 @@ jobs:
           path: |
             backend/coverage.xml
             backend/htmlcov/
+      # The README's coverage badge. Without the CODECOV_TOKEN secret the upload fails
+      # quietly and the job stays green.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7.1.1
+        with:
+          files: backend/coverage.xml
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # tests/integration on a real Postgres: migrations, the audit trigger, SKIP LOCKED,
   # the checkpointer, the reports. Each test makes its own database on this server.

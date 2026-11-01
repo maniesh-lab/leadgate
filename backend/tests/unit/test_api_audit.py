@@ -70,6 +70,34 @@ def test_filters_and_order(client: TestClient, db: Session, as_reviewer) -> None
     assert page["items"][0]["details"] == {}
 
 
+def test_login_rows_are_for_admins_only(
+    client: TestClient, db: Session, as_reviewer, as_admin
+) -> None:
+    # A failed login keeps the typed email + the caller's IP; the public demo's reviewer
+    # login must not be able to read them.
+    add_row(
+        db,
+        at(9),
+        "auth.login_failed",
+        actor_type=ActorType.USER,
+        actor="someone@example.com",
+        entity_type="user",
+        entity_id=None,
+        run_id=None,
+        details={"ip": "203.0.113.7"},
+    )
+    add_row(db, at(10), "run.created")
+
+    def actions(headers: dict[str, str], query: str = "") -> list[str]:
+        response = client.get(f"/api/audit?{query}", headers=headers)
+        assert response.status_code == 200, response.text
+        return [row["action"] for row in response.json()["items"]]
+
+    assert actions(as_reviewer) == ["run.created"]
+    assert actions(as_reviewer, "action=auth.login_failed") == []
+    assert actions(as_admin) == ["run.created", "auth.login_failed"]
+
+
 def test_audit_needs_a_login_and_real_times(client: TestClient, db: Session, as_reviewer) -> None:
     assert client.get("/api/audit").status_code == 401
     assert client.get("/api/audit?from=yesterday", headers=as_reviewer).status_code == 422
