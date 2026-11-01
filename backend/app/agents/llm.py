@@ -24,6 +24,7 @@ the event loop, so it lands under the node that asked.
 """
 
 import asyncio
+import contextvars
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -146,7 +147,10 @@ class SteadfastLLM(LLM):
         with self.tracer.generation(schema.__name__, model=self.model, input=trace_input) as span:
             used_before = self.tokens_used()
             try:
-                answer = self._runner.run(call)
+                # A fresh copy of the caller's context each time: on its own the runner
+                # keeps the first call's, so Steadfast's log lines would carry the first
+                # job's correlation_id + job_id forever.
+                answer = self._runner.run(call, context=contextvars.copy_context())
             except ValidationRetryExceeded as exc:
                 span.error(str(exc))
                 raise LLMError(str(exc), exc.errors) from exc
