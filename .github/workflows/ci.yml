@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# The jobs only read the code; the token gets nothing more, whatever the repo default is.
+permissions:
+  contents: read
+
 jobs:
   # Lint + every test that runs on SQLite (the Postgres tests skip themselves here).
   backend-unit:
