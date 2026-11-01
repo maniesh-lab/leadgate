@@ -2,6 +2,10 @@
 
 Rows come from `app.services.audit.record()` (nodes, the worker, reviewers, admins); the
 API never changes them, and on Postgres a trigger refuses UPDATE and DELETE anyway.
+
+Login rows (`auth.*`, e.g. `auth.login_failed`) are for admins only: they hold the email
+someone typed and their IP address, and the public demo's reviewer login can read
+everything else here.
 """
 
 from datetime import UTC, datetime
@@ -12,16 +16,19 @@ from sqlalchemy import Select, select
 
 from app.api.deps import CurrentUser, DbSession, Paging, paginate
 from app.api.errors import error_docs
-from app.db.models import AuditLog
+from app.db.models import AuditLog, UserRole
 from app.schemas.audit import AuditOut
 from app.schemas.common import Page
 
 router = APIRouter(prefix="/audit", tags=["audit"], responses=error_docs(401))
 
+# Actions only admins see (see the module docstring).
+ADMIN_ONLY_PREFIX = "auth."
+
 
 @router.get("")
 def list_audit(
-    _user: CurrentUser,
+    user: CurrentUser,
     db: DbSession,
     paging: Paging,
     run_id: int | None = None,
@@ -34,7 +41,7 @@ def list_audit(
     ] = None,
     occurred_to: Annotated[datetime | None, Query(alias="to", description="before")] = None,
 ) -> Page[AuditOut]:
-    """Audit rows, newest first."""
+    """Audit rows, newest first. Login rows (`auth.*`) are left out unless you're an admin."""
     stmt = audit_query(
         run_id=run_id,
         entity_type=entity_type,
@@ -44,6 +51,8 @@ def list_audit(
         occurred_from=occurred_from,
         occurred_to=occurred_to,
     )
+    if user.role != UserRole.ADMIN:
+        stmt = stmt.where(AuditLog.action.not_like(f"{ADMIN_ONLY_PREFIX}%"))
     rows, total = paginate(db, stmt, paging)
     return Page(
         items=[AuditOut.model_validate(row) for (row,) in rows],
