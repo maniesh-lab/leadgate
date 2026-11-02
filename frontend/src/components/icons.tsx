@@ -67,6 +67,12 @@ export const ExternalIcon = (props: IconProps) => (
   </Icon>
 );
 
+export const DownloadIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </Icon>
+);
+
 export const UserIcon = (props: IconProps) => (
   <Icon {...props}>
     <circle cx="12" cy="8" r="4" />

@@ -7,7 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { api } from "../api/client";
 import type { RunDetail, RunStatus } from "../api/types";
+import { useAuth } from "../auth/AuthProvider";
 import { FlagBadge, ScoreMeter, StatusBadge } from "../components/Badge";
+import { ExportButton } from "../components/ExportButton";
 import { EmptyState, Fact, PageHeader, Stat } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
@@ -29,6 +31,7 @@ const STAT_LABELS: [key: string, label: string][] = [
 
 export function RunPage() {
   const { runId } = useParams();
+  const { user } = useAuth();
   const run = useQuery({
     queryKey: ["runs", Number(runId)],
     queryFn: () => api.get<RunDetail>(`/api/runs/${runId}`),
@@ -67,6 +70,12 @@ export function RunPage() {
             <Link to={`/audit?run_id=${data.id}`} className="btn px-3 py-1.5">
               Audit trail
             </Link>
+            {user?.role === "admin" && (
+              <ExportButton
+                target={{ run_id: data.id }}
+                filename={`leadgate-run-${data.id}-approved.csv`}
+              />
+            )}
           </>
         }
       />
