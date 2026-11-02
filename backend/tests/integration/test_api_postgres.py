@@ -1,5 +1,5 @@
 """The API on real Postgres: two reviewers deciding at once, two admins turning each
-other off at once, and the lead filters.
+other off (or retrying one failed lead) at once, and the lead filters.
 
 The approval transaction's row lock (`SELECT ... FOR UPDATE`) only really works on
 Postgres (SQLite has no row locks), so this is where "two reviewers click at the same
@@ -189,3 +189,27 @@ def test_two_admins_turning_each_other_off_leave_one_admin(api: Api) -> None:
     admins = User.role == UserRole.ADMIN
     assert count(api.db, User, admins, User.is_active.is_(True)) == 1
     assert count(api.db, AuditLog, AuditLog.action == "user.deactivated") == 1
+
+
+def test_two_retries_at_once_queue_one_job(api: Api) -> None:
+    ann = add_user(api.db, "ann@example.com", UserRole.ADMIN)
+    ben = add_user(api.db, "ben@example.com", UserRole.ADMIN)
+    item = api.world.add_item(add_lead(api.db, "Failed Dental"))
+    item.status = RunItemStatus.FAILED
+    item.error = "RuntimeError: LLM down"
+    api.db.commit()
+
+    def click(barrier: threading.Barrier, admin: User) -> int:
+        barrier.wait()
+        url = f"/api/run-items/{item.id}/retry"
+        return api.client.post(url, headers=auth_headers(admin)).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        barrier = threading.Barrier(2)
+        first = pool.submit(click, barrier, ann)
+        second = pool.submit(click, barrier, ben)
+        assert sorted([first.result(), second.result()]) == [200, 409]
+
+    api.db.expire_all()
+    assert count(api.db, Job, Job.type == JobType.PROCESS_ITEM) == 1
+    assert count(api.db, AuditLog, AuditLog.action == "run_item.retried") == 1
