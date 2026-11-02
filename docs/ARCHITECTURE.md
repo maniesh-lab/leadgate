@@ -127,6 +127,12 @@ sequenceDiagram
 The unique `approvals.run_item_id` is a second guard under the row lock. When a run that
 n8n started completes, a `send_callback` job posts a summary back to n8n.
 
+**Retrying a failed lead** (`POST /api/run-items/{id}/retry`, admins) works the same way:
+lock the item, check it is still `failed` (else 409), then save the audit row and a job in
+one transaction. The job is `resume_item` when a reviewer already decided (the lead failed
+in `route` / `act`), else `process_item`; a completed run is reopened. The worker continues
+the thread from its last checkpoint, so finished nodes don't run again.
+
 ## 5. Data
 
 ```mermaid
@@ -138,6 +144,7 @@ erDiagram
   run_items ||--o{ run_steps : "one per node call"
   run_items ||--o| approvals : "decided by"
   users ||--o{ approvals : makes
+  csv_uploads |o..o{ campaigns : "source_options.csv_upload_id"
   audit_log }o..|| runs : "run_id (no FK)"
 ```
 
@@ -145,6 +152,9 @@ erDiagram
   `csv:<hash>`). Finding a lead again updates it; it never wipes what reviewers or agents
   stored.
 - **run_items** link a lead to a run and carry its LangGraph `thread_id`.
+- **csv_uploads** hold the CSV files admins upload in the dashboard (the file's text, its
+  columns and row count). A campaign points to one in `source_options`, so every worker reads
+  the same copy; the API never takes a file path (only the CLI and the demo set one).
 - **audit_log** is append-only: a Postgres trigger refuses UPDATE and DELETE. Its ids
   aren't foreign keys, so the trail never blocks or depends on the rows it describes.
 - **LangGraph's checkpoint tables** are created by LangGraph's own `.setup()`, not Alembic.
@@ -165,6 +175,9 @@ erDiagram
 - Login: OAuth2 password form → a JWT (60 minutes, HS256), passwords hashed with Argon2.
   Roles `admin` and `reviewer` are checked on every endpoint.
 - Changing your password bumps `users.token_version`, which ends every older token.
+  Turning an account off (the Users page) ends its logins at once and bumps it too, so
+  turning it back on doesn't bring the old tokens back. The last active admin can't be
+  turned off (the active admins' rows are locked while it's checked).
 - Failed logins are audit rows; 5 for one email or 20 from one address within 15 minutes
   → 429. The public demo's reviewer login is exempt from the per-email lock (its password
   is on the login page); the per-address limit still applies. Those rows hold the typed
