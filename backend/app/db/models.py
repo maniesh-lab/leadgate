@@ -163,6 +163,27 @@ class Campaign(Base):
     is_archived: Mapped[bool] = mapped_column(server_default=false())
 
 
+class CsvUpload(Base):
+    """A CSV file an admin uploaded in the dashboard (`POST /api/uploads/csv`).
+
+    The file itself is kept here, not on a disk, so every worker (in its own container,
+    or inside the API on the free host) reads the same copy. A campaign points to it with
+    `source_options["csv_upload_id"]`.
+    """
+
+    __tablename__ = "csv_uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filename: Mapped[str]
+    content: Mapped[str] = mapped_column(Text)
+    size_bytes: Mapped[int]
+    row_count: Mapped[int]
+    # The header row, so the dashboard can show which columns a mapping can use.
+    columns: Mapped[list[str]] = mapped_column(JSONType, default=list)
+    uploaded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
+
+
 class Lead(Base):
     """One business. The same business found again (same `source_key`) updates this row."""
 
