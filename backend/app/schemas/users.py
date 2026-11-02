@@ -48,3 +48,9 @@ class UserCreate(BaseModel):
     @classmethod
     def check_email(cls, value: str) -> str:
         return normalize_email(value)
+
+
+class UserUpdate(BaseModel):
+    """What an admin can change on an account: turn it off (`false`) or back on (`true`)."""
+
+    is_active: bool
