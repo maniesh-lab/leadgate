@@ -9,6 +9,8 @@ type Schemas = components["schemas"];
 
 export type User = Schemas["UserOut"];
 export type UserRole = Schemas["UserRole"];
+export type UserCreate = Schemas["UserCreate"];
+export type UserUpdate = Schemas["UserUpdate"];
 export type Token = Schemas["Token"];
 export type PasswordChange = Schemas["PasswordChange"];
 

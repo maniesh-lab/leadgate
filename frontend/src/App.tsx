@@ -24,6 +24,7 @@ import { RubricsPage } from "./pages/RubricsPage";
 import { RunItemPage } from "./pages/RunItemPage";
 import { RunPage } from "./pages/RunPage";
 import { RunsPage } from "./pages/RunsPage";
+import { UsersPage } from "./pages/UsersPage";
 
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
@@ -52,11 +53,20 @@ export const routes: RouteObject[] = [
           { path: "leads/:leadId", element: <LeadPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "account", element: <AccountPage /> },
+          { path: "settings", element: <Navigate to="/settings/rubrics" replace /> },
           {
             path: "settings/rubrics",
             element: (
               <RequireRole allowed="admin">
                 <RubricsPage />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "settings/users",
+            element: (
+              <RequireRole allowed="admin">
+                <UsersPage />
               </RequireRole>
             ),
           },
