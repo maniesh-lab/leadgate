@@ -73,6 +73,12 @@ export const DownloadIcon = (props: IconProps) => (
   </Icon>
 );
 
+export const RetryIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" />
+  </Icon>
+);
+
 export const UserIcon = (props: IconProps) => (
   <Icon {...props}>
     <circle cx="12" cy="8" r="4" />

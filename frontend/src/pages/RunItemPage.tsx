@@ -2,12 +2,18 @@
  * One lead in one run: the lead card, the score breakdown, the human's decision, and the
  * step timeline: every node the agents ran (enrich -> extract -> check -> score ->
  * approval gate -> route -> act), how long it took, and what it produced.
+ *
+ * A failed lead gets an admin "Retry" button (`POST /api/run-items/{id}/retry`): the
+ * worker continues it from where it stopped. While it is queued or running again, the
+ * page asks the API every few seconds, so the timeline fills in on its own.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
-import { api } from "../api/client";
-import type { RunItemDetail, Step } from "../api/types";
+import { api, describeError } from "../api/client";
+import type { RunItemDetail, RunItemRow, RunItemStatus, Step } from "../api/types";
+import { useAuth } from "../auth/AuthProvider";
 import { FlagBadge, StatusBadge } from "../components/Badge";
+import { RetryIcon } from "../components/icons";
 import { EmptyState, Fact, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { ScoreReview } from "../components/ScoreReview";
@@ -20,11 +26,18 @@ const DOTS: Record<string, string> = {
   started: "bg-accent animate-pulse",
 };
 
+// The worker is on it: ask again until the item reaches the gate, the end or fails.
+const MOVING: RunItemStatus[] = ["pending", "running", "resuming"];
+const REFRESH_MS = 3000;
+
 export function RunItemPage() {
   const { itemId } = useParams();
+  const { user } = useAuth();
   const item = useQuery({
     queryKey: ["run-items", Number(itemId)],
     queryFn: () => api.get<RunItemDetail>(`/api/run-items/${itemId}`),
+    refetchInterval: (query) =>
+      query.state.data && MOVING.includes(query.state.data.status) ? REFRESH_MS : false,
   });
 
   if (item.isPending) return <Loading />;
@@ -50,6 +63,7 @@ export function RunItemPage() {
           <>
             <StatusBadge status={data.status} />
             <StatusBadge status={data.route} />
+            {data.status === "failed" && user?.role === "admin" && <RetryButton itemId={data.id} />}
           </>
         }
       />
@@ -133,5 +147,38 @@ function StepRow({ step }: { step: Step }) {
         </div>
       </details>
     </li>
+  );
+}
+
+/** Queues a failed lead again; the page then refreshes until the worker is done with it. */
+function RetryButton({ itemId }: { itemId: number }) {
+  const queryClient = useQueryClient();
+  const retry = useMutation({
+    mutationFn: () => api.post<RunItemRow>(`/api/run-items/${itemId}/retry`),
+    onSettled: () => {
+      // Also after a 409 (someone else retried it first): show where it is now.
+      queryClient.invalidateQueries({ queryKey: ["run-items", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+    },
+  });
+
+  return (
+    <div>
+      <button
+        type="button"
+        className="btn px-3 py-1.5"
+        title="Run this lead again from where it stopped"
+        disabled={retry.isPending}
+        onClick={() => retry.mutate()}
+      >
+        <RetryIcon className="size-3.5" />
+        {retry.isPending ? "Retrying…" : "Retry"}
+      </button>
+      {retry.error && (
+        <p role="alert" className="mt-1 text-xs text-(--red)">
+          {describeError(retry.error)}
+        </p>
+      )}
+    </div>
   );
 }
