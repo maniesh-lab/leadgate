@@ -73,7 +73,8 @@ export interface paths {
          * Change Password
          * @description Change your own password (the current one is needed). Logs out your other browsers.
          *
-         *     The answer is a new token for this browser: the old one stops working.
+         *     The answer is a new token for this browser: the old one stops working. 403 for the
+         *     public demo account.
          */
         post: operations["change_password_api_auth_password_post"];
         delete?: never;
@@ -414,7 +415,7 @@ export interface paths {
         };
         /**
          * List Audit
-         * @description Audit rows, newest first.
+         * @description Audit rows, newest first. Login rows (`auth.*`) are left out unless you're an admin.
          */
         get: operations["list_audit_api_audit_get"];
         put?: never;
@@ -459,6 +460,26 @@ export interface paths {
         get: operations["get_report_api_reports__name__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/uploads/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Csv
+         * @description Store a CSV of leads (UTF-8, a header row, at most `CSV_UPLOAD_MAX_BYTES`).
+         */
+        post: operations["upload_csv_api_uploads_csv_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -641,6 +662,26 @@ export interface components {
             rubric_id?: number | null;
             /** Is Archived */
             is_archived?: boolean | null;
+        };
+        /** CsvUploadOut */
+        CsvUploadOut: {
+            /** Id */
+            id: number;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Row Count */
+            row_count: number;
+            /** Columns */
+            columns: string[];
+            /** Uploaded By */
+            uploaded_by: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * Decision
@@ -1312,8 +1353,8 @@ export interface components {
             radius_km?: number | null;
             /** Country */
             country?: string | null;
-            /** Csv Path */
-            csv_path?: string | null;
+            /** Csv Upload Id */
+            csv_upload_id?: number | null;
             /** Csv Mapping */
             csv_mapping?: {
                 [key: string]: string;
@@ -1530,6 +1571,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2767,6 +2817,69 @@ export interface operations {
             };
             /** @description Not Implemented */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    upload_csv_api_uploads_csv_post: {
+        parameters: {
+            query?: {
+                /** @description the file's name */
+                filename?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvUploadOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

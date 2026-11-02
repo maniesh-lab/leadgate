@@ -16,6 +16,7 @@ export type Rubric = Schemas["RubricOut"];
 export type Campaign = Schemas["CampaignOut"];
 export type CampaignCreate = Schemas["CampaignCreate"];
 export type SourceName = CampaignCreate["sources"][number];
+export type CsvUpload = Schemas["CsvUploadOut"];
 
 export type Run = Schemas["RunOut"];
 export type RunDetail = Schemas["RunDetail"];
