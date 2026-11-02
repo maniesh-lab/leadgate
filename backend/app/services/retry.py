@@ -12,7 +12,7 @@ kept timing out, or the CRM refused the write). `retry_item()`:
 
 Nothing runs twice: the worker's handlers start from the thread's last checkpoint, so
 nodes that completed before the failure are skipped, and `act`'s CRM write and message
-are keyed to the item (`app.worker.handlers`). When the reopened run completes again, it
+are keyed to the item (`app.agents.nodes.act`). When the reopened run completes again, it
 writes another `run.completed` row, and an n8n run gets an updated results callback.
 
 Called by the API (`POST /api/run-items/{id}/retry`).
