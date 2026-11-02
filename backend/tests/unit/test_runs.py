@@ -125,7 +125,7 @@ def test_collecting_again_after_a_crash_adds_no_second_set_of_items(
 def test_a_run_whose_every_source_fails_raises_for_a_retry(
     db: Session, campaign, settings: Settings, no_network
 ) -> None:
-    campaign.source_options = {}  # the csv source needs csv_path
+    campaign.source_options = {}  # the csv source needs a file
     db.commit()
     run = create_run(db, campaign, NOW)
 

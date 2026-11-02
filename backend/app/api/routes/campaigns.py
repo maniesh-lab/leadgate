@@ -7,7 +7,7 @@ can be followed back to this request.
 """
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
@@ -23,7 +23,7 @@ from app.api.deps import (
     paginate,
 )
 from app.api.errors import error_docs
-from app.db.models import ActorType, Campaign, ScoringRubric, User
+from app.db.models import ActorType, Campaign, CsvUpload, ScoringRubric, User
 from app.schemas.campaigns import CampaignCreate, CampaignOut, CampaignUpdate
 from app.schemas.common import Page
 from app.schemas.runs import RunOut
@@ -31,6 +31,9 @@ from app.services.audit import record
 from app.services.runs import create_run
 from app.sources.base import SourceError
 from app.sources.osm import canonical_niche
+
+# source_options keys the API never takes but keeps on an edit.
+SERVER_OPTIONS = ("osm_area", "csv_path")
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"], responses=error_docs(401))
 
@@ -97,9 +100,11 @@ def update_campaign(
             setattr(campaign, field, value)
     if "source_options" in changes:
         new_options = body.source_options.model_dump(exclude_none=True)
-        # Keep OSM's cached geocode (the osm source checks it still matches the location).
-        osm_area = (campaign.source_options or {}).get("osm_area")
-        campaign.source_options = {**new_options, **({"osm_area": osm_area} if osm_area else {})}
+        # Keep what the API can't set: OSM's cached geocode (the osm source checks it still
+        # matches the location) and a csv_path the CLI / demo put there.
+        old = campaign.source_options or {}
+        kept = {key: old[key] for key in SERVER_OPTIONS if old.get(key)}
+        campaign.source_options = {**new_options, **kept}
     check_campaign(db, campaign)
     audit_campaign(db, admin, campaign, "campaign.updated", changes)
     db.commit()
@@ -124,7 +129,7 @@ def start_run(
 
 def check_campaign(db: Session, campaign: Campaign) -> None:
     """422 if the campaign couldn't run: unknown rubric, a niche OSM doesn't know, csv
-    without a file."""
+    without an uploaded file."""
     # no_autoflush: don't save the unchecked changes (a bad rubric id would fail the FK).
     with db.no_autoflush:
         rubric = db.get(ScoringRubric, campaign.rubric_id)
@@ -135,8 +140,24 @@ def check_campaign(db: Session, campaign: Campaign) -> None:
             canonical_niche(campaign.niche)
         except SourceError as exc:
             raise unprocessable(str(exc)) from exc
-    if "csv" in campaign.sources and not (campaign.source_options or {}).get("csv_path"):
-        raise unprocessable("the csv source needs source_options.csv_path")
+    if "csv" in campaign.sources:
+        check_csv_options(db, campaign.source_options or {})
+
+
+def check_csv_options(db: Session, options: dict[str, Any]) -> None:
+    upload_id = options.get("csv_upload_id")
+    if upload_id is None:
+        if options.get("csv_path"):  # set by the CLI / demo, kept on an edit
+            return
+        raise unprocessable("the csv source needs an uploaded file (source_options.csv_upload_id)")
+    with db.no_autoflush:
+        upload = db.get(CsvUpload, upload_id)
+    if upload is None:
+        raise unprocessable(f"CSV upload {upload_id} not found")
+    mapping = options.get("csv_mapping") or {}
+    missing = [column for column in mapping.values() if column not in upload.columns]
+    if missing:
+        raise unprocessable(f"columns not in {upload.filename}: {', '.join(missing)}")
 
 
 def unprocessable(message: str) -> HTTPException:

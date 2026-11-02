@@ -29,6 +29,7 @@ from app.api.routes import (
     reports,
     rubrics,
     runs,
+    uploads,
     users,
     webhooks,
 )
@@ -104,6 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         leads,
         audit,
         reports,
+        uploads,
         webhooks,
     ):
         # 422 = our error shape, not FastAPI's default one (also in the OpenAPI docs).

@@ -95,11 +95,11 @@ def test_google_runs_with_a_key(db: Session, settings: Settings) -> None:
 
 
 def test_a_failing_source_does_not_stop_the_others(db: Session, settings: Settings) -> None:
-    campaign = add_campaign(db, ["csv", "nope", "osm"])  # csv without csv_path
+    campaign = add_campaign(db, ["csv", "nope", "osm"])  # csv without a file
 
     outcomes = collect_campaign(db, campaign, settings, fake_client())
 
-    assert "needs source_options.csv_path" in (outcomes[0].error or "")
+    assert "needs an uploaded CSV" in (outcomes[0].error or "")
     assert "unknown source 'nope'" in (outcomes[1].error or "")
     assert outcomes[2].result is not None and outcomes[2].result.new == 20
     assert lead_count(db) == 20
@@ -132,7 +132,7 @@ def test_cli_collect_reports_failures(
     monkeypatch.setattr(app.cli, "make_http_client", lambda user_agent: fake_client())
 
     assert main(["collect", "--campaign", str(campaign.id)], settings) == 1
-    assert "csv: failed (the csv source needs source_options.csv_path)" in capsys.readouterr().out
+    assert "csv: failed (the csv source needs an uploaded CSV" in capsys.readouterr().out
 
 
 def test_cli_collect_unknown_campaign(

@@ -32,7 +32,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db.models import Campaign, Lead
+from app.db.models import Campaign, CsvUpload, Lead
 from app.sources.base import LeadSource, RawLead, SourceError
 from app.sources.csv_mapped import CsvSource
 from app.sources.google_places import GooglePlacesSource, expire_cached_content
@@ -101,7 +101,7 @@ def collect_campaign(
     for name in campaign.sources:
         outcome = SourceOutcome(source=name)
         try:
-            source = make_source(name, campaign, settings, client)
+            source = make_source(session, name, campaign, settings, client)
             if source is None:
                 outcome.skipped = "GOOGLE_PLACES_API_KEY is not set"
             else:
@@ -125,7 +125,7 @@ def collect_inline(session: Session, leads: list[dict[str, Any]]) -> list[Source
 
 
 def make_source(
-    name: str, campaign: Campaign, settings: Settings, client: httpx2.Client
+    session: Session, name: str, campaign: Campaign, settings: Settings, client: httpx2.Client
 ) -> LeadSource | None:
     """Build the source called `name`, or None for google_places without a key."""
     if name == "osm":
@@ -134,11 +134,22 @@ def make_source(
         key = settings.google_places_api_key
         return GooglePlacesSource(client, key) if key else None
     if name == "csv":
-        options = campaign.source_options or {}
-        if not options.get("csv_path"):
-            raise SourceError("the csv source needs source_options.csv_path")
-        return CsvSource(options["csv_path"], options.get("csv_mapping"))
+        return make_csv_source(session, campaign.source_options or {})
     raise SourceError(f"unknown source {name!r}; known: osm, google_places, csv")
+
+
+def make_csv_source(session: Session, options: dict[str, Any]) -> CsvSource:
+    """The campaign's CSV: an uploaded file (`csv_upload_id`), else a path on this disk
+    (`csv_path`, set by the CLI or the demo; the API never takes a path)."""
+    mapping = options.get("csv_mapping")
+    if options.get("csv_upload_id"):
+        upload = session.get(CsvUpload, options["csv_upload_id"])
+        if upload is None:
+            raise SourceError(f"CSV upload {options['csv_upload_id']} not found")
+        return CsvSource(mapping=mapping, text=upload.content)
+    if options.get("csv_path"):
+        return CsvSource(options["csv_path"], mapping)
+    raise SourceError("the csv source needs an uploaded CSV (source_options.csv_upload_id)")
 
 
 def ingest_source(

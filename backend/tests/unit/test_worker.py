@@ -121,7 +121,7 @@ def test_a_failing_job_is_retried_then_its_item_fails(world, worker, clock) -> N
 
 
 def test_a_start_run_that_keeps_failing_fails_the_run(world, worker, clock) -> None:
-    world.campaign.source_options = {}  # the csv source needs csv_path
+    world.campaign.source_options = {}  # the csv source needs a file
     world.db.commit()
     run = start(world, clock)
 

@@ -2,7 +2,7 @@
 sources, scored by which rubric.
 
 Checks that need the database or several fields at once (the rubric exists, OSM knows
-the niche, csv has a path) live in `app.api.routes.campaigns.check_campaign()`, so a
+the niche, csv has an uploaded file) live in `app.api.routes.campaigns.check_campaign()`, so a
 create and an edit are checked the same way.
 """
 
@@ -37,8 +37,9 @@ class SourceOptions(BaseModel):
     radius_km: float | None = Field(default=None, gt=0, le=50)
     # Two-letter country code for phone numbers when OSM's geocode doesn't give one.
     country: str | None = Field(default=None, pattern=r"^[A-Za-z]{2}$")
-    # csv: a CSV file on the worker's disk, and which column holds which field.
-    csv_path: str | None = None
+    # csv: a file uploaded with `POST /api/uploads/csv`, and which column holds which field.
+    # (A path on the server's disk is never taken from the API; only the CLI / demo set one.)
+    csv_upload_id: int | None = Field(default=None, ge=1)
     csv_mapping: dict[str, str] | None = None
 
 
