@@ -238,7 +238,11 @@ export function NewCampaignPage() {
 
         {form.sources.includes("csv") && (
           <>
-            <Field id="csv-file" label="CSV upload" hint="UTF-8, a header row, up to 1 MB">
+            <Field
+              id="csv-file"
+              label="CSV upload"
+              hint="UTF-8, a header row, up to 1 MB by default"
+            >
               <input
                 id="csv-file"
                 type="file"

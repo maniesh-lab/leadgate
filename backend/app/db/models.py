@@ -155,7 +155,8 @@ class Campaign(Base):
     location: Mapped[str]
     # e.g. ["osm", "csv"]
     sources: Mapped[list[str]] = mapped_column(JSONType, default=list)
-    # e.g. {"csv_path": ..., "csv_mapping": {...}, "radius_km": 10, "max_results": 50}
+    # e.g. {"csv_upload_id": 3, "csv_mapping": {...}, "radius_km": 10, "max_results": 50};
+    # a "csv_path" on the worker's disk is only set by the CLI and the demo, never the API.
     source_options: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
     rubric_id: Mapped[int] = mapped_column(ForeignKey("scoring_rubrics.id"))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))

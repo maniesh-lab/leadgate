@@ -143,7 +143,7 @@ Admins get a few extra tools in the dashboard. Each one is admin-only, and each 
 
 ## API
 
-All under `/api`. Any login can read (except the user list); admins set things up; reviewers (and admins) decide.
+All under `/api`. Any login can read (except the user list and the exports); admins set things up; reviewers (and admins) decide.
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
@@ -162,7 +162,7 @@ All under `/api`. Any login can read (except the user list); admins set things u
 | `GET` | `/leads`, `/leads/{id}` | logged in | Filter, sort, search, pages |
 | `DELETE` | `/leads/{id}/data` | admin | Opt-out: wipe the lead's contact data |
 | `GET` | `/exports/approved-leads` | admin | `?run_id=` or `?campaign_id=`: the approved leads as a CSV |
-| `GET` | `/audit` | logged in | The audit trail, with filters (login records: admins only) |
+| `GET` | `/audit` | logged in | The audit trail, with filters (login, account, upload and export records: admins only) |
 | `GET`, `POST` | `/rubrics`, `/rubrics/{id}` | admin to change | Scoring rules; an edit makes a new version |
 | `GET` | `/reports`, `/reports/{name}` | logged in | The dashboard's SQL reports: the list, and one report |
 | `POST` | `/webhooks/n8n/runs` | `X-Webhook-Secret` | n8n starts a run |
@@ -203,7 +203,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 456 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 481 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
@@ -211,7 +211,7 @@ npm run lint && npm run typecheck && npm test && npm run build
 npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Docker stack
 ```
 
-The 18 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
+The 20 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
 CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 49 Vitest tests, build), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
@@ -273,7 +273,8 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **The crawler's address check has a small DNS gap:** the address is looked up for the check and again to connect, so a DNS server that answers differently the second time could slip through.
 - **The n8n results address isn't address-checked**, because it has to reach n8n on the private network; only someone with the shared secret can set it.
 - **An opted-out lead's old data stays in its LangGraph checkpoint** (approvals are blocked, but the checkpoint isn't wiped).
-- **The demo's public reviewer login** can read everything a reviewer can (made-up data, no login records), and the live API's docs page is public (every endpoint still needs a login).
+- **An uploaded CSV is kept in the database as it was uploaded**, with no way to delete it yet, so an opt-out doesn't wipe the lead's row in that file.
+- **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
 - **Small hardening left undone:** the API's own JSON answers carry no security headers (the live API is HTTPS-only anyway: `onrender.com` is on the browsers' HSTS preload list), the local nginx shows its version, and the local database password defaults to `leadgate` (its port only listens on 127.0.0.1).
 - **With Langfuse or Groq keys set, lead data leaves your server:** the LLM prompts and a cut-down copy of each lead go to those services.
 

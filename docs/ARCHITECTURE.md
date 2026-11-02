@@ -181,7 +181,9 @@ erDiagram
 - Failed logins are audit rows; 5 for one email or 20 from one address within 15 minutes
   → 429. The public demo's reviewer login is exempt from the per-email lock (its password
   is on the login page); the per-address limit still applies. Those rows hold the typed
-  email and the caller's address, so `GET /api/audit` shows them to admins only.
+  email and the caller's address, so `GET /api/audit` shows them to admins only. The same
+  goes for account rows (`user.*`, users' emails) and the admin tools' upload and export
+  rows (`csv.*`, `leads.exported`).
 - The crawler refuses private and internal addresses on every request and redirect hop.
 - The dashboard is served with a strict Content-Security-Policy (only its own address; on
   the live demo, also the API's),
