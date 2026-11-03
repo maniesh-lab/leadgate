@@ -4,8 +4,9 @@ Lets a client bring their own list. The mapping says which CSV column fills whic
 `RawLead` field, e.g. `{"name": "Company", "phone": "Tel"}`. Without a mapping, columns
 named like the fields (`name`, `phone`, ..., or `category`) are used.
 
-Called by `app.services.ingestion` (a campaign with the `csv` source, using
-`source_options["csv_path"]` / `["csv_mapping"]`) and by `python -m app.cli ingest`.
+Called by `app.services.ingestion` (a campaign with the `csv` source: a file uploaded in
+the dashboard, `source_options["csv_upload_id"]`, or a path on the worker's disk set by
+the CLI / demo, `["csv_path"]`; plus `["csv_mapping"]`) and by `python -m app.cli ingest`.
 
 Bad rows (no name, a rating of 7, ...) are logged and skipped, never a crash.
 Each row's `source_ref` is a hash of its name + phone + website, lightly normalized,
@@ -14,9 +15,11 @@ so the same row imported twice updates one lead instead of making two.
 
 import csv
 import hashlib
+import io
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TextIO
 
 from pydantic import ValidationError
 
@@ -46,19 +49,25 @@ EMPTY_VALUES = {"", "n/a", "na", "-", "none", "null"}
 class CsvSource(LeadSource):
     name = "csv"
 
-    def __init__(self, path: str | Path, mapping: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        path: str | Path | None = None,
+        mapping: dict[str, str] | None = None,
+        *,
+        text: str | None = None,
+    ) -> None:
+        """Read the file at `path`, or `text` (an uploaded file's content) when given."""
         super().__init__()
-        self.path = Path(path)
+        if (path is None) == (text is None):
+            raise ValueError("give a path or a text, not both")
+        self.path = Path(path) if path is not None else None
+        self.text = text
         self.mapping = mapping
 
     def collect(self, campaign: Campaign | None = None) -> Iterator[RawLead]:
         """Yield one RawLead per good row. The campaign isn't needed: the file is the list."""
         self.skipped = 0
-        if not self.path.is_file():
-            raise SourceError(f"CSV file not found: {self.path}")
-
-        # utf-8-sig drops the invisible marker Excel puts at the start of CSV files.
-        with self.path.open(newline="", encoding="utf-8-sig") as file:
+        with self.open() as file:
             reader = csv.DictReader(file, restkey="_extra_columns")
             mapping = resolve_mapping(reader.fieldnames or [], self.mapping)
             # Line 1 is the header, so data starts on line 2.
@@ -66,6 +75,15 @@ class CsvSource(LeadSource):
                 lead = self.row_to_lead(row, mapping, line)
                 if lead is not None:
                     yield lead
+
+    def open(self) -> TextIO:
+        if self.text is not None:
+            return io.StringIO(self.text, newline="")
+        assert self.path is not None
+        if not self.path.is_file():
+            raise SourceError(f"CSV file not found: {self.path}")
+        # utf-8-sig drops the invisible marker Excel puts at the start of CSV files.
+        return self.path.open(newline="", encoding="utf-8-sig")
 
     def row_to_lead(
         self, row: dict[str, str], mapping: dict[str, str], line: int

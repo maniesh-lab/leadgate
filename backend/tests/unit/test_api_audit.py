@@ -101,3 +101,19 @@ def test_login_rows_are_for_admins_only(
 def test_audit_needs_a_login_and_real_times(client: TestClient, db: Session, as_reviewer) -> None:
     assert client.get("/api/audit").status_code == 401
     assert client.get("/api/audit?from=yesterday", headers=as_reviewer).status_code == 422
+
+
+def test_account_and_admin_tool_rows_are_for_admins_only(
+    client: TestClient, db: Session, as_reviewer, as_admin
+) -> None:
+    # They name admins, users and uploaded files; the demo's public reviewer must not see them.
+    hidden = ["user.deactivated", "user.created", "csv.uploaded", "leads.exported"]
+    for minute, action in enumerate(hidden):
+        add_row(db, at(minute), action, actor_type=ActorType.USER, actor="admin@example.com")
+    add_row(db, at(9), "run_item.retried", actor_type=ActorType.USER, actor="admin@example.com")
+
+    def actions(headers: dict[str, str]) -> list[str]:
+        return [row["action"] for row in client.get("/api/audit", headers=headers).json()["items"]]
+
+    assert actions(as_reviewer) == ["run_item.retried"]
+    assert sorted(actions(as_admin)) == sorted([*hidden, "run_item.retried"])

@@ -16,6 +16,7 @@ import type { Rubric, Rule } from "../api/types";
 import { PlusIcon } from "../components/icons";
 import { EmptyState, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
+import { SettingsTabs } from "../components/SettingsTabs";
 import { formatDateTime } from "../lib/format";
 
 type Op = Rule["op"];
@@ -124,6 +125,7 @@ export function RubricsPage() {
 
   return (
     <section>
+      <SettingsTabs />
       <PageHeader
         tone="orange"
         eyebrow="Settings"

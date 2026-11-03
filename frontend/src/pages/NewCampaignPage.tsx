@@ -2,19 +2,22 @@
  * Create a campaign (admins): what to look for (niche), where (location), which sources
  * to collect from, which rubric scores the leads, and the source options. The API checks
  * the rest (e.g. that OSM knows the niche) and its message is shown as is.
+ *
+ * With the CSV source, the file is uploaded as soon as it's picked (`POST /api/uploads/csv`)
+ * and the campaign points to the stored copy by its id; no file path is ever sent.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type ChangeEvent, type FormEvent, type ReactNode, useState } from "react";
 import { useNavigate } from "react-router";
 import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
-import type { Campaign, CampaignCreate, SourceName } from "../api/types";
+import type { Campaign, CampaignCreate, CsvUpload, SourceName } from "../api/types";
 import { PageHeader } from "../components/Page";
 
 const SOURCES: { name: SourceName; title: string; hint: string }[] = [
   { name: "osm", title: "OpenStreetMap", hint: "Free, no key. The default." },
   { name: "google_places", title: "Google Places", hint: "Needs GOOGLE_PLACES_API_KEY." },
-  { name: "csv", title: "CSV file", hint: "Your own list, on the worker's disk." },
+  { name: "csv", title: "CSV file", hint: "Your own list, uploaded here." },
 ];
 
 type Form = {
@@ -26,7 +29,7 @@ type Form = {
   maxResults: string;
   radiusKm: string;
   country: string;
-  csvPath: string;
+  csvUploadId: number | null;
   csvMapping: string;
 };
 
@@ -39,7 +42,7 @@ const EMPTY: Form = {
   maxResults: "",
   radiusKm: "",
   country: "",
-  csvPath: "",
+  csvUploadId: null,
   csvMapping: "",
 };
 
@@ -50,7 +53,7 @@ export function toCampaignBody(form: Form, defaultRubricId: number | undefined):
   if (form.radiusKm) options.radius_km = Number(form.radiusKm);
   if (form.country) options.country = form.country.trim();
   if (form.sources.includes("csv")) {
-    if (form.csvPath) options.csv_path = form.csvPath.trim();
+    if (form.csvUploadId) options.csv_upload_id = form.csvUploadId;
     // A mapping like {"name": "Company", "phone": "Tel"}; JSON.parse throws on a typo.
     if (form.csvMapping.trim()) options.csv_mapping = JSON.parse(form.csvMapping);
   }
@@ -70,6 +73,24 @@ export function NewCampaignPage() {
   const rubrics = useRubrics();
   const [form, setForm] = useState<Form>(EMPTY);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [csvFile, setCsvFile] = useState<CsvUpload | null>(null);
+
+  const upload = useMutation({
+    mutationFn: (file: File) =>
+      api.postCsv<CsvUpload>("/api/uploads/csv", file, { filename: file.name }),
+    onSuccess: (stored) => {
+      setCsvFile(stored);
+      setForm((current) => ({ ...current, csvUploadId: stored.id }));
+    },
+  });
+
+  function pickFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setCsvFile(null);
+    setForm((current) => ({ ...current, csvUploadId: null }));
+    if (file) upload.mutate(file);
+  }
 
   const create = useMutation({
     mutationFn: (body: CampaignCreate) => api.post<Campaign>("/api/campaigns", body),
@@ -94,6 +115,10 @@ export function NewCampaignPage() {
     setFormError(null);
     if (form.sources.length === 0) {
       setFormError("Pick at least one source.");
+      return;
+    }
+    if (form.sources.includes("csv") && !form.csvUploadId) {
+      setFormError(upload.isPending ? "Wait for the CSV to finish uploading." : "Pick a CSV file.");
       return;
     }
     try {
@@ -213,18 +238,28 @@ export function NewCampaignPage() {
 
         {form.sources.includes("csv") && (
           <>
-            <Field id="csv-path" label="CSV path" hint="a file the worker can read">
+            <Field
+              id="csv-file"
+              label="CSV upload"
+              hint="UTF-8, a header row, up to 1 MB by default"
+            >
               <input
-                id="csv-path"
-                value={form.csvPath}
-                onChange={set("csvPath")}
-                className="input"
+                id="csv-file"
+                type="file"
+                accept=".csv,text/csv"
+                onChange={pickFile}
+                className="input file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-line-strong file:bg-transparent file:px-3 file:py-1 file:text-xs file:font-medium file:text-fg"
+              />
+              <CsvStatus
+                pending={upload.isPending}
+                stored={csvFile}
+                error={upload.error ? describeError(upload.error) : null}
               />
             </Field>
             <Field
               id="csv-mapping"
               label="CSV column mapping"
-              hint='JSON, e.g. {"name": "Company", "phone": "Tel"}'
+              hint='JSON, e.g. {"name": "Company", "phone": "Tel"}; empty = columns named like the fields'
             >
               <textarea
                 id="csv-mapping"
@@ -252,6 +287,32 @@ export function NewCampaignPage() {
         </div>
       </form>
     </section>
+  );
+}
+
+type CsvStatusProps = { pending: boolean; stored: CsvUpload | null; error: string | null };
+
+/** What happened to the picked file: uploading, stored (name, rows, columns) or refused. */
+function CsvStatus({ pending, stored, error }: CsvStatusProps) {
+  if (pending)
+    return (
+      <p role="status" className="mt-2 text-xs text-muted">
+        Uploading…
+      </p>
+    );
+  if (error)
+    return (
+      <p role="alert" className="mt-2 text-xs text-(--red)">
+        {error}
+      </p>
+    );
+  if (!stored) return null;
+  return (
+    <p role="status" className="mt-2 text-xs text-muted">
+      <span className="font-semibold text-(--green)">Uploaded</span> {stored.filename} ·{" "}
+      {stored.row_count} {stored.row_count === 1 ? "row" : "rows"} · columns:{" "}
+      <span className="font-mono">{stored.columns.join(", ")}</span>
+    </p>
   );
 }
 

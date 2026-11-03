@@ -155,12 +155,34 @@ class Campaign(Base):
     location: Mapped[str]
     # e.g. ["osm", "csv"]
     sources: Mapped[list[str]] = mapped_column(JSONType, default=list)
-    # e.g. {"csv_path": ..., "csv_mapping": {...}, "radius_km": 10, "max_results": 50}
+    # e.g. {"csv_upload_id": 3, "csv_mapping": {...}, "radius_km": 10, "max_results": 50};
+    # a "csv_path" on the worker's disk is only set by the CLI and the demo, never the API.
     source_options: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
     rubric_id: Mapped[int] = mapped_column(ForeignKey("scoring_rubrics.id"))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
     is_archived: Mapped[bool] = mapped_column(server_default=false())
+
+
+class CsvUpload(Base):
+    """A CSV file an admin uploaded in the dashboard (`POST /api/uploads/csv`).
+
+    The file itself is kept here, not on a disk, so every worker (in its own container,
+    or inside the API on the free host) reads the same copy. A campaign points to it with
+    `source_options["csv_upload_id"]`.
+    """
+
+    __tablename__ = "csv_uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filename: Mapped[str]
+    content: Mapped[str] = mapped_column(Text)
+    size_bytes: Mapped[int]
+    row_count: Mapped[int]
+    # The header row, so the dashboard can show which columns a mapping can use.
+    columns: Mapped[list[str]] = mapped_column(JSONType, default=list)
+    uploaded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
 
 class Lead(Base):

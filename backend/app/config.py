@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # Pages fetched per website: the home page plus up to (this - 1) contact/about/... pages.
     enrich_max_pages: int = Field(default=4, ge=1)
 
+    # The biggest CSV an admin can upload in the dashboard (1 MB is ~5,000-10,000 leads).
+    # Behind the bundled nginx (compose), at most 10 MB gets through (`frontend/nginx.conf`).
+    csv_upload_max_bytes: int = Field(default=1_000_000, ge=1)
+
     # Which LLM the agents use (see app/agents/llm.py): "fake" answers without any network
     # (tests, CI, offline demos), "groq" and "openai" call the real APIs through Steadfast.
     llm_mode: Literal["fake", "groq", "openai"] = "fake"

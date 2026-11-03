@@ -48,6 +48,10 @@ type Options = {
   query?: Query;
   json?: unknown;
   form?: Record<string, string>;
+  /** A CSV file sent as the whole body (the upload endpoint takes no multipart form). */
+  csv?: Blob;
+  /** Answer the body as a Blob (a file to save), not as JSON. */
+  blob?: boolean;
 };
 
 async function request<T>(method: string, path: string, options: Options = {}): Promise<T> {
@@ -55,18 +59,22 @@ async function request<T>(method: string, path: string, options: Options = {}): 
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let body: string | URLSearchParams | undefined;
+  let body: string | URLSearchParams | Blob | undefined;
   if (options.json !== undefined) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(options.json);
   } else if (options.form) {
     body = new URLSearchParams(options.form); // fetch sets the form content type itself
+  } else if (options.csv) {
+    headers["Content-Type"] = "text/csv";
+    body = options.csv;
   }
 
   const response = await fetch(apiUrl(path, options.query), { method, headers, body });
   if (response.status === 401 && token) onUnauthorized();
   if (!response.ok) throw await toApiError(response);
   if (response.status === 204) return undefined as T;
+  if (options.blob) return (await response.blob()) as T;
   return (await response.json()) as T;
 }
 
@@ -87,6 +95,10 @@ export const api = {
   delete: (path: string) => request<void>("DELETE", path),
   /** The login endpoint takes an OAuth2 password form, not JSON. */
   postForm: <T>(path: string, form: Record<string, string>) => request<T>("POST", path, { form }),
+  /** A file to save (e.g. a CSV export); the login token rides along like on any call. */
+  download: (path: string, query?: Query) => request<Blob>("GET", path, { query, blob: true }),
+  /** Uploads a CSV file as the request body. */
+  postCsv: <T>(path: string, csv: Blob, query?: Query) => request<T>("POST", path, { csv, query }),
 };
 
 /** A message for people: the API's message, plus which fields were wrong on a 422. */

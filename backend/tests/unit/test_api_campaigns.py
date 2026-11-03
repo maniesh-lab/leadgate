@@ -48,8 +48,10 @@ def test_campaign_checks(client: TestClient, rubric, as_admin) -> None:
     assert status(rubric_id=999) == 422
     assert status(niche="unicorn tamer") == 422  # OSM has no tags for it
     assert status(niche="unicorn tamer", sources=["google_places"]) == 201  # fine without OSM
-    assert status(sources=["csv"]) == 422  # no csv_path
-    assert status(sources=["csv"], source_options={"csv_path": "/data/x.csv"}) == 201
+    assert status(sources=["csv"]) == 422  # no uploaded file
+    # The API never takes a path on the server's disk.
+    assert status(sources=["csv"], source_options={"csv_path": "/etc/passwd"}) == 422
+    assert status(sources=["csv"], source_options={"csv_upload_id": 999}) == 422  # no such upload
     assert status(sources=[]) == 422
     assert status(sources=["yelp"]) == 422
     assert status(source_options={"max_result": 5}) == 422  # typo'd key

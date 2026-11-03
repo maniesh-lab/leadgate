@@ -1,6 +1,7 @@
 /**
  * The campaign list: what each campaign looks for, where, with which sources and rubric.
- * Admins can start a run from here (it opens the new run's page). `?archived=true`
+ * Admins can start a run from here (it opens the new run's page) and export a campaign's
+ * approved leads as a CSV. `?archived=true`
  * lists the archived campaigns instead.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
 import type { Campaign, Page, Run } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
+import { ExportButton } from "../components/ExportButton";
 import { PlayIcon } from "../components/icons";
 import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
@@ -114,8 +116,16 @@ export function CampaignsPage() {
                     <td className="whitespace-nowrap text-muted">
                       {formatDateTime(campaign.created_at)}
                     </td>
-                    <td className="text-right">
-                      {isAdmin && !campaign.is_archived && <StartRunButton campaign={campaign} />}
+                    <td>
+                      {isAdmin && (
+                        <div className="flex justify-end gap-2">
+                          {!campaign.is_archived && <StartRunButton campaign={campaign} />}
+                          <ExportButton
+                            target={{ campaign_id: campaign.id }}
+                            filename={`leadgate-campaign-${campaign.id}-approved.csv`}
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

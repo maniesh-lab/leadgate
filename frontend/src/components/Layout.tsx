@@ -21,7 +21,8 @@ const NAV = [
   { to: "/leads", label: "Leads", dot: "var(--tone-orange)" },
   { to: "/audit", label: "Audit", dot: "var(--accent)" },
 ];
-const ADMIN_NAV = [{ to: "/settings/rubrics", label: "Settings", dot: "var(--tone-orange)" }];
+// "/settings" opens the rubrics; the item stays active on every settings page (users too).
+const ADMIN_NAV = [{ to: "/settings", label: "Settings", dot: "var(--tone-orange)" }];
 
 export function Layout() {
   const { user, logout } = useAuth();

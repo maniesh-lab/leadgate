@@ -24,11 +24,13 @@ from app.api.routes import (
     audit,
     auth,
     campaigns,
+    exports,
     health,
     leads,
     reports,
     rubrics,
     runs,
+    uploads,
     users,
     webhooks,
 )
@@ -99,11 +101,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         users,
         rubrics,
         campaigns,
+        exports,
         runs,
         approvals,
         leads,
         audit,
         reports,
+        uploads,
         webhooks,
     ):
         # 422 = our error shape, not FastAPI's default one (also in the OpenAPI docs).

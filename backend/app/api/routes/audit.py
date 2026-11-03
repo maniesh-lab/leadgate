@@ -3,9 +3,11 @@
 Rows come from `app.services.audit.record()` (nodes, the worker, reviewers, admins); the
 API never changes them, and on Postgres a trigger refuses UPDATE and DELETE anyway.
 
-Login rows (`auth.*`, e.g. `auth.login_failed`) are for admins only: they hold the email
-someone typed and their IP address, and the public demo's reviewer login can read
-everything else here.
+Some rows are for admins only, because the public demo's reviewer login can read
+everything else here:
+- login rows (`auth.*`, e.g. `auth.login_failed`): the email someone typed and their IP
+- account rows (`user.*`): the users' emails
+- the admin tools' rows: CSV uploads (`csv.*`, the file name) and exports (`leads.exported`)
 """
 
 from datetime import UTC, datetime
@@ -22,8 +24,8 @@ from app.schemas.common import Page
 
 router = APIRouter(prefix="/audit", tags=["audit"], responses=error_docs(401))
 
-# Actions only admins see (see the module docstring).
-ADMIN_ONLY_PREFIX = "auth."
+# Actions only admins see (see the module docstring); each is matched as a prefix.
+ADMIN_ONLY = ("auth.", "user.", "csv.", "leads.exported")
 
 
 @router.get("")
@@ -41,7 +43,8 @@ def list_audit(
     ] = None,
     occurred_to: Annotated[datetime | None, Query(alias="to", description="before")] = None,
 ) -> Page[AuditOut]:
-    """Audit rows, newest first. Login rows (`auth.*`) are left out unless you're an admin."""
+    """Audit rows, newest first. Login, account, upload and export rows (`auth.*`, `user.*`,
+    `csv.*`, `leads.exported`) are left out unless you're an admin."""
     stmt = audit_query(
         run_id=run_id,
         entity_type=entity_type,
@@ -52,7 +55,8 @@ def list_audit(
         occurred_to=occurred_to,
     )
     if user.role != UserRole.ADMIN:
-        stmt = stmt.where(AuditLog.action.not_like(f"{ADMIN_ONLY_PREFIX}%"))
+        for prefix in ADMIN_ONLY:
+            stmt = stmt.where(AuditLog.action.not_like(f"{prefix}%"))
     rows, total = paginate(db, stmt, paging)
     return Page(
         items=[AuditOut.model_validate(row) for (row,) in rows],

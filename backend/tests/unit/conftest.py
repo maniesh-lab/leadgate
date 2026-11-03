@@ -111,8 +111,14 @@ def login(client: TestClient, email: str) -> dict[str, str]:
 
 @pytest.fixture
 def started(client: TestClient, world: World, worker, clock, admin, reviewer) -> dict:
-    """A run started through the API and taken to the approval gate by the worker."""
+    """A run started through the API (with an uploaded CSV) and taken to the approval gate."""
     as_admin = login(client, admin.email)
+    upload = client.post(
+        "/api/uploads/csv",
+        params={"filename": "leads.csv"},
+        content=CSV,
+        headers={**as_admin, "Content-Type": "text/csv"},
+    ).json()
     campaign = client.post(
         "/api/campaigns",
         json={
@@ -120,7 +126,7 @@ def started(client: TestClient, world: World, worker, clock, admin, reviewer) ->
             "niche": "dentist",
             "location": "Austin, TX",
             "sources": ["csv"],
-            "source_options": {"csv_path": world.campaign.source_options["csv_path"]},
+            "source_options": {"csv_upload_id": upload["id"]},
             "rubric_id": world.rubrics["general-b2b"].id,
         },
         headers=as_admin,

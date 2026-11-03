@@ -9,6 +9,8 @@ type Schemas = components["schemas"];
 
 export type User = Schemas["UserOut"];
 export type UserRole = Schemas["UserRole"];
+export type UserCreate = Schemas["UserCreate"];
+export type UserUpdate = Schemas["UserUpdate"];
 export type Token = Schemas["Token"];
 export type PasswordChange = Schemas["PasswordChange"];
 
@@ -16,6 +18,7 @@ export type Rubric = Schemas["RubricOut"];
 export type Campaign = Schemas["CampaignOut"];
 export type CampaignCreate = Schemas["CampaignCreate"];
 export type SourceName = CampaignCreate["sources"][number];
+export type CsvUpload = Schemas["CsvUploadOut"];
 
 export type Run = Schemas["RunOut"];
 export type RunDetail = Schemas["RunDetail"];

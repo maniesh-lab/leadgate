@@ -1,21 +1,26 @@
-"""Runs and run items, read-only: `GET /api/runs`, `/api/runs/{id}`, `/api/run-items/{id}`.
+"""Runs and run items: `GET /api/runs`, `/api/runs/{id}`, `/api/run-items/{id}`, and an
+admin's `POST /api/run-items/{id}/retry` for a failed lead.
 
 A run's detail lists its items and how many are in each status; a run item's detail is
 everything about one lead in one run: the lead card, its step timeline (`run_steps`,
 written by `@tracked_node`), the score breakdown and the human's decision.
+
+A retry only queues a job (`app.services.retry.retry_item`: row lock, status check,
+audit row + job, one commit); the worker continues the lead from its last checkpoint.
 
 The score breakdown and extraction issues aren't columns: they're read from the item's
 `score` and `extract` steps (`reviews_for()`, also used by the approval queue).
 """
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentUser, DbSession, Paging, get_or_404, paginate
+from app.api.deps import AdminUser, CurrentUser, DbSession, Paging, get_or_404, paginate
 from app.api.errors import error_docs
 from app.db.models import (
     Approval,
@@ -38,6 +43,8 @@ from app.schemas.runs import (
     RunOut,
     StepOut,
 )
+from app.services.approvals import LeadOptedOut
+from app.services.retry import NotFailed, retry_item
 
 router = APIRouter(tags=["runs"], responses=error_docs(401))
 
@@ -107,6 +114,22 @@ def get_run_item(item_id: int, _user: CurrentUser, db: DbSession) -> RunItemDeta
         steps=[StepOut.model_validate(step) for step in steps],
         approval=approval_for(db, item.id),
     )
+
+
+@router.post("/run-items/{item_id}/retry", responses=error_docs(403, 404, 409))
+def retry_run_item(item_id: int, admin: AdminUser, db: DbSession) -> RunItemRow:
+    """Queue a failed lead again; the worker continues it from where it stopped.
+
+    409 if the item isn't failed (e.g. someone already retried it), or if it was approved
+    and its lead has since opted out.
+    """
+    try:
+        item = retry_item(db, item_id, admin, datetime.now(UTC))
+    except LookupError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"run item {item_id} not found") from exc
+    except (NotFailed, LeadOptedOut) as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return item_row(item, db.get(Lead, item.lead_id).name)
 
 
 def run_items_query(run_id: int) -> Select[tuple[RunItem, str]]:
