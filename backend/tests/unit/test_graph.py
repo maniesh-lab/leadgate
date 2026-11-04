@@ -177,6 +177,20 @@ def test_category_mismatch_is_flagged_and_the_web_agency_gate_gives_zero(world: 
     assert "required rule failed" in state["score_explanation"]
 
 
+def test_a_niche_off_the_list_has_no_category_to_mismatch(world: World) -> None:
+    # "dermatologist" isn't in CATEGORIES; a lead filed under "doctor" isn't wrong for it.
+    world.campaign.niche = "dermatologist"
+    world.db.commit()
+    lead = add_lead(world.db, name="Skin Clinic", category="doctor", website=None)
+
+    state = world.start(lead, rubric="web-agency")
+
+    assert state["extracted"]["category"] == "doctor"
+    assert state["category_matches_niche"] is True
+    assert "category_mismatch" not in state["flags"]
+    assert not any(flag.startswith("rubric_gate") for flag in state["flags"])
+
+
 def test_closed_business_is_flagged(world: World) -> None:
     lead = add_lead(world.db, business_status="closed_permanently")
 
