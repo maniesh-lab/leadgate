@@ -183,7 +183,7 @@ erDiagram
   is on the login page); the per-address limit still applies. Those rows hold the typed
   email and the caller's address, so `GET /api/audit` shows them to admins only. The same
   goes for account rows (`user.*`, users' emails) and the admin tools' upload and export
-  rows (`csv.*`, `leads.exported`).
+  rows (`campaign.*`, `csv.*`, `leads.exported`).
 - The crawler refuses private and internal addresses on every request and redirect hop.
 - The dashboard is served with a strict Content-Security-Policy (only its own address; on
   the live demo, also the API's),
@@ -214,8 +214,10 @@ flowchart LR
   `X-Forwarded-For` and ignores one a visitor makes up (checked live with a fake
   header).
 - **Neon** (free plan) is the Postgres. Render's own free Postgres is deleted after 30 days.
-- The demo uses `LLM_MODE=fake` and no outside services: no Google Places, Airtable,
-  Discord, n8n or Langfuse calls. Leads come from a CSV of made-up practices
+- `PUBLIC_DEMO=true` locks it, for every login: the API refuses new or edited campaigns,
+  uploads, runs and the n8n webhook, and the worker's HTTP clients refuse every request
+  (`app/outside_calls.py`). It also needs `LLM_MODE=fake`, so there are no Google Places,
+  Airtable, Discord, n8n or Langfuse calls. Leads come from a CSV of made-up practices
   (`backend/demo/austin-dentists.csv`, `.example` websites, 555 phone numbers) whose
   website findings are stored in advance, so nothing is crawled.
 - `python -m app.cli demo --history 1000` set it up once: the demo reviewer, the demo
