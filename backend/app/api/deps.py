@@ -89,6 +89,16 @@ def require_role(*roles: UserRole) -> Callable[[User], User]:
     return check
 
 
+def not_on_public_demo(settings: AppSettings) -> None:
+    """403 on the public demo: nobody, admin included, adds campaigns, files or runs there."""
+    if settings.public_demo:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "this is the public demo: it can't add campaigns or start runs. "
+            "Run leadgate on your own machine for real searches.",
+        )
+
+
 AdminUser = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 ReviewerUser = Annotated[User, Depends(require_role(UserRole.REVIEWER, UserRole.ADMIN))]
 

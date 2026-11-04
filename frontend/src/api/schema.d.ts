@@ -479,7 +479,8 @@ export interface paths {
         };
         /**
          * List Audit
-         * @description Audit rows, newest first. Login rows (`auth.*`) are left out unless you're an admin.
+         * @description Audit rows, newest first. Login, account, campaign, upload and export rows (`auth.*`,
+         *     `user.*`, `campaign.*`, `csv.*`, `leads.exported`) are left out unless you're an admin.
          */
         get: operations["list_audit_api_audit_get"];
         put?: never;
@@ -780,6 +781,8 @@ export interface components {
         LeadDetail: {
             /** Id */
             id: number;
+            /** Source */
+            source: string;
             /** Name */
             name: string;
             /** Phone */
@@ -805,8 +808,6 @@ export interface components {
             status: components["schemas"]["LeadStatus"];
             /** Opt Out */
             opt_out: boolean;
-            /** Source */
-            source: string;
             /** Country */
             country: string | null;
             /** Website Domain */
@@ -859,6 +860,8 @@ export interface components {
         LeadRow: {
             /** Id */
             id: number;
+            /** Source */
+            source: string;
             /** Name */
             name: string;
             /** Phone */
@@ -884,8 +887,6 @@ export interface components {
             status: components["schemas"]["LeadStatus"];
             /** Opt Out */
             opt_out: boolean;
-            /** Source */
-            source: string;
             /** Country */
             country: string | null;
             /** Website Domain */
@@ -950,6 +951,8 @@ export interface components {
         LeadSummary: {
             /** Id */
             id: number;
+            /** Source */
+            source: string;
             /** Name */
             name: string;
             /** Phone */
@@ -3184,6 +3187,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

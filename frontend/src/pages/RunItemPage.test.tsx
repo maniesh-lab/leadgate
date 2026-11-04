@@ -22,6 +22,7 @@ function failedItem(changes: Partial<RunItemDetail> = {}): RunItemDetail {
     updated_at: "2026-11-02T10:05:00Z",
     lead: {
       id: 9,
+      source: "google_places",
       name: "Smile Dental",
       phone: null,
       email: null,
@@ -57,6 +58,7 @@ describe("RunItemPage", () => {
     renderApp("/run-items/5", { user: ADMIN });
 
     expect(await screen.findByText("RuntimeError: LLM down")).toBeInTheDocument();
+    expect(screen.getByText("Google Maps")).toHaveAttribute("translate", "no");
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     await waitFor(() => expect(screen.getByText("pending")).toBeInTheDocument());

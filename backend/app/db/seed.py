@@ -6,7 +6,8 @@ already exist are left alone (an existing admin keeps its password).
 Rubric rules read a field from the lead being scored. Phase 5's rubric engine
 looks fields up like this:
 - `phone`, `email`, `website`, `rating`, `review_count`, `business_status`: lead fields
-- `category_matches_niche`: set by the `check` node
+- `category_matches_niche`: set by the `check` node (always true for a niche off the list
+  in `app.agents.categories`)
 - `signals.<name>`: the site signals Phase 4 stores in `lead.enrichment["signals"]`
 A rule with `"required": True` is a gate: if it misses, the score is 0 and the lead is flagged.
 """

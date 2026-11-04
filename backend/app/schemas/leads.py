@@ -13,6 +13,7 @@ class LeadSummary(FromRow):
     """The fields a reviewer looks at first."""
 
     id: int
+    source: str
     name: str
     phone: str | None
     email: str | None
@@ -31,7 +32,6 @@ class LeadSummary(FromRow):
 class LeadRow(LeadSummary):
     """A row in the leads table."""
 
-    source: str
     country: str | None
     website_domain: str | None
     enriched_at: datetime | None

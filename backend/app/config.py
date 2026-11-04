@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/app/config.py -> repo root. Inside Docker this path has no .env, which is fine:
@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     )
 
     database_url: str
+    # The public demo (the live site): no outside calls and no new campaigns or runs, even
+    # for an admin, and it won't start with an outside service's key set. Real searches run
+    # on your own machine.
+    public_demo: bool = False
+
     # The first admin, created by `python -m app.cli seed`. `decide` also uses ADMIN_EMAIL as
     # its default reviewer.
     admin_email: str | None = None
@@ -102,6 +107,25 @@ class Settings(BaseSettings):
     # "https://leadgate.example.com". Empty = none: the dashboard reaches the API on its own
     # address (the Vite dev server and the frontend image's nginx pass `/api` through).
     cors_origins: str = ""
+
+    @model_validator(mode="after")
+    def public_demo_has_no_outside_services(self) -> Settings:
+        """Refuse to start rather than half-work: the demo makes no outside calls."""
+        if not self.public_demo:
+            return self
+        if self.llm_mode != "fake":
+            raise ValueError("PUBLIC_DEMO needs LLM_MODE=fake: the demo makes no outside calls")
+        keys = {
+            "GOOGLE_PLACES_API_KEY": self.google_places_api_key,
+            "AIRTABLE_TOKEN": self.airtable_token,
+            "DISCORD_WEBHOOK_URL": self.discord_webhook_url,
+            "DISCORD_ADMIN_WEBHOOK_URL": self.discord_admin_webhook_url,
+            "LANGFUSE_PUBLIC_KEY": self.langfuse_public_key,
+            "LANGFUSE_SECRET_KEY": self.langfuse_secret_key,
+        }
+        if found := [name for name, value in keys.items() if value]:
+            raise ValueError(f"PUBLIC_DEMO must run without these keys: {', '.join(found)}")
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

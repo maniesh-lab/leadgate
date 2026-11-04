@@ -13,6 +13,8 @@
 `RUN_WORKER_IN_API=true` runs the same loop in a background thread of the API instead
 (`app.main`), for free hosting with a single process.
 
+With PUBLIC_DEMO=true every HTTP client refuses all requests (`app.outside_calls`).
+
 The worker id is `<hostname>-<pid>`. In a container the pid is always 1, so a restarted
 container has the same id and takes its own unfinished jobs back at once.
 """
@@ -129,9 +131,15 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
         stack.callback(tracer.close)  # sends the last spans to Langfuse
         llm = make_llm(settings, tracer)
         stack.callback(llm.close)
-        crawler_client = stack.enter_context(make_crawler_client(settings.osm_user_agent))
+        # The public demo refuses every outside call (`app.outside_calls`).
+        blocked = settings.public_demo
+        crawler_client = stack.enter_context(
+            make_crawler_client(settings.osm_user_agent, blocked=blocked)
+        )
         # Airtable, Discord and the n8n callback (same User-Agent and timeout as the sources).
-        outbound_client = stack.enter_context(make_http_client(settings.osm_user_agent))
+        outbound_client = stack.enter_context(
+            make_http_client(settings.osm_user_agent, blocked=blocked)
+        )
         deps = Deps(
             settings=settings,
             session_factory=make_session_factory(engine),
@@ -143,7 +151,9 @@ def open_worker(settings: Settings, worker_id: str | None = None) -> Iterator[Wo
             # Airtable / Discord when their settings are set, else the in-memory fakes.
             crm=make_crm(settings, outbound_client),
             notifier=make_notifier(settings, outbound_client),
-            sources_client=stack.enter_context(make_http_client(settings.osm_user_agent)),
+            sources_client=stack.enter_context(
+                make_http_client(settings.osm_user_agent, blocked=blocked)
+            ),
             callback_client=outbound_client,
             tracer=tracer,
         )

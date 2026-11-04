@@ -73,7 +73,7 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 
 [leadgate-ocu8.onrender.com](https://leadgate-ocu8.onrender.com) runs the real code on free hosting (Render for the API and the dashboard, Neon for Postgres). It logs you in as a reviewer, so you can work the approval queue, open any lead's step timeline, read the audit log and the dashboard's reports. The [admin tools](#admin-tools) need the admin login, which isn't public.
 
-To keep it free and safe, the demo makes **no outside calls**: the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin dentists with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
+To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin dentists with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
 
 ## Quick start (Docker)
 
@@ -134,7 +134,7 @@ python -m app.cli ingest leads.csv --mapping mapping.json   # import any CSV
 
 ## Admin tools
 
-Admins get a few extra tools in the dashboard. Each one is admin-only, and each one writes an audit row.
+Admins get a few extra tools in the dashboard. Each one is admin-only, and each one writes an audit row. On the public demo, uploading is off with the rest of the lockdown.
 
 - **Upload a CSV** of your own leads on the New campaign page (UTF-8 with a header row, up to 1 MB by default, `CSV_UPLOAD_MAX_BYTES`). The file is stored in Postgres, so every worker reads the same copy; the API never takes a file path on the server.
 - **Export approved leads** as a CSV from a run's page or a campaign's row. Escalated approvals are included, with a `route` column to tell them apart; opted-out leads are left out; a campaign gives one row per lead; a cell that starts like a spreadsheet formula gets a leading `'` so it can't run in Excel.
@@ -162,7 +162,7 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 | `GET` | `/leads`, `/leads/{id}` | logged in | Filter, sort, search, pages |
 | `DELETE` | `/leads/{id}/data` | admin | Opt-out: wipe the lead's contact data |
 | `GET` | `/exports/approved-leads` | admin | `?run_id=` or `?campaign_id=`: the approved leads as a CSV |
-| `GET` | `/audit` | logged in | The audit trail, with filters (login, account, upload and export records: admins only) |
+| `GET` | `/audit` | logged in | The audit trail, with filters (login, account, campaign, upload and export records: admins only) |
 | `GET`, `POST` | `/rubrics`, `/rubrics/{id}` | admin to change | Scoring rules; an edit makes a new version |
 | `GET` | `/reports`, `/reports/{name}` | logged in | The dashboard's SQL reports: the list, and one report |
 | `POST` | `/webhooks/n8n/runs` | `X-Webhook-Secret` | n8n starts a run |
@@ -203,7 +203,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 481 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 489 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
@@ -213,7 +213,7 @@ npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Doc
 
 The 20 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
-CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 49 Vitest tests, build), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
+CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 50 Vitest tests, build), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
 ## Project structure
 
@@ -244,7 +244,7 @@ render.yaml                        the live demo's hosting
 
 ## Settings
 
-All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. Every outside service is off when its keys are empty.
+All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. Every outside service is off when its keys are empty.
 
 ## Design decisions
 
@@ -263,6 +263,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 
 ## Known limitations
 
+- **Google's terms don't allow what this app does with Places data.** Google's Maps Platform terms forbid storing Places content outside the service (they name copying and saving business names and addresses), and only the place ID, plus latitude and longitude for 30 days, may be kept. The `google_places` source saves those fields on the lead and an approved lead's fields go to the CRM, and its 30-day wipe doesn't fix that. It stays off without a key: OpenStreetMap or your own CSV are the sources to use for a real lead list. The dashboard shows the required "Google Maps" credit next to Google leads.
 - **No ratings from OpenStreetMap.** OSM has no reviews, so on the `web-agency` rubric most OSM leads score 0–20. Google Places data scores higher, but its API needs a billing card even for the free tier.
 - **The public Overpass server is often busy** (HTTP 502) or slow; a collect may need a second try.
 - **Fewer emails than you'd hope:** many sites hide their email behind Cloudflare's obfuscation, and leadgate leaves it hidden. Sites built only with JavaScript show the crawler little text (no headless browser, on purpose).
@@ -274,13 +275,14 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **The n8n results address isn't address-checked**, because it has to reach n8n on the private network; only someone with the shared secret can set it.
 - **An opted-out lead's old data stays in its LangGraph checkpoint** (approvals are blocked, but the checkpoint isn't wiped).
 - **An uploaded CSV is kept in the database as it was uploaded**, with no way to delete it yet, so an opt-out doesn't wipe the lead's row in that file.
-- **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
+- **The demo's admin still sees New campaign and Start run.** On the public demo they answer with a message that real searches run on your own machine, rather than being hidden.
+- **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, campaign, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
 - **Small hardening left undone:** the API's own JSON answers carry no security headers (the live API is HTTPS-only anyway: `onrender.com` is on the browsers' HSTS preload list), the local nginx shows its version, and the local database password defaults to `leadgate` (its port only listens on 127.0.0.1).
 - **With Langfuse or Groq keys set, lead data leaves your server:** the LLM prompts and a cut-down copy of each lead go to those services.
 
 ## Legal and ethics
 
-- **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Cached Google content other than the place id and name is wiped after 30 days.
+- **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Google's terms are stricter than this app's storage, so read the known limit above before using a Google key.
 - **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages, and there are no login walls, CAPTCHA solving or proxies.
 - **Public business data only:** a business's own listing and public website. Any lead can be opted out: its contact data is wiped and it's never collected or crawled again.
 - **Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)** (ODbL 1.0), also credited in the dashboard's footer. The ODbL covers OpenStreetMap's data, not leadgate's code; the few saved Overpass answers in the tests are small extracts.

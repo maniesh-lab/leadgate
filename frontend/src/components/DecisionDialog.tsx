@@ -16,6 +16,7 @@ import { ApiError, api, describeError } from "../api/client";
 import type { Approval, Decision, LeadDetail, QueueItem } from "../api/types";
 import { FlagBadge } from "./Badge";
 import { type Enrichment, SignalList } from "./Enrichment";
+import { GoogleCredit } from "./GoogleCredit";
 import { Fact } from "./Page";
 import { ScoreReview } from "./ScoreReview";
 
@@ -144,6 +145,7 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
                 label="Rating"
                 value={lead.rating === null ? null : `${lead.rating} ★ (${lead.review_count ?? 0})`}
               />
+              <GoogleCredit source={lead.source} />
             </div>
             <div className="rounded-2xl border border-line p-4 text-sm">
               <h3 className="eyebrow mb-3">Website signals</h3>

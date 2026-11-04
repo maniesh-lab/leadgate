@@ -9,10 +9,12 @@ Phone, website and rating are "Text Search Enterprise" fields: 1,000 free reques
 month (checked 2026-10-28), and one request covers up to 20 places. That's cheaper than
 a Place Details call per place, which bills one request per place.
 
-Caching (Google's terms, checked 2026-10-28): a place ID may be stored forever, other
-content only for a limited time. Each lead's `raw["fetched_at"]` records when Google
-sent it, and `expire_cached_content()` wipes Google's content from leads not refreshed
-within CACHE_DAYS (the place ID and name stay; a new collect fetches it all again).
+Caching (Google's terms, read 2026-11-04): a place ID may be stored forever, latitude and
+longitude for 30 days, and other content not at all (the terms name saving business names
+and addresses). So this source's storage goes further than the terms allow; the README's
+known limits say so. Each lead's `raw["fetched_at"]` records when Google sent it, and
+`expire_cached_content()` wipes Google's content from leads not refreshed within CACHE_DAYS
+(the place ID and name stay; a new collect fetches it all again).
 Never scrape the Google Maps website: this official API only.
 """
 

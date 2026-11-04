@@ -11,6 +11,7 @@ import { api } from "../api/client";
 import type { LeadRow, LeadStatus, Page } from "../api/types";
 import { Badge, FlagBadge, ScoreMeter, StatusBadge } from "../components/Badge";
 import { CampaignSelect } from "../components/CampaignSelect";
+import { GoogleCredit } from "../components/GoogleCredit";
 import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -194,6 +195,7 @@ export function LeadsPage() {
                       <div className="mt-0.5 font-mono text-[11px] text-faint">
                         {lead.category ?? lead.source}
                       </div>
+                      <GoogleCredit source={lead.source} />
                     </td>
                     <td>
                       <StatusBadge status={lead.status} />

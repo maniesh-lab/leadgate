@@ -12,6 +12,7 @@ import type { Page, QueueItem } from "../api/types";
 import { FlagBadge, ScoreMeter } from "../components/Badge";
 import { CampaignSelect } from "../components/CampaignSelect";
 import { DecisionDialog } from "../components/DecisionDialog";
+import { GoogleCredit } from "../components/GoogleCredit";
 import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -125,6 +126,7 @@ export function QueuePage() {
                       <div className="text-xs text-muted">
                         {[item.lead.category, item.lead.city].filter(Boolean).join(" · ")}
                       </div>
+                      <GoogleCredit source={item.lead.source} />
                     </td>
                     <td className="text-muted">{item.campaign_name}</td>
                     <td>

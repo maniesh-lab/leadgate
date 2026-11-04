@@ -1,7 +1,8 @@
 """The n8n webhook (`POST /api/webhooks/n8n/runs`): Switchyard's n8n starts a run.
 
 No login: n8n proves who it is with the shared `X-Webhook-Secret` header
-(N8N_WEBHOOK_SECRET). Without that setting the webhook is off (503).
+(N8N_WEBHOOK_SECRET). Without that setting the webhook is off (503), and it answers 403
+on the public demo (PUBLIC_DEMO).
 
 The body names the campaign by `campaign_id`, or by `niche` + `location`: the newest
 open campaign with the same niche and location (any case) is used, else a new one is
@@ -20,7 +21,7 @@ from fastapi.security import APIKeyHeader
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import AppSettings, CorrelationId, DbSession, get_or_404
+from app.api.deps import AppSettings, CorrelationId, DbSession, get_or_404, not_on_public_demo
 from app.api.errors import error_docs
 from app.api.routes.campaigns import check_campaign
 from app.db.models import ActorType, Campaign, RunTrigger, ScoringRubric
@@ -48,13 +49,17 @@ def check_secret(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, f"wrong or missing {SECRET_HEADER}")
 
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"], dependencies=[Depends(check_secret)])
+router = APIRouter(
+    prefix="/webhooks",
+    tags=["webhooks"],
+    dependencies=[Depends(not_on_public_demo), Depends(check_secret)],
+)
 
 
 @router.post(
     "/n8n/runs",
     status_code=status.HTTP_202_ACCEPTED,
-    responses=error_docs(401, 404, 409, 503),
+    responses=error_docs(401, 403, 404, 409, 503),
 )
 def n8n_run(body: N8nRunRequest, db: DbSession, correlation_id: CorrelationId) -> N8nRunAccepted:
     """Queue a run for n8n; its summary is posted to `callback_url` when it's finished."""

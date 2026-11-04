@@ -4,14 +4,15 @@ The body is the file itself (`Content-Type: text/csv`), not a multipart form: th
 reads it in chunks and stops as soon as it passes `CSV_UPLOAD_MAX_BYTES` (413), so a huge
 file is never held in memory or spooled to disk first. The file is stored in the
 database (`csv_uploads`); a campaign then uses it with `source_options.csv_upload_id`.
-Nobody sends a file path: the API never reads a file from the server's disk.
+Nobody sends a file path: the API never reads a file from the server's disk. Uploading
+answers 403 on the public demo (PUBLIC_DEMO).
 """
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from app.api.deps import AdminUser, AppSettings, DbSession
+from app.api.deps import AdminUser, AppSettings, DbSession, not_on_public_demo
 from app.api.errors import error_docs
 from app.db.models import ActorType, CsvUpload
 from app.schemas.uploads import CsvUploadOut
@@ -44,7 +45,8 @@ async def csv_body(request: Request, settings: AppSettings) -> bytes:
 @router.post(
     "/csv",
     status_code=status.HTTP_201_CREATED,
-    responses=error_docs(413, 422),
+    responses=error_docs(403, 413, 422),
+    dependencies=[Depends(not_on_public_demo)],
     openapi_extra={
         "requestBody": {
             "required": True,

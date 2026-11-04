@@ -4,7 +4,8 @@ Flags are short strings a reviewer sees on the lead card:
 - `possible_duplicate:<lead_id>`: another lead with the same phone (E.164 or as the
   source wrote it), the same website domain, the same source ref from another source,
   or a very similar name in the same area / city (stdlib `difflib`)
-- `category_mismatch`: the extracted category isn't the campaign's niche
+- `category_mismatch`: the extracted category isn't the campaign's niche (only for niches
+  on the list in `app.agents.categories`)
 - `closed`: the source says the business is closed
 
 "Possible": a chain's branches share a website and a name, so a human decides.
@@ -19,7 +20,7 @@ from langgraph.runtime import Runtime
 from sqlalchemy import Select, and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.agents.categories import campaign_category
+from app.agents.categories import OTHER, campaign_category
 from app.agents.nodes.common import load_campaign, load_lead
 from app.agents.state import AgentContext, LeadState
 from app.db.models import Lead
@@ -44,7 +45,10 @@ def check(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
         for lead_id in find_duplicates(context.session, lead, state["raw"], extracted)
     ]
     category = extracted.get("category")
-    matches = category == campaign_category(campaign.niche)
+    wanted = campaign_category(campaign.niche)
+    # A niche not on our list (e.g. dermatologist) has no category to compare with: a lead
+    # filed under "doctor" isn't wrong, so only a listed niche can mismatch.
+    matches = wanted == OTHER or category == wanted
     if category is not None and not matches:
         flags.append("category_mismatch")
     if (state["cleaned"].get("business_status") or "") in CLOSED_STATUSES:

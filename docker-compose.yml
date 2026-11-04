@@ -19,6 +19,8 @@ x-backend-env: &backend-env
   GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
   ENRICH_CACHE_DAYS: ${ENRICH_CACHE_DAYS:-}
   ENRICH_MAX_PAGES: ${ENRICH_MAX_PAGES:-}
+  # true = the public demo's lockdown (empty = off; only the live demo sets it).
+  PUBLIC_DEMO: ${PUBLIC_DEMO:-}
   # The dashboard's CSV upload cap (empty = 1 MB).
   CSV_UPLOAD_MAX_BYTES: ${CSV_UPLOAD_MAX_BYTES:-}
   # The agents' LLM (empty = fake mode, no network).
