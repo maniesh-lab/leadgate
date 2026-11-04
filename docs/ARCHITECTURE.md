@@ -216,8 +216,8 @@ flowchart LR
 - **Neon** (free plan) is the Postgres. Render's own free Postgres is deleted after 30 days.
 - `PUBLIC_DEMO=true` locks it, for every login: the API refuses new or edited campaigns,
   uploads, runs and the n8n webhook, and the worker's HTTP clients refuse every request
-  (`app/outside_calls.py`). It also needs `LLM_MODE=fake`, so there are no Google Places,
-  Airtable, Discord, n8n or Langfuse calls. Leads come from a CSV of made-up practices
+  (`app/outside_calls.py`). The server won't start with it unless `LLM_MODE=fake` and the
+  Google, Airtable, Discord and Langfuse keys are empty. Leads come from a CSV of made-up practices
   (`backend/demo/austin-dentists.csv`, `.example` websites, 555 phone numbers) whose
   website findings are stored in advance, so nothing is crawled.
 - `python -m app.cli demo --history 1000` set it up once: the demo reviewer, the demo

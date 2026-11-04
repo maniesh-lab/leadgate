@@ -1,5 +1,7 @@
 """Campaigns (`/api/campaigns`): anyone logged in reads them; admins create, edit and run them.
 
+Creating, editing and starting answer 403 on the public demo (PUBLIC_DEMO).
+
 Starting a run (`POST /api/campaigns/{id}/runs`) only writes the run row and its
 `start_run` job, in one transaction (`app.services.runs.create_run`); the worker does
 the rest. The run keeps the request's correlation id, so its jobs, logs and audit rows

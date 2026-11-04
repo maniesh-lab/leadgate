@@ -1,7 +1,8 @@
 """The n8n webhook (`POST /api/webhooks/n8n/runs`): Switchyard's n8n starts a run.
 
 No login: n8n proves who it is with the shared `X-Webhook-Secret` header
-(N8N_WEBHOOK_SECRET). Without that setting the webhook is off (503).
+(N8N_WEBHOOK_SECRET). Without that setting the webhook is off (503), and it answers 403
+on the public demo (PUBLIC_DEMO).
 
 The body names the campaign by `campaign_id`, or by `niche` + `location`: the newest
 open campaign with the same niche and location (any case) is used, else a new one is
@@ -58,7 +59,7 @@ router = APIRouter(
 @router.post(
     "/n8n/runs",
     status_code=status.HTTP_202_ACCEPTED,
-    responses=error_docs(401, 404, 409, 503),
+    responses=error_docs(401, 403, 404, 409, 503),
 )
 def n8n_run(body: N8nRunRequest, db: DbSession, correlation_id: CorrelationId) -> N8nRunAccepted:
     """Queue a run for n8n; its summary is posted to `callback_url` when it's finished."""

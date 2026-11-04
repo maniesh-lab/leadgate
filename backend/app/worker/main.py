@@ -13,6 +13,8 @@
 `RUN_WORKER_IN_API=true` runs the same loop in a background thread of the API instead
 (`app.main`), for free hosting with a single process.
 
+With PUBLIC_DEMO=true every HTTP client refuses all requests (`app.outside_calls`).
+
 The worker id is `<hostname>-<pid>`. In a container the pid is always 1, so a restarted
 container has the same id and takes its own unfinished jobs back at once.
 """

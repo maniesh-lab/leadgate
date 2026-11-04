@@ -22,5 +22,8 @@ def niche_category(text: str | None) -> str | None:
 
 
 def campaign_category(niche: str) -> str:
-    """The category a campaign's leads should have; "other" for a niche not in the list."""
+    """The category a campaign's leads should have; "other" for a niche not in the list.
+
+    The `check` node treats "other" as "nothing to compare": those leads always match.
+    """
     return niche_category(niche) or OTHER
