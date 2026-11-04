@@ -44,6 +44,7 @@ export function RunPage() {
   const data = run.data;
   const stats = data.stats as Record<string, unknown>;
   const failedSources = Object.entries((stats.failed_sources ?? {}) as Record<string, string>);
+  const skippedSources = Object.entries((stats.skipped_sources ?? {}) as Record<string, string>);
   const moving = !SETTLED.includes(data.status);
 
   return (
@@ -104,6 +105,11 @@ export function RunPage() {
         <ErrorMessage key={source} error={new Error(`Source ${source} failed: ${error}`)} />
       ))}
       {typeof stats.error === "string" && <ErrorMessage error={new Error(stats.error)} />}
+      {skippedSources.map(([source, reason]) => (
+        <p key={source} role="status" className="card text-sm text-(--amber)">
+          Source {source} was skipped: {reason}
+        </p>
+      ))}
 
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-2">
