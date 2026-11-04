@@ -52,7 +52,7 @@ def check_secret(
 router = APIRouter(
     prefix="/webhooks",
     tags=["webhooks"],
-    dependencies=[Depends(check_secret), Depends(not_on_public_demo)],
+    dependencies=[Depends(not_on_public_demo), Depends(check_secret)],
 )
 
 

@@ -1,7 +1,7 @@
 """Turns outside calls off on the public demo (`PUBLIC_DEMO=true`).
 
-`app.worker.main.open_worker()` gives every HTTP client this transport on the public
-demo, so a search, a website visit or a CRM write fails at once with a clear message
+`app.worker.main.open_worker()` and the CLI give every HTTP client this transport on the
+public demo, so a search, a website visit or a CRM write fails at once with a clear message
 and never leaves the server. The demo's own leads don't notice: their findings are
 already stored (`app.db.demo`).
 """
