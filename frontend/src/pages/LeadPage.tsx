@@ -11,6 +11,7 @@ import type { LeadDetail } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { Badge, FlagBadge, StatusBadge } from "../components/Badge";
 import { type Enrichment, EnrichmentCard } from "../components/Enrichment";
+import { GoogleCredit } from "../components/GoogleCredit";
 import { ExternalIcon } from "../components/icons";
 import { EmptyState, Fact, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -92,7 +93,10 @@ export function LeadPage() {
           <Fact
             label="Source"
             value={
-              <span className="font-mono text-xs">{`${data.source}: ${data.source_ref}`}</span>
+              <>
+                <span className="font-mono text-xs">{`${data.source}: ${data.source_ref}`}</span>
+                <GoogleCredit source={data.source} />
+              </>
             }
           />
           <Fact label="CRM record" value={data.crm_record_id} />

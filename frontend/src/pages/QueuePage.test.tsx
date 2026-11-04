@@ -17,6 +17,7 @@ function queueItem(id: number, name: string): QueueItem {
     created_at: "2026-10-30T09:00:00Z",
     waiting_since: "2026-10-30T09:05:00Z",
     lead: {
+      source: "osm",
       id: id * 10,
       name,
       phone: "+1 512-555-0100",

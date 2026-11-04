@@ -13,6 +13,7 @@ import { api, describeError } from "../api/client";
 import type { RunItemDetail, RunItemRow, RunItemStatus, Step } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { FlagBadge, StatusBadge } from "../components/Badge";
+import { GoogleCredit } from "../components/GoogleCredit";
 import { RetryIcon } from "../components/icons";
 import { EmptyState, Fact, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -91,6 +92,7 @@ export function RunItemPage() {
             value={<span className="font-mono text-xs">{data.thread_id}</span>}
           />
           <Fact label="Notified" value={data.notified_at && formatDateTime(data.notified_at)} />
+          <GoogleCredit source={lead.source} />
         </div>
         <ScoreReview review={data.review} score={data.score} />
       </div>
