@@ -18,6 +18,7 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models import Campaign
+from app.outside_calls import blocked_transport
 
 log = structlog.get_logger(__name__)
 
@@ -82,10 +83,14 @@ class LeadSource(ABC):
         log.warning("source_row_skipped", source=self.name, reason=reason, **context)
 
 
-def make_http_client(user_agent: str) -> httpx2.Client:
+def make_http_client(user_agent: str, *, blocked: bool = False) -> httpx2.Client:
     """An HTTP client with leadgate's User-Agent: for the OSM and Google sources, and the
     worker's outbound calls (Airtable, Discord, the n8n callback). Tests pass mocked ones."""
-    return httpx2.Client(headers={"User-Agent": user_agent}, timeout=HTTP_TIMEOUT_SECONDS)
+    return httpx2.Client(
+        headers={"User-Agent": user_agent},
+        timeout=HTTP_TIMEOUT_SECONDS,
+        transport=blocked_transport() if blocked else None,  # the public demo
+    )
 
 
 def send(

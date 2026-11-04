@@ -20,7 +20,7 @@ from fastapi.security import APIKeyHeader
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import AppSettings, CorrelationId, DbSession, get_or_404
+from app.api.deps import AppSettings, CorrelationId, DbSession, get_or_404, not_on_public_demo
 from app.api.errors import error_docs
 from app.api.routes.campaigns import check_campaign
 from app.db.models import ActorType, Campaign, RunTrigger, ScoringRubric
@@ -48,7 +48,11 @@ def check_secret(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, f"wrong or missing {SECRET_HEADER}")
 
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"], dependencies=[Depends(check_secret)])
+router = APIRouter(
+    prefix="/webhooks",
+    tags=["webhooks"],
+    dependencies=[Depends(check_secret), Depends(not_on_public_demo)],
+)
 
 
 @router.post(

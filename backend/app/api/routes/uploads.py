@@ -11,7 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from app.api.deps import AdminUser, AppSettings, DbSession
+from app.api.deps import AdminUser, AppSettings, DbSession, not_on_public_demo
 from app.api.errors import error_docs
 from app.db.models import ActorType, CsvUpload
 from app.schemas.uploads import CsvUploadOut
@@ -45,6 +45,7 @@ async def csv_body(request: Request, settings: AppSettings) -> bytes:
     "/csv",
     status_code=status.HTTP_201_CREATED,
     responses=error_docs(413, 422),
+    dependencies=[Depends(not_on_public_demo)],
     openapi_extra={
         "requestBody": {
             "required": True,

@@ -107,7 +107,13 @@ def test_account_and_admin_tool_rows_are_for_admins_only(
     client: TestClient, db: Session, as_reviewer, as_admin
 ) -> None:
     # They name admins, users and uploaded files; the demo's public reviewer must not see them.
-    hidden = ["user.deactivated", "user.created", "csv.uploaded", "leads.exported"]
+    hidden = [
+        "user.deactivated",
+        "user.created",
+        "campaign.created",
+        "csv.uploaded",
+        "leads.exported",
+    ]
     for minute, action in enumerate(hidden):
         add_row(db, at(minute), action, actor_type=ActorType.USER, actor="admin@example.com")
     add_row(db, at(9), "run_item.retried", actor_type=ActorType.USER, actor="admin@example.com")

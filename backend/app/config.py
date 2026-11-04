@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/app/config.py -> repo root. Inside Docker this path has no .env, which is fine:
@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     )
 
     database_url: str
+    # The public demo (the live site): no outside calls and no new campaigns or runs, even
+    # for an admin. Real searches run on your own machine.
+    public_demo: bool = False
+
     # The first admin, created by `python -m app.cli seed`. `decide` also uses ADMIN_EMAIL as
     # its default reviewer.
     admin_email: str | None = None
@@ -102,6 +106,12 @@ class Settings(BaseSettings):
     # "https://leadgate.example.com". Empty = none: the dashboard reaches the API on its own
     # address (the Vite dev server and the frontend image's nginx pass `/api` through).
     cors_origins: str = ""
+
+    @model_validator(mode="after")
+    def public_demo_uses_the_fake_llm(self) -> Settings:
+        if self.public_demo and self.llm_mode != "fake":
+            raise ValueError("PUBLIC_DEMO needs LLM_MODE=fake: the demo makes no outside calls")
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

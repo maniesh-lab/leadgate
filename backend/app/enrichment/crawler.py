@@ -34,6 +34,7 @@ import httpx2
 import structlog
 
 from app.enrichment.extract_html import ParsedPage, parse_page, pick_links, site_host
+from app.outside_calls import blocked_transport
 
 log = structlog.get_logger(__name__)
 
@@ -110,15 +111,22 @@ def public_only(resolve: Callable[[str], list[str]] = resolve_host) -> Callable[
 
 
 def make_crawler_client(
-    user_agent: str, resolve: Callable[[str], list[str]] = resolve_host
+    user_agent: str,
+    resolve: Callable[[str], list[str]] = resolve_host,
+    *,
+    blocked: bool = False,
 ) -> httpx2.Client:
-    """The HTTP client for business websites (tests pass a mocked one instead)."""
+    """The HTTP client for business websites (tests pass a mocked one instead).
+
+    `blocked` (the public demo): every request is refused, before any address lookup.
+    """
     return httpx2.Client(
         headers={"User-Agent": user_agent},
         timeout=TIMEOUT_SECONDS,
         # Only robots.txt requests follow redirects by themselves; pages do it in `fetch()`.
         max_redirects=MAX_REDIRECTS,
-        event_hooks={"request": [public_only(resolve)]},
+        event_hooks={"request": [] if blocked else [public_only(resolve)]},
+        transport=blocked_transport() if blocked else None,
     )
 
 

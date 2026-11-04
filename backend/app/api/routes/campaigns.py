@@ -9,7 +9,7 @@ can be followed back to this request.
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ from app.api.deps import (
     DbSession,
     Paging,
     get_or_404,
+    not_on_public_demo,
     paginate,
 )
 from app.api.errors import error_docs
@@ -60,7 +61,16 @@ def list_campaigns(
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, responses=error_docs(403, 422))
+# Creating, editing and starting are off on the public demo (`not_on_public_demo`).
+NOT_ON_DEMO = [Depends(not_on_public_demo)]
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses=error_docs(403, 422),
+    dependencies=NOT_ON_DEMO,
+)
 def create_campaign(body: CampaignCreate, admin: AdminUser, db: DbSession) -> CampaignOut:
     """A campaign: what to look for (niche), where, with which sources and rubric."""
     campaign = Campaign(
@@ -86,7 +96,7 @@ def get_campaign(campaign_id: int, _user: CurrentUser, db: DbSession) -> Campaig
     return CampaignOut.model_validate(get_or_404(db, Campaign, campaign_id, "campaign"))
 
 
-@router.patch("/{campaign_id}", responses=error_docs(403, 404, 422))
+@router.patch("/{campaign_id}", responses=error_docs(403, 404, 422), dependencies=NOT_ON_DEMO)
 def update_campaign(
     campaign_id: int, body: CampaignUpdate, admin: AdminUser, db: DbSession
 ) -> CampaignOut:
@@ -112,7 +122,10 @@ def update_campaign(
 
 
 @router.post(
-    "/{campaign_id}/runs", status_code=status.HTTP_201_CREATED, responses=error_docs(403, 404, 409)
+    "/{campaign_id}/runs",
+    status_code=status.HTTP_201_CREATED,
+    responses=error_docs(403, 404, 409),
+    dependencies=NOT_ON_DEMO,
 )
 def start_run(
     campaign_id: int, admin: AdminUser, db: DbSession, correlation_id: CorrelationId

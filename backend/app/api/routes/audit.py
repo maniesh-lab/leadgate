@@ -7,7 +7,8 @@ Some rows are for admins only, because the public demo's reviewer login can read
 everything else here:
 - login rows (`auth.*`, e.g. `auth.login_failed`): the email someone typed and their IP
 - account rows (`user.*`): the users' emails
-- the admin tools' rows: CSV uploads (`csv.*`, the file name) and exports (`leads.exported`)
+- the admin tools' rows: campaigns (`campaign.*`, what an admin searched for), CSV uploads
+  (`csv.*`, the file name) and exports (`leads.exported`)
 """
 
 from datetime import UTC, datetime
@@ -25,7 +26,7 @@ from app.schemas.common import Page
 router = APIRouter(prefix="/audit", tags=["audit"], responses=error_docs(401))
 
 # Actions only admins see (see the module docstring); each is matched as a prefix.
-ADMIN_ONLY = ("auth.", "user.", "csv.", "leads.exported")
+ADMIN_ONLY = ("auth.", "user.", "campaign.", "csv.", "leads.exported")
 
 
 @router.get("")
@@ -43,8 +44,8 @@ def list_audit(
     ] = None,
     occurred_to: Annotated[datetime | None, Query(alias="to", description="before")] = None,
 ) -> Page[AuditOut]:
-    """Audit rows, newest first. Login, account, upload and export rows (`auth.*`, `user.*`,
-    `csv.*`, `leads.exported`) are left out unless you're an admin."""
+    """Audit rows, newest first. Login, account, campaign, upload and export rows (`auth.*`,
+    `user.*`, `campaign.*`, `csv.*`, `leads.exported`) are left out unless you're an admin."""
     stmt = audit_query(
         run_id=run_id,
         entity_type=entity_type,

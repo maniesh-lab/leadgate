@@ -27,6 +27,9 @@ services:
         sync: false
       - key: LLM_MODE
         value: fake
+      # No outside calls, no new campaigns or runs, even for an admin.
+      - key: PUBLIC_DEMO
+        value: "true"
       - key: RUN_WORKER_IN_API
         value: "true"
       - key: DEMO_REVIEWER_EMAIL
