@@ -109,7 +109,8 @@ def cmd_collect(settings: Settings, args: argparse.Namespace) -> int:
             if campaign is None:
                 print(f"no campaign with id {args.campaign}")
                 return 1
-            with make_http_client(settings.osm_user_agent) as client:
+            blocked = settings.public_demo
+            with make_http_client(settings.osm_user_agent, blocked=blocked) as client:
                 outcomes = collect_campaign(session, campaign, settings, client)
     finally:
         engine.dispose()
@@ -149,7 +150,8 @@ def cmd_enrich(settings: Settings, args: argparse.Namespace) -> int:
             if not leads:
                 print("no leads to enrich")
                 return 1 if args.lead is not None else 0
-            with make_crawler_client(settings.osm_user_agent) as client:
+            blocked = settings.public_demo
+            with make_crawler_client(settings.osm_user_agent, blocked=blocked) as client:
                 crawler = make_crawler(settings, client)
                 for lead in leads:
                     outcome = enrich_lead(

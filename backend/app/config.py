@@ -33,7 +33,8 @@ class Settings(BaseSettings):
 
     database_url: str
     # The public demo (the live site): no outside calls and no new campaigns or runs, even
-    # for an admin. Real searches run on your own machine.
+    # for an admin, and it won't start with an outside service's key set. Real searches run
+    # on your own machine.
     public_demo: bool = False
 
     # The first admin, created by `python -m app.cli seed`. `decide` also uses ADMIN_EMAIL as
@@ -108,9 +109,22 @@ class Settings(BaseSettings):
     cors_origins: str = ""
 
     @model_validator(mode="after")
-    def public_demo_uses_the_fake_llm(self) -> Settings:
-        if self.public_demo and self.llm_mode != "fake":
+    def public_demo_has_no_outside_services(self) -> Settings:
+        """Refuse to start rather than half-work: the demo makes no outside calls."""
+        if not self.public_demo:
+            return self
+        if self.llm_mode != "fake":
             raise ValueError("PUBLIC_DEMO needs LLM_MODE=fake: the demo makes no outside calls")
+        keys = {
+            "GOOGLE_PLACES_API_KEY": self.google_places_api_key,
+            "AIRTABLE_TOKEN": self.airtable_token,
+            "DISCORD_WEBHOOK_URL": self.discord_webhook_url,
+            "DISCORD_ADMIN_WEBHOOK_URL": self.discord_admin_webhook_url,
+            "LANGFUSE_PUBLIC_KEY": self.langfuse_public_key,
+            "LANGFUSE_SECRET_KEY": self.langfuse_secret_key,
+        }
+        if found := [name for name, value in keys.items() if value]:
+            raise ValueError(f"PUBLIC_DEMO must run without these keys: {', '.join(found)}")
         return self
 
     @property

@@ -11,6 +11,7 @@ from app.config import Settings
 from app.db.models import Campaign, Job, ScoringRubric
 from app.enrichment.crawler import make_crawler_client
 from app.sources.base import SourceError, make_http_client, send
+from app.worker.main import open_worker
 
 MESSAGE = "this is the public demo"
 
@@ -68,6 +69,11 @@ def test_the_n8n_webhook_is_off_too(client: TestClient, demo_settings, monkeypat
     assert answer.json()["error"]["message"].startswith(MESSAGE)
 
 
+def test_logged_out_callers_get_no_further(client: TestClient, demo_settings) -> None:
+    assert client.post("/api/campaigns", json={}).status_code == 403
+    assert client.post("/api/uploads/csv", content=b"name\nx\n").status_code == 403
+
+
 def test_reading_still_works(client: TestClient, demo_settings, as_admin, as_reviewer) -> None:
     assert client.get("/api/campaigns", headers=as_reviewer).status_code == 200
     assert client.get("/api/users", headers=as_admin).status_code == 200
@@ -87,8 +93,27 @@ def test_outside_calls_never_leave_the_server() -> None:
         crawler.get("https://smile.example/")
 
 
-def test_the_demo_only_runs_with_the_fake_llm() -> None:
+def test_the_workers_clients_all_refuse(settings: Settings, engine, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "public_demo", True)
+    with open_worker(settings, worker_id="demo") as worker:
+        clients = [
+            worker.deps.sources_client,
+            worker.deps.callback_client,
+            worker.deps.crawler.client,
+        ]
+        for client in clients:
+            with pytest.raises(httpx2.ConnectError, match="outside calls are off"):
+                client.get("https://example.com/")
+
+
+def test_the_demo_only_starts_without_outside_services() -> None:
     url = "sqlite://"
     with pytest.raises(ValidationError, match="PUBLIC_DEMO needs LLM_MODE=fake"):
         Settings(_env_file=None, database_url=url, public_demo=True, llm_mode="groq")
+    with pytest.raises(ValidationError, match="without these keys: AIRTABLE_TOKEN"):
+        Settings(_env_file=None, database_url=url, public_demo=True, airtable_token="x")
+    with pytest.raises(ValidationError, match="LANGFUSE_SECRET_KEY"):
+        Settings(_env_file=None, database_url=url, public_demo=True, langfuse_secret_key="x")
     assert Settings(_env_file=None, database_url=url, public_demo=True).public_demo
+    # The same keys are fine on your own machine.
+    assert Settings(_env_file=None, database_url=url, airtable_token="x").airtable_token

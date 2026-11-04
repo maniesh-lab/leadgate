@@ -113,7 +113,7 @@ def test_cli_collect(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     campaign = add_campaign(db, ["osm", "google_places"])
-    monkeypatch.setattr(app.cli, "make_http_client", lambda user_agent: fake_client())
+    monkeypatch.setattr(app.cli, "make_http_client", lambda user_agent, **_: fake_client())
 
     assert main(["collect", "--campaign", str(campaign.id)], settings) == 0
     out = capsys.readouterr().out
@@ -129,7 +129,7 @@ def test_cli_collect_reports_failures(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     campaign = add_campaign(db, ["csv"])
-    monkeypatch.setattr(app.cli, "make_http_client", lambda user_agent: fake_client())
+    monkeypatch.setattr(app.cli, "make_http_client", lambda user_agent, **_: fake_client())
 
     assert main(["collect", "--campaign", str(campaign.id)], settings) == 1
     assert "csv: failed (the csv source needs an uploaded CSV" in capsys.readouterr().out
