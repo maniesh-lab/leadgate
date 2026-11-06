@@ -178,10 +178,10 @@ def test_category_mismatch_is_flagged_and_the_web_agency_gate_gives_zero(world: 
 
 
 def test_a_niche_off_the_list_has_no_category_to_mismatch(world: World) -> None:
-    # "dermatologist" isn't in CATEGORIES; a lead filed under "doctor" isn't wrong for it.
-    world.campaign.niche = "dermatologist"
+    # "web design" isn't in CATEGORIES, so there's nothing to compare the lead with.
+    world.campaign.niche = "web design"
     world.db.commit()
-    lead = add_lead(world.db, name="Skin Clinic", category="doctor", website=None)
+    lead = add_lead(world.db, name="Pixel Studio", category="doctor", website=None)
 
     state = world.start(lead, rubric="web-agency")
 
@@ -189,6 +189,29 @@ def test_a_niche_off_the_list_has_no_category_to_mismatch(world: World) -> None:
     assert state["category_matches_niche"] is True
     assert "category_mismatch" not in state["flags"]
     assert not any(flag.startswith("rubric_gate") for flag in state["flags"])
+
+
+def test_a_doctor_lead_is_right_for_a_specialist_campaign(world: World) -> None:
+    world.campaign.niche = "dermatologist"
+    world.db.commit()
+    lead = add_lead(world.db, name="Skin Clinic", category="doctor", website=None)
+
+    state = world.start(lead, rubric="web-agency")
+
+    assert state["category_matches_niche"] is True
+    assert "category_mismatch" not in state["flags"]
+
+
+def test_a_beauty_salon_is_flagged_on_a_dermatologist_campaign(world: World) -> None:
+    world.campaign.niche = "dermatologist"
+    world.db.commit()
+    lead = add_lead(world.db, name="Glow Salon", category="beauty_salon", website=None)
+
+    state = world.start(lead, rubric="web-agency")
+
+    assert state["extracted"]["category"] == "beauty salon"
+    assert "category_mismatch" in state["flags"]
+    assert state["score"] == 0
 
 
 def test_closed_business_is_flagged(world: World) -> None:

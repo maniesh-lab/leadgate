@@ -20,7 +20,7 @@ from langgraph.runtime import Runtime
 from sqlalchemy import Select, and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.agents.categories import OTHER, campaign_category
+from app.agents.categories import campaign_category, category_matches
 from app.agents.nodes.common import load_campaign, load_lead
 from app.agents.state import AgentContext, LeadState
 from app.db.models import Lead
@@ -46,9 +46,9 @@ def check(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
     ]
     category = extracted.get("category")
     wanted = campaign_category(campaign.niche)
-    # A niche not on our list (e.g. dermatologist) has no category to compare with: a lead
-    # filed under "doctor" isn't wrong, so only a listed niche can mismatch.
-    matches = wanted == OTHER or category == wanted
+    # A niche not on our list (e.g. web design) has no category to compare with, so only a
+    # listed niche can mismatch.
+    matches = category_matches(wanted, category)
     if category is not None and not matches:
         flags.append("category_mismatch")
     if (state["cleaned"].get("business_status") or "") in CLOSED_STATUSES:

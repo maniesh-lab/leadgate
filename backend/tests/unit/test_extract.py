@@ -4,7 +4,7 @@ The whole `extract` node is covered by tests/unit/test_graph.py; these check the
 rules one by one.
 """
 
-from app.agents.categories import campaign_category, niche_category
+from app.agents.categories import campaign_category, category_matches, niche_category
 from app.agents.cleaning.lead import (
     campaign_geo,
     clean_lead,
@@ -21,6 +21,7 @@ from app.agents.nodes.extract import (
     trace_validators,
 )
 from app.db.models import Campaign
+from app.sources.osm import NICHE_ALIASES, NICHE_TAGS
 
 RAW = {
     "source": "osm",
@@ -113,14 +114,14 @@ def test_baseline_picks_only_what_is_plainly_there() -> None:
 
 
 def test_baseline_without_a_category_hint_is_other() -> None:
-    raw = RAW | {"category": "bakery"}
+    raw = RAW | {"category": "pottery"}
     assert baseline_fields(clean_lead(raw, ENRICHMENT, "US"), raw).category == "other"
 
 
 def test_prompt_lists_the_candidates_and_the_categories() -> None:
     prompt = build_prompt("dentist", RAW, GEO, cleaned(), ENRICHMENT["text"])
     assert "CANDIDATE EMAILS: smile@example.test, info@smileaustin.test" in prompt
-    assert "dentist, doctor, pharmacy" in prompt
+    assert "dentist, doctor, clinic" in prompt
     assert "Teeth whitening" in prompt
 
 
@@ -155,6 +156,30 @@ def test_niche_categories_and_aliases() -> None:
     assert niche_category("vet") == "veterinarian"
     assert niche_category(None) is None
     assert campaign_category("web design") == "other"
+
+
+def test_plural_niches_and_new_aliases_find_their_category() -> None:
+    assert niche_category("Dermatologists") == "dermatologist"
+    assert niche_category("skin_care_clinic") == "dermatologist"
+    assert niche_category("barbers") == "hair salon"
+    assert niche_category("medical_clinic") == "clinic"
+
+
+def test_every_alias_points_at_a_real_category() -> None:
+    assert set(NICHE_ALIASES.values()) <= set(NICHE_TAGS)
+    assert not set(NICHE_ALIASES) & set(NICHE_TAGS)
+
+
+def test_specialists_and_general_doctors_match_but_specialists_differ() -> None:
+    assert category_matches("dermatologist", "dermatologist")
+    assert category_matches("dermatologist", "doctor")
+    assert category_matches("dermatologist", "clinic")
+    assert category_matches("doctor", "dermatologist")
+    assert category_matches("clinic", "doctor")
+    assert not category_matches("dermatologist", "cardiologist")
+    assert not category_matches("dermatologist", "beauty salon")
+    assert not category_matches("dentist", "doctor")
+    assert category_matches("other", "beauty salon")
 
 
 def test_a_copyright_year_is_not_a_founding_year() -> None:
