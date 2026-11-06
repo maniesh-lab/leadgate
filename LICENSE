@@ -1,14 +1,29 @@
 Copyright (c) 2026 Manish Pandeya. All rights reserved.
 
-This repository is public so its code can be read and reviewed, for example by
-potential clients and employers. No license is granted. Without written
-permission from the copyright holder you may not copy, modify, distribute,
-sublicense, host, sell or otherwise use this software or any part of it.
+This repository is public so people can read, review and test it. This is not
+an open-source license.
 
-GitHub's Terms of Service let others view and fork this repository on GitHub.
-That does not give permission to use, copy or change the code anywhere else.
+YOU MAY, WITHOUT ASKING:
+- read and review the code
+- run it and change your own private copy, to test or evaluate it
 
-For licensing or work enquiries, contact Manish Pandeya through
+YOU NEED WRITTEN APPROVAL FROM THE COPYRIGHT HOLDER (EMAIL COUNTS) TO:
+- use it, or any leads it produces, for a business, client or paid work
+- use it in live sales, marketing or outreach
+- host it or offer it as a service to others
+- share, sell or sublicense it or a changed copy, except a GitHub fork, which
+  GitHub's Terms of Service allow
+
+Using this software in any way not listed above also needs written approval.
+
+NO WARRANTY: this software comes "as is", with no warranty of any kind. The
+copyright holder is not liable for any damage or loss from using it.
+
+YOUR RESPONSIBILITY: you must follow the laws and third-party terms that apply
+to how you use it, including those of Google, OpenStreetMap, the websites it
+visits and any service you connect.
+
+For approval or work enquiries, contact Manish Pandeya at
 manishpandeya37@gmail.com
 
 Third-party libraries used by this project keep their own licenses.
