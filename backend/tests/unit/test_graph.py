@@ -276,6 +276,24 @@ def test_an_invented_service_is_sent_back_and_fixed(db: Session) -> None:
     llm.close()
 
 
+def test_a_failed_extraction_is_not_a_wrong_category(db: Session) -> None:
+    # No category hint, so the failed extraction falls back to "other".
+    made_up = llm_reply(city="Dallas")
+    llm, _ = scripted_llm([made_up, made_up, made_up, EXPLANATION])
+    world = World(db, llm=llm)
+    world.campaign.niche = "dermatologist"
+    db.commit()
+    lead = add_lead(db, category=None, website=None)
+
+    state = world.start(lead, rubric="web-agency")
+
+    assert state["extraction_ok"] is False
+    assert state["extracted"]["category"] == "other"
+    assert state["category_matches_niche"] is True
+    assert "category_mismatch" not in state["flags"]
+    assert state["score"] > 0
+
+
 def test_extraction_failure_keeps_the_clean_fields_and_escalates(db: Session) -> None:
     # Three tries, the city is made up every time.
     made_up = llm_reply(city="Dallas")
