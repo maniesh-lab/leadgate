@@ -44,6 +44,9 @@ MAX_ATTEMPTS = 3
 MAX_RETRIES = 4
 # gpt-oss models think before they answer, and the thinking counts as output tokens.
 MAX_TOKENS = 2048
+# At its default effort the model can spend the whole limit thinking and answer with nothing
+# (measured on real leads: 2,046 of 2,048 tokens). Low effort used 23-124.
+GPT_OSS_REASONING_EFFORT = "low"
 
 # A check on a parsed answer: returns None when fine, or a sentence saying what's wrong
 # (that sentence is sent back to the model).
@@ -226,6 +229,8 @@ def make_llm(settings: Settings, tracer: Tracer | None = None) -> LLM:
 
     client = SteadfastClient(max_retries=MAX_RETRIES)
     client.register(provider, rate=RATE_PER_MINUTE[settings.llm_mode], period=60)
-    return SteadfastLLM(
-        client, provider.name, model=model, tracer=tracer, max_tokens=MAX_TOKENS, temperature=0
-    )
+    params: dict[str, Any] = {"max_tokens": MAX_TOKENS, "temperature": 0}
+    # Only these models take the setting; others may refuse a request that has it.
+    if settings.llm_mode == "groq" and "gpt-oss" in model:
+        params["reasoning_effort"] = GPT_OSS_REASONING_EFFORT
+    return SteadfastLLM(client, provider.name, model=model, tracer=tracer, **params)

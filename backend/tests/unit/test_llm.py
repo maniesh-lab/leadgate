@@ -103,5 +103,15 @@ def test_make_llm_groq_uses_the_default_model(settings: Settings) -> None:
 
     assert isinstance(llm, SteadfastLLM)
     assert llm.client.providers["groq"].model == "openai/gpt-oss-20b"
+    assert llm.params == {"max_tokens": 2048, "temperature": 0, "reasoning_effort": "low"}
+
+
+def test_make_llm_sends_the_reasoning_effort_only_to_gpt_oss(settings: Settings) -> None:
+    llm = make_llm(
+        settings.model_copy(
+            update={"llm_mode": "groq", "groq_api_key": "test-key", "llm_model": "other-model"}
+        )
+    )
+    assert isinstance(llm, SteadfastLLM)
     assert llm.params == {"max_tokens": 2048, "temperature": 0}
     llm.close()
