@@ -10,13 +10,16 @@ from app.agents.cleaning.lead import (
     clean_lead,
     find_value,
     mentions,
+    source_spelling,
     source_text,
     values_in,
 )
+from app.agents.llm import scripted_llm
 from app.agents.nodes.extract import (
     LLMFields,
     baseline_fields,
     build_prompt,
+    extract_lead,
     founding_year_in,
     trace_validators,
 )
@@ -85,6 +88,49 @@ def test_a_traceable_answer_passes() -> None:
 
 def test_an_email_that_is_not_a_candidate_is_refused() -> None:
     assert "not one of the CANDIDATE EMAILS" in problems(email="owner@gmail.test")[0]
+
+
+def test_source_spelling_completes_a_word_one_letter_short() -> None:
+    text = "Kailash Marg, Kathmandu, Bagmati Province 44600, Nepal | United States"
+    assert source_spelling(text, "Nepa") == "Nepal"
+    assert source_spelling(text, " Nepal") == "Nepal"
+    assert source_spelling(text, "NEPAL") == "Nepal"
+    assert source_spelling(text, "nepa") == "Nepal"
+    assert source_spelling(text, "United State") == "United States"
+    assert source_spelling(text, "Kathmandu") == "Kathmandu"
+
+
+def test_source_spelling_refuses_what_the_source_does_not_have() -> None:
+    text = "Kathmandu, Nepal"
+    assert source_spelling(text, "India") is None
+    assert source_spelling(text, "Nep") is None  # too short to complete
+    assert source_spelling(text, "Kathman") is None  # more than one letter short
+    assert source_spelling(text, "   ") is None
+
+
+def test_a_country_one_letter_short_is_stored_as_the_source_spells_it() -> None:
+    raw = RAW | {"address": "Kailash Marg, Kathmandu, Nepal", "data": {}}
+    geo = {"location": "Kathmandu, Nepal", "country_code": None, "place": None}
+    reply = LLMFields(city="Kathmandu", country="Nepa", category="dentist").model_dump_json()
+    llm, _ = scripted_llm([reply])
+
+    result = extract_lead(llm, niche="dentist", raw=raw, enrichment=ENRICHMENT, geo=geo, year=YEAR)
+
+    assert result["extraction_ok"] is True
+    assert result["extracted"]["country"] == "Nepal"
+
+
+def test_a_bad_country_is_left_blank_without_failing_the_lead() -> None:
+    raw = RAW | {"address": "Kailash Marg, Kathmandu, Nepal", "data": {}}
+    geo = {"location": "Kathmandu, Nepal", "country_code": None, "place": None}
+    reply = LLMFields(city="Kathmandu", country="N", category="dentist").model_dump_json()
+    llm, _ = scripted_llm([reply])
+
+    result = extract_lead(llm, niche="dentist", raw=raw, enrichment=ENRICHMENT, geo=geo, year=YEAR)
+
+    assert result["extraction_ok"] is True
+    assert result["extracted"]["country"] is None
+    assert result["extracted"]["city"] == "Kathmandu"
 
 
 def test_a_made_up_place_is_refused() -> None:

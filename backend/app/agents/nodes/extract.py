@@ -9,7 +9,10 @@ Two steps:
 
 The traceability validators (`trace_validators`) make sure the LLM invents nothing:
 - the email must be one of the candidate emails (the source's or the website's)
-- area, city and country must appear in the source data or the campaign's place
+- area and city must appear in the source data or the campaign's place (a word one last
+  letter short counts, and the source's spelling is what gets stored)
+- a country that isn't there is left blank without failing the lead: the model has written
+  "Nepal" as "Nepa" and even "N", and the country doesn't affect the score or the CRM
 - the category must be in CATEGORIES
 - each service must appear in the website text, and the founding year right after a
   founding word there ("since 1998"; a "© 2011" copyright line doesn't count)
@@ -32,6 +35,7 @@ from app.agents.cleaning.lead import (
     find_value,
     mentions,
     short_json,
+    source_spelling,
     source_text,
 )
 from app.agents.llm import LLM, LLMError, Validator
@@ -79,8 +83,9 @@ PROMPT_RULES = "\n".join(
         "- email: the best public email for contacting the business, copied from"
         " CANDIDATE EMAILS. Prefer one on the business's own domain and a shared mailbox"
         " (info@, contact@, hello@). null if there are none.",
-        "- area (neighbourhood or district), city, country: copied exactly as written in"
-        " SOURCE DATA or CAMPAIGN PLACE. null if not there.",
+        "- area (neighbourhood or district, never a street), city, country: copied exactly"
+        " as written in SOURCE DATA or CAMPAIGN PLACE. When SOURCE DATA has no city or"
+        " country, copy them from CAMPAIGN PLACE. null if not there.",
         f"- services: up to {MAX_SERVICES} short phrases copied word for word from WEBSITE"
         ' TEXT (e.g. "teeth whitening"). [] if there is no website text.',
         "- established_year: the year the business started, only if WEBSITE TEXT says it"
@@ -118,14 +123,16 @@ def extract_lead(
     """
     cleaned = clean_lead(raw, enrichment, geo["country_code"])
     website_text = enrichment.get("text") or ""
+    sources = source_text(raw, geo)
     try:
         fields = llm.structured(
             system=SYSTEM_PROMPT,
             prompt=build_prompt(niche, raw, geo, cleaned, website_text),
             schema=LLMFields,
             fake_answer=lambda: baseline_fields(cleaned, raw),
-            validators=trace_validators(cleaned, source_text(raw, geo), website_text, year),
+            validators=trace_validators(cleaned, sources, website_text, year),
         )
+        fields = with_source_spelling(fields, sources)
         ok, issues = True, []
     except LLMError as exc:
         fields = baseline_fields(cleaned, raw)
@@ -137,6 +144,16 @@ def extract_lead(
         "extraction_ok": ok,
         "extraction_issues": issues,
     }
+
+
+def with_source_spelling(fields: LLMFields, sources: str) -> LLMFields:
+    """The answer with its place names as the source spells them ("Nepa" -> "Nepal")."""
+    places = {
+        name: source_spelling(sources, value)
+        for name in ("area", "city", "country")
+        if (value := getattr(fields, name)) is not None
+    }
+    return fields.model_copy(update=places)
 
 
 def merge(cleaned: dict, fields: LLMFields) -> ExtractedLead:
@@ -203,12 +220,8 @@ def trace_validators(cleaned: dict, sources: str, website_text: str, year: int) 
     def place_in_source(fields: LLMFields) -> str | None:
         missing = [
             f"{name} {value!r}"
-            for name, value in (
-                ("area", fields.area),
-                ("city", fields.city),
-                ("country", fields.country),
-            )
-            if value is not None and not mentions(sources, value)
+            for name, value in (("area", fields.area), ("city", fields.city))
+            if value is not None and source_spelling(sources, value) is None
         ]
         if not missing:
             return None

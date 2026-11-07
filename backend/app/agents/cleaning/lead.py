@@ -10,6 +10,7 @@ Also here: what the traceability checks look in.
 - `source_text()`: every value in the source's own data plus the campaign's place,
   as one string. The LLM's area / city / country must appear in it.
 - `mentions()`: "does this text contain this value" (case and spacing don't matter)
+- `source_spelling()`: the same, but also completes a word the model cut one letter short
 
 Called by the `extract` node.
 """
@@ -21,6 +22,9 @@ from typing import Any
 from app.agents.categories import niche_category
 from app.agents.cleaning.phones import find_phones
 from app.db.models import Campaign, Lead
+
+# `source_spelling()` only completes a value this long.
+MIN_SHORT_WORD_CHARS = 4
 
 
 def lead_snapshot(lead: Lead) -> dict[str, Any]:
@@ -131,6 +135,22 @@ def mentions(text: str, value: str) -> bool:
     if not wanted:
         return False
     return re.search(rf"(?<!\w){re.escape(wanted)}(?!\w)", squash(text)) is not None
+
+
+def source_spelling(text: str, value: str) -> str | None:
+    """`value` as `text` spells it, even when `value` is one last letter short; else None.
+
+    The model writes "Nepal" as "Nepa" again and again, even when told to fix it. Taking the
+    word from the source can't invent anything.
+    """
+    words = value.split()
+    if not words:
+        return None
+    pattern = r"\s+".join(re.escape(word) for word in words)
+    # Only a longer value may be completed, so "Pa" doesn't become "Pan".
+    short = r"\w?" if len("".join(words)) >= MIN_SHORT_WORD_CHARS else ""
+    match = re.search(rf"(?<!\w){pattern}{short}(?!\w)", text, re.IGNORECASE)
+    return tidy(match[0]) if match else None
 
 
 def squash(text: str) -> str:
