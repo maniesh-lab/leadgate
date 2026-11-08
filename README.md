@@ -139,6 +139,7 @@ Admins get a few extra tools in the dashboard. Each one is admin-only, and each 
 - **Upload a CSV** of your own leads on the New campaign page (UTF-8 with a header row, up to 1 MB by default, `CSV_UPLOAD_MAX_BYTES`). The file is stored in Postgres, so every worker reads the same copy; the API never takes a file path on the server.
 - **Export approved leads** as a CSV from a run's page or a campaign's row. Escalated approvals are included, with a `route` column to tell them apart; opted-out leads are left out; a campaign gives one row per lead; a cell that starts like a spreadsheet formula gets a leading `'` so it can't run in Excel.
 - **Users** (Settings → Users): list the accounts, add a reviewer, turn an account off or back on. Turning one off ends its logins at once, and turning it back on doesn't bring the old ones back. You can't turn off yourself or the last active admin.
+- **Delete** a lead, a run or a campaign from its page, and an uploaded CSV with its campaign. A run takes the leads that are in no other run; a campaign takes its runs and its file when no other campaign uses it. A delete is refused while the worker is still on something. The audit log keeps its rows, with names, contact details and free text blanked. Anything already sent to Airtable or Discord stays there, and a later run may find a deleted lead again: to keep a lead out for good, opt it out instead.
 - **Retry a failed lead** from its run item page. It goes through the job queue like everything else and continues from the lead's last checkpoint, so steps that already finished don't run again and the CRM write still happens once. A second click gets a 409.
 
 ## API
@@ -161,6 +162,7 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 | `POST` | `/run-items/{id}/retry` | admin | Queue a failed lead again; 409 if it isn't failed |
 | `GET` | `/leads`, `/leads/{id}` | logged in | Filter, sort, search, pages |
 | `DELETE` | `/leads/{id}/data` | admin | Opt-out: wipe the lead's contact data |
+| `DELETE` | `/leads/{id}`, `/runs/{id}`, `/campaigns/{id}`, `/uploads/csv/{id}` | admin | Delete; 409 while the worker is still on it (or a campaign still uses the file) |
 | `GET` | `/exports/approved-leads` | admin | `?run_id=` or `?campaign_id=`: the approved leads as a CSV |
 | `GET` | `/audit` | logged in | The audit trail, with filters (login, account, campaign, upload and export records: admins only) |
 | `GET`, `POST` | `/rubrics`, `/rubrics/{id}` | admin to change | Scoring rules; an edit makes a new version |
@@ -273,8 +275,8 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **The login limit can be used to lock someone out** for 15 minutes by typing their email wrong 5 times, and an admin can't unlock it early. No two-factor login.
 - **The crawler's address check has a small DNS gap:** the address is looked up for the check and again to connect, so a DNS server that answers differently the second time could slip through.
 - **The n8n results address isn't address-checked**, because it has to reach n8n on the private network; only someone with the shared secret can set it.
-- **An opted-out lead's old data stays in its LangGraph checkpoint** (approvals are blocked, but the checkpoint isn't wiped).
-- **An uploaded CSV is kept in the database as it was uploaded**, with no way to delete it yet, so an opt-out doesn't wipe the lead's row in that file.
+- **An opted-out lead's old data can stay in a LangGraph checkpoint** when the opt-out comes from the command line while the lead waits for a decision (approving it is blocked). Through the dashboard or the API, the waiting lead is rejected and its checkpoint deleted once it finishes, and its audit rows are blanked.
+- **An uploaded CSV is kept in the database as it was uploaded** until an admin deletes it, so an opt-out doesn't wipe the lead's row in that file.
 - **The demo's admin still sees New campaign and Start run.** On the public demo they answer with a message that real searches run on your own machine, rather than being hidden.
 - **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, campaign, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
 - **Small hardening left undone:** the API's own JSON answers carry no security headers (the live API is HTTPS-only anyway: `onrender.com` is on the browsers' HSTS preload list), the local nginx shows its version, and the local database password defaults to `leadgate` (its port only listens on 127.0.0.1).
