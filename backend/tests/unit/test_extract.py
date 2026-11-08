@@ -176,6 +176,13 @@ def test_prompt_keeps_sales_wording_out_of_services() -> None:
     assert "never payment, financing, insurance" in prompt
 
 
+def test_prompt_drops_cloudflares_hidden_email() -> None:
+    text = "Write to us: [email\xa0protected] or call. [Email Protected]"
+    prompt = build_prompt("dentist", RAW, GEO, cleaned(), text)
+    assert "protected" not in prompt.casefold()
+    assert "Write to us:" in prompt
+
+
 def test_prompt_without_website_text() -> None:
     assert "(no website text)" in build_prompt("dentist", RAW, GEO, cleaned(), "")
 

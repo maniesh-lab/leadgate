@@ -50,6 +50,9 @@ log = structlog.get_logger(__name__)
 MAX_SERVICES = 10
 # Prompt sizes, kept small for Groq's free tier (8,000 tokens per minute).
 PROMPT_TEXT_CHARS = 6000
+# Cloudflare's stand-in for a hidden email (we leave those hidden). Left in, the model
+# picks it as the email, the check refuses it, and that costs a retry.
+HIDDEN_EMAIL = re.compile(r"\[email\s+protected\]", re.IGNORECASE)
 PROMPT_SOURCE_CHARS = 3000
 FIRST_YEAR = 1800
 # A founding year must follow one of these words closely ("since 1998", "opened in 1991").
@@ -199,7 +202,7 @@ def baseline_fields(cleaned: dict, raw: dict) -> LLMFields:
 
 def build_prompt(niche: str, raw: dict, geo: dict, cleaned: dict, website_text: str) -> str:
     emails = ", ".join(cleaned["emails"]) or "(none)"
-    text = website_text[:PROMPT_TEXT_CHARS] or "(no website text)"
+    text = HIDDEN_EMAIL.sub("", website_text)[:PROMPT_TEXT_CHARS] or "(no website text)"
     return f"""{PROMPT_RULES}
 - category: exactly one of: {", ".join(CATEGORIES)}.
 
