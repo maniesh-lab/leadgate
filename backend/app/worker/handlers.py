@@ -47,6 +47,7 @@ from app.db.models import Approval, Job, JobType, Lead, Route, Run, RunItem, Run
 from app.enrichment.crawler import Crawler
 from app.observability.tracing import Tracer
 from app.services.crm import CRMClient
+from app.services.deletion import purge_checkpoints
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
 from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
@@ -178,6 +179,9 @@ def save_item(deps: Deps, session: Session, item: RunItem) -> None:
 
 def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStatus) -> None:
     item.status = status
+    if status != RunItemStatus.AWAITING_APPROVAL and get(session, Lead, item.lead_id).opt_out:
+        # The thread is over and its saved state still holds the pre-opt-out contact data.
+        purge_checkpoints(session, [item.thread_id])
     refresh_run_status(session, get(session, Run, item.run_id), deps.now())
     session.commit()
     log.info("item_saved", run_item_id=item.id, status=status, score=item.score)

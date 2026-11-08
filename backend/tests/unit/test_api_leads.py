@@ -1,5 +1,7 @@
 """Tests for `/api/leads`: filters, sort, search, pages, the detail and the opt-out."""
 
+import json
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -206,3 +208,23 @@ def test_opt_out_wipes_the_lead_and_rejects_its_waiting_items(
     assert client.delete(f"/api/leads/{lead_id}/data", headers=as_admin).status_code == 204
     assert client.delete(f"/api/leads/{lead_id}/data", headers=as_reviewer).status_code == 403
     assert client.delete("/api/leads/999/data", headers=as_admin).status_code == 404
+
+
+def test_opt_out_blanks_the_contact_data_in_the_audit_log(
+    client: TestClient, world: World, started, as_reviewer
+) -> None:
+    lead_id = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"][0]["lead"][
+        "id"
+    ]
+    phone = world.db.get(Lead, lead_id).phone
+    about = select(AuditLog).where(AuditLog.entity_type == "lead", AuditLog.entity_id == lead_id)
+    assert phone in json.dumps([row.details for row in world.db.scalars(about)])
+
+    client.delete(f"/api/leads/{lead_id}/data", headers=started["as_admin"])
+
+    world.db.expire_all()
+    rows = world.db.scalars(about).all()
+    assert phone not in json.dumps([row.details for row in rows])
+    assert {row.details.get("redacted") for row in rows if row.action != "lead.opted_out"} == {
+        "lead opted out"
+    }
