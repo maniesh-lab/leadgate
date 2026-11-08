@@ -1,7 +1,7 @@
 {
   "niche": "dentist",
   "location": "Austin, TX",
-  "how_to_check": "For each case compare expected with the lead's data (OSM tags + its website), fix what is wrong, then set checked to true. Services: treatments or service groups the site lists, at most 10; no payment, insurance or marketing wording; no duplicates. A founding year must be stated as one (\"since 1998\"), not a copyright or staff year.",
+  "how_to_check": "For each case compare expected with the lead's data (OSM tags + its website text in extraction_leads.json), fix what is wrong, then set checked to true. Services: every treatment or service group the site lists, in the site's words, with no limit; no payment, insurance or marketing wording. A list inside services holds other wordings of one service (they count once). Any exact field may be a list of answers that all count. A founding year must be stated as one (\"since 1998\"), not a copyright or staff year.",
   "cases": [
     {
       "source_key": "osm:node/564536984",
@@ -130,17 +130,57 @@
         "services": [
           "Preventive Dentistry",
           "Comprehensive examinations",
-          "Dental cleanings",
+          [
+            "Dental cleanings",
+            "preventative dental cleanings"
+          ],
           "Fluoride treatments",
           "Digital x-rays",
           "Tooth sealants",
           "Custom night guards",
           "Athletic mouth guards",
           "Restorative & Cosmetic Dentistry",
-          "Composite white fillings"
+          "Composite white fillings",
+          [
+            "Porcelain and gold crowns & bridges",
+            "Porcelain and gold c rowns & bridges"
+          ],
+          "Porcelain veneers",
+          [
+            "Root canal therapy",
+            "root canals"
+          ],
+          "Implant crowns and abutments",
+          "Immediate and full dentures",
+          "Partial dentures and flippers",
+          "Custom whitening trays and in-office whitening",
+          "Periodontal and Oral Surgery",
+          [
+            "Scaling and root planing (deep cleaning)",
+            "Scaling and root planing",
+            "deep cleanings"
+          ],
+          "Crown lengthening",
+          [
+            "Tooth extractions, including wisdom teeth",
+            "Tooth extractions",
+            "teeth removal"
+          ],
+          [
+            "Implant surgery",
+            "implants"
+          ],
+          "Bone grafting",
+          "Laser gum contouring and removal",
+          "Children's dentistry",
+          "Nitrous oxide and oral sedation options",
+          [
+            "Same day emergency visits",
+            "emergencies"
+          ]
         ]
       },
-      "note": "2011 is only the copyright year (© 2011), not a founding year. The site's email is hidden by Cloudflare, so null."
+      "note": "2011 is only the copyright year (© 2011), not a founding year. The site's email is hidden by Cloudflare, so null. checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/2728727105",
@@ -188,16 +228,24 @@
         "established_year": null,
         "services": [
           "General Dentistry",
+          "Specialty Dentistry",
+          "Cosmetic Dentistry",
           "Dental Cleanings",
           "Fillings",
           "Dental Implants",
+          "Braces",
           "Clear Aligners",
-          "Orthodontics",
+          [
+            "Orthodontics",
+            "orthodontic solutions",
+            "orthodontic solutions like braces"
+          ],
           "Emergency Dental Care",
-          "Cosmetic Dentistry"
+          "Periodontics",
+          "preventive care"
         ]
       },
-      "note": "checked against the site text; all fields right."
+      "note": "no founding year (1989 and 2009 are the dentists' degrees). checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/2992260019",
@@ -212,19 +260,53 @@
         "category": "dentist",
         "established_year": null,
         "services": [
-          "Pediatric Dental Checkups",
-          "Teeth Cleaning",
-          "Pediatric Dental Emergencies",
+          [
+            "Pediatric Dental Checkups",
+            "Dental Checkups",
+            "Children's Dental Exams"
+          ],
+          [
+            "Teeth Cleaning",
+            "Teeth Cleanings"
+          ],
+          [
+            "Pediatric Dental Emergencies",
+            "Emergency Dentistry"
+          ],
           "Preventative & Diagnostic Services",
-          "Fillings",
-          "Fluoride Treatments",
+          [
+            "Fillings",
+            "White Fillings"
+          ],
+          [
+            "Fluoride Treatments",
+            "Fluoride Treatment"
+          ],
           "Silver Diamine Fluoride Treatment",
-          "Teeth Sealants",
+          [
+            "Teeth Sealants",
+            "sealants"
+          ],
           "Mouth Guards",
-          "Sedation Dentistry"
+          "Sedation Dentistry",
+          "Special Needs Dentistry",
+          [
+            "Tongue Tie Care",
+            "Tongue Tie Center"
+          ],
+          [
+            "Preventive Dental Care",
+            "Preventive Dentistry",
+            "preventative dentistry"
+          ],
+          "Dental X-Rays",
+          [
+            "gentle restorative care",
+            "restorative treatments"
+          ]
         ]
       },
-      "note": "the site shows no email; ctpd@ctpdkid.com is the OSM tag."
+      "note": "the site shows no email; ctpd@ctpdkid.com is the OSM tag. checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/2992260020",
@@ -243,14 +325,22 @@
           "Restorative Dentistry",
           "Dental Crowns",
           "Cosmetic Dentistry",
-          "Dental Sedation",
+          [
+            "Dental Sedation",
+            "Sedation Dentistry"
+          ],
           "Emergency Dentistry",
           "Same-Day Crowns",
           "Laser Dentistry",
-          "Preventive Dentistry"
+          "Preventive Dentistry",
+          [
+            "dental cleanings",
+            "routine dental cleanings"
+          ],
+          "digital X-rays"
         ]
       },
-      "note": "dropped \"Sedation Dentistry\" (the same service as the menu's \"Dental Sedation\"). The \"since 2010\" lines are staff joining dates, so no founding year."
+      "note": "\"Dental Sedation\" and \"Sedation Dentistry\" are one service. The \"since 2010\" lines are staff joining dates, so no founding year. checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/3157298458",
@@ -267,17 +357,50 @@
         "services": [
           "Emergency Dental Care",
           "Dental Implants",
-          "Teeth Whitening",
+          [
+            "Teeth Whitening",
+            "professional teeth whitening"
+          ],
           "Fillings",
           "Curodont™",
           "Dental Bridges",
           "Dentures",
-          "Braces",
-          "Clear Aligners",
-          "Veneers"
+          [
+            "Braces",
+            "traditional braces"
+          ],
+          [
+            "Clear Aligners",
+            "clear aligner treatment"
+          ],
+          "Veneers",
+          "Root Canals",
+          "Wisdom Teeth Removal",
+          "Crowns",
+          "Extractions",
+          [
+            "Teeth Cleaning",
+            "cleanings"
+          ],
+          [
+            "Dental Checkup",
+            "checkups"
+          ],
+          "Chipped Tooth Repair",
+          "General Dentistry",
+          "Specialty Dentistry",
+          "Cosmetic Dentistry",
+          "exams",
+          "fluoride",
+          "sealants",
+          "periodontics",
+          "prosthodontics",
+          "scaling and root planing",
+          "deep pocket cleanings",
+          "bonding"
         ]
       },
-      "note": "\"Curodont™ Dental Bridges\" was two menu items run together; split into \"Curodont™\" and \"Dental Bridges\" (first 10 of the menu kept). No addr:city tag, but the place is inside Austin, so city Austin."
+      "note": "\"Curodont™ Dental Bridges\" is two menu items run together. No addr:city tag, but the place is inside Austin, so city Austin. checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/3825322745",
@@ -317,10 +440,34 @@
           "Restorative Dentistry",
           "Root Canals",
           "Dentures",
-          "Teeth Extractions"
+          "Teeth Extractions",
+          "Wisdom Tooth Extraction",
+          "Preventative Dentistry",
+          "Cosmetic Dentistry",
+          "Dental Veneers",
+          "Dental Implants",
+          "Invisalign",
+          [
+            "Teeth Whitening",
+            "Zoom Whitening",
+            "In-House & Take-Home Whitening"
+          ],
+          "Dental Bonding",
+          "CBCT 3D Imaging",
+          "Dental Crowns & Bridges",
+          "LUMINEERS",
+          "bone grafting",
+          "TMJ treatment",
+          [
+            "pediatric dentistry",
+            "Children's dentistry"
+          ],
+          "Nitrous Oxide and sedation",
+          "implant restorative services",
+          "Digital X-rays"
         ]
       },
-      "note": "\"since 2012\" is a staff member, not the practice, so no founding year."
+      "note": "\"since 2012\" is a staff member, not the practice, so no founding year. checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/3857696615",
@@ -336,12 +483,15 @@
         "established_year": 1991,
         "services": [
           "Invisalign",
-          "Braces",
+          [
+            "Braces",
+            "Traditional and modern braces"
+          ],
           "Hybrid",
           "Retainers"
         ]
       },
-      "note": "1991 is right (\"since 1991\", \"opened his practice in 1991\"). Kept only treatments: dropped Free Consultation, Payment Plans, Insurance, the two financing items and \"Customized orthodontic treatment plans\" (marketing wording)."
+      "note": "1991 is right (\"since 1991\"). Only treatments: not Free Consultation, Payment Plans, Insurance or financing. checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/3876692988",
@@ -355,9 +505,37 @@
         "country": "United States",
         "category": "dentist",
         "established_year": null,
-        "services": []
+        "services": [
+          "General Dentistry",
+          "Oral Exams",
+          "Teeth Cleanings",
+          "Fillings",
+          "Crowns",
+          "Bridges",
+          "X-Rays",
+          "Cosmetic Dentistry",
+          "Tooth Colored Restorations",
+          "Veneers",
+          "Teeth Whitening",
+          "Bonding",
+          "Tooth Recontouring",
+          "Specialty Dentistry",
+          "Root Canals",
+          "Dental Implants",
+          "Extractions",
+          "Dentures",
+          [
+            "Emergency Care",
+            "Emergency"
+          ],
+          "Night Guards",
+          [
+            "Sedation",
+            "nitrous and conscious sedation options"
+          ]
+        ]
       },
-      "note": "the website did not load for the crawler; the email is the OSM tag."
+      "note": "the email is the OSM tag and on the site. The saved site text loaded (an earlier crawl had failed). checked against the saved site text; services list every service on the site."
     },
     {
       "source_key": "osm:node/4966513023",
@@ -390,6 +568,330 @@
         "services": []
       },
       "note": "no website; only city, country and category to check."
+    },
+    {
+      "source_key": "osm:node/4966513038",
+      "name": "Smile 360",
+      "website": "https://www.smile360atx.com/",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Cosmetic Dentistry",
+          [
+            "Sleep Apnea Therapy",
+            "sleep apnea"
+          ],
+          [
+            "Invisalign",
+            "Invisalign®"
+          ],
+          "same-day dental restorations",
+          "3D imaging",
+          "no-mess impressions",
+          "oral cancer detection",
+          "veneers",
+          "comprehensive smile transformations",
+          "aesthetic rehabilitation",
+          "oral appliance therapy",
+          "upper airway examinations",
+          "smile design"
+        ]
+      },
+      "note": "no founding year (\"founder\" only). Not in-house financing or insurance. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/5157878032",
+      "name": "Ortho 360 Orthodontics",
+      "website": "https://www.ortho360.com/",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": 2001,
+        "services": [
+          "Invisalign",
+          [
+            "Braces",
+            "traditional braces"
+          ],
+          "clear braces",
+          "WildSmiles Braces",
+          "Early Orthodontic Treatment",
+          "Zoom Teeth Whitening",
+          "Orthodontics"
+        ]
+      },
+      "note": "\"Doctor Owned Since 2001\" gives the founding year. Not Complimentary Consultation or financing. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/8301802491",
+      "name": "Valencia Smiles",
+      "website": "https://valenciasmilesdentalcare.com/",
+      "checked": true,
+      "expected": {
+        "email": "info@valenciasmilesdentalcare.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Cleanings",
+          "Root Canal",
+          "Bridges",
+          "Extractions",
+          [
+            "Crowns",
+            "Crownns"
+          ],
+          "Fillings",
+          [
+            "Whitening",
+            "Withening"
+          ],
+          [
+            "Periodontal Treatment",
+            "Periodontal Services"
+          ],
+          "Implants",
+          "Dentures",
+          "Veneers"
+        ]
+      },
+      "note": "support@yoursite.com is a template's placeholder, not theirs. The site's own typos (Withening, Crownns) count as the same services. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/8421607399",
+      "name": "BLVD Dentistry & Orthodontics",
+      "website": "https://www.blvddentistry.com/",
+      "checked": true,
+      "expected": {
+        "email": "austin@blvddentistry.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Cosmetic Bonding",
+          "Crowns",
+          "Dentures & Bridges",
+          [
+            "Invisalign®",
+            "Invisalign"
+          ],
+          "Sedation Dentistry",
+          "Teeth Whitening",
+          "Tooth Colored Fillings",
+          "Braces",
+          "Endodontics",
+          "Dental Implants",
+          "Veneers",
+          "Wisdom Teeth Removal",
+          "Emergency Dentistry",
+          "Walk In Dentistry",
+          "Orthodontics"
+        ]
+      },
+      "note": "a chain with nine offices: austin@ is this office's (the OSM tag and the site). checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/8507869276",
+      "name": "Austin Children's Dentistry",
+      "website": "https://www.austinchildrensdentistry.com/",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Pediatric Dentistry",
+          [
+            "Orthodontics",
+            "orthodontic planning and treatment",
+            "orthodontic treatment"
+          ]
+        ]
+      },
+      "note": "a short page: only two services named. No email anywhere. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/8530550364",
+      "name": "Walden Dental",
+      "website": "https://www.waldendentaltx.com/",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Cedar Park",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "General Dentistry",
+          "Cosmetic Dentistry",
+          "Dental Implants",
+          "Emergency Dentistry",
+          "Dental Cleanings & Exams",
+          "Dental Fillings",
+          "Same-Day Crowns",
+          "Smile Makeover",
+          [
+            "Teeth Whitening",
+            "Zoom whitening",
+            "Professional whitening"
+          ],
+          [
+            "Veneers",
+            "Dental Veneers"
+          ]
+        ]
+      },
+      "note": "OSM's addr:city is Cedar Park (the site says Austin): the source wins. 2021 is a fellowship, not a founding year. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/9384814115",
+      "name": "Union Dental Salon",
+      "website": "https://www.takeheartshop.com",
+      "checked": true,
+      "expected": {
+        "email": null,
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": []
+      },
+      "note": "OSM's website is wrong: takeheartshop.com is a gift shop, not this dental office, so none of its items are the business's services. Category stays dentist (the name and OSM). No addr:city tag, so city and country come from the campaign's place."
+    },
+    {
+      "source_key": "osm:node/9676315032",
+      "name": "Touch To",
+      "website": "https://touchto.io",
+      "checked": true,
+      "expected": {
+        "email": "hello@touchto.io",
+        "area": null,
+        "city": "Austin",
+        "country": [
+          "US",
+          "United States"
+        ],
+        "category": "other",
+        "established_year": null,
+        "services": [
+          "UX/UI Design",
+          "Interactive Installations",
+          "Full Stack Web Development",
+          "Hardware/Software Integration",
+          "Full Stack Mobile Development",
+          "Existing Code Optimization",
+          "Web Development"
+        ]
+      },
+      "note": "tagged a dentist in OSM, but it's a software firm (OSM's own description and the site), so category other. addr:country is US; United States counts too. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/10265147209",
+      "name": "Groovy Molar",
+      "website": "https://groovymolar.com/",
+      "checked": true,
+      "expected": {
+        "email": "info@groovymolar.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Pediatric Dentistry",
+          "dental health presentation"
+        ]
+      },
+      "note": "no addr:city tag, so city and country come from the campaign's place. The site names few services. checked against the saved site text; services list every service on the site."
+    },
+    {
+      "source_key": "osm:node/11083906192",
+      "name": "Rivery Dental",
+      "website": "https://riverydental.com/",
+      "checked": true,
+      "expected": {
+        "email": "highland@riverydental.com",
+        "area": null,
+        "city": "Austin",
+        "country": "United States",
+        "category": "dentist",
+        "established_year": null,
+        "services": [
+          "Bad Breath",
+          "Botox & Dermal Fillers",
+          [
+            "Clear Aligner Treatment",
+            "Invisalign / ClearCorrect",
+            "Clear Aligners Treatment"
+          ],
+          [
+            "Comprehensive Examinations",
+            "Comprehensive Exam"
+          ],
+          "Cosmetic Dentistry",
+          [
+            "Crowns & Bridges",
+            "Crown & Bridge"
+          ],
+          [
+            "Dentures & Partials",
+            "Denture & Partial"
+          ],
+          "Extractions",
+          [
+            "Fillings",
+            "Filling"
+          ],
+          "Fluoride Treatments",
+          "ICON",
+          [
+            "Laser Dentistry",
+            "Painless Laser Dentistry"
+          ],
+          "Night Guards",
+          "Oral Cancer Screenings",
+          "Pediatric Dentistry",
+          "Periodontal Disease",
+          "Root Canal Therapy",
+          [
+            "Same Day Emergency Appointments",
+            "Same Day Dental Treatments"
+          ],
+          "Sedation Dentistry",
+          [
+            "Sleep Apnea",
+            "Snoring Device / Sleep Dentistry",
+            "Sleep Apnea Treatment"
+          ],
+          "Sports Mouthguards",
+          "Teeth Whitening",
+          "Ultrasonic Cleanings",
+          [
+            "Veneers",
+            "Veneer"
+          ]
+        ]
+      },
+      "note": "the email is the OSM tag (the site hides its own). Not payment plans, the discount plan or the offers. checked against the saved site text; services list every service on the site."
     }
   ]
 }

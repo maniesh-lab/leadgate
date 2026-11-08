@@ -1,0 +1,2079 @@
+{
+  "note": "What extraction sees for each eval lead: the lead's OpenStreetMap data (© OpenStreetMap contributors, ODbL) and what leadgate's crawler found on the business's own public website, the page text cut to the part the prompt uses. Saved by `scripts/extraction_eval.py save`; `saved_at` says when each lead was copied.",
+  "place": {
+    "niche": "dentist",
+    "geo": {
+      "location": "Austin, TX",
+      "country_code": "US",
+      "place": "Austin, Travis County, Texas, United States"
+    }
+  },
+  "leads": [
+    {
+      "source_key": "osm:node/564536984",
+      "name": "Smiles by Dentistry",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/564536984",
+        "name": "Smiles by Dentistry",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": "130 Brodie Lane",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 564536984,
+          "lat": 30.1851035,
+          "lon": -97.8473432,
+          "tags": {
+            "name": "Smiles by Dentistry",
+            "amenity": "dentist",
+            "healthcare": "dentist",
+            "addr:street": "Brodie Lane",
+            "description": "Dr. Michael Flurry",
+            "addr:housenumber": "130"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/863465762",
+      "name": "Omni Dental Group",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/863465762",
+        "name": "Omni Dental Group",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 863465762,
+          "lat": 30.4081273,
+          "lon": -97.7481855,
+          "tags": {
+            "name": "Omni Dental Group",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/1236793096",
+      "name": "Austin Dental Works",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/1236793096",
+        "name": "Austin Dental Works",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 1236793096,
+          "lat": 30.3150367,
+          "lon": -97.7355807,
+          "tags": {
+            "name": "Austin Dental Works",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/1249567757",
+      "name": "Castle Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/1249567757",
+        "name": "Castle Dental",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 1249567757,
+          "lat": 30.3988286,
+          "lon": -97.7488709,
+          "tags": {
+            "name": "Castle Dental",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/1249567769",
+      "name": "Hammons Family Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/1249567769",
+        "name": "Hammons Family Dental",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 1249567769,
+          "lat": 30.3997798,
+          "lon": -97.7472811,
+          "tags": {
+            "name": "Hammons Family Dental",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/1249568535",
+      "name": "Fastbraces",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/1249568535",
+        "name": "Fastbraces",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 1249568535,
+          "lat": 30.4000021,
+          "lon": -97.7480254,
+          "tags": {
+            "name": "Fastbraces",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/2527535401",
+      "name": "Lone Star Pediatric Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2527535401",
+        "name": "Lone Star Pediatric Dental",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2527535401,
+          "lat": 30.3636375,
+          "lon": -97.7189262,
+          "tags": {
+            "name": "Lone Star Pediatric Dental",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/2663954886",
+      "name": "Tech Ridge Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2663954886",
+        "name": "Tech Ridge Dental",
+        "phone": "+15128212394",
+        "email": null,
+        "website": "https://www.techridgedental.com/",
+        "address": "12400 North Interstate 35, Austin, TX 78753",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2663954886,
+          "lat": 30.4043302,
+          "lon": -97.6760178,
+          "tags": {
+            "name": "Tech Ridge Dental",
+            "phone": "+1-512-821-2394",
+            "amenity": "dentist",
+            "website": "https://www.techridgedental.com/",
+            "addr:city": "Austin",
+            "addr:unit": "A131",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "North Interstate 35",
+            "addr:postcode": "78753",
+            "opening_hours": "Mo-Fr 07:30-16:30",
+            "addr:housenumber": "12400",
+            "healthcare:speciality": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "512-821-2394 Home Team Bios Office Services Reviews Contact Home Team Bios Office Services Reviews Contact Welcome to Tech Ridge Dental Your Austin area dentist Drs. Sean Ma and Minnie Ma welcome you to our dental office , conveniently located near I-35 and Parmer in Austin, TX. We see patients from Austin and all surrounding areas, including Pflugerville, Round Rock, Cedar Park, Manor, Hutto, and others. We offer a full scope of family, restorative, and cosmetic dentistry, with additional care in preventative dental cleanings and deep cleanings, emergencies, root canals, teeth removal, bone grafting, implants, and many other dental treatments. Our mission is simple: provide dental care of the highest quality by the best dental team in Austin. ​ Our Tech Ridge Dental family Meet Our Team Carolina Chrissy Ellen Ken Kim Lauren Lindsey Lucy Mercedez Dr Minnie Dr Sean Teresa See our online reviews Dorothea \" It doesn't get much better then Tech Ridge Dental. My husband and I have been going here for about 9 years now and we've remained with our dentists here despite moving to Buda 6 years ago; they're just that good. I think it also speaks volumes that all their staff (front desk/admin/hygienist) have been there for years. Everyone knows us, it's easy to get an appointment, and they are gentle, kind, compassionate in their approach. If you are looking for a dental clinic that will take excellent care of you, Tech Ridge Dental is your place. \" Yolie \"Amazing staff and very helpful when I had to go in as an emergency. Dr.Sean Ma knew exactly what I needed and who to refer me too! Can wait to schedule my and my kids dental appointments! So glad I was able to find a great and understanding team!\" Joey \"Wonderful experience! First time appointment at Tech Ridge Dental, they were very thorough, timely and professional. Happy to have found a great Dentist office.\" Cedric \"I love this place so much!!! Everyone is very helpful and friendly!!! Very up front about everything and doesn't force again on you!!! I've been going since 2016!! \" Our Location in north Austin LOCATION: ​Near the southwest corner of I-35 and Parmer Lane, next to ASAP Vet, Kingdom Barbershop, and Tsukimi Sushi. ADDRESS: 12400 N. Interstate 35, Ste A131 Austin, TX 78753 PHONE: 512-821-2394 EMAIL:  ​HOURS: Mon: 7:30 am - 4:30 pm Tue: 7:30 am - 4:30 pm Wed: 7:30 am - 4:30 pm Thu: 7:30 am - 4:30 pm Fri: 7:30 am - 4:30 pm No dental insurance? Click here or call us for details! © 2011 Tech Ridge Dental\n\n512-821-2394 Home Team Bios Office Services Reviews Contact Home Team Bios Office Services Reviews Contact LOCATION: ​Near the southwest corner of I-35 and Parmer Lane, next to ASAP Vet, Kingdom Barbershop, and Tsukimi Sushi ADDRESS: 12400 N. Interstate 35, Ste A131 Austin, TX 78753 PHONE: 512-821-2394 EMAIL:  ​HOURS: Mon: 7:30 am - 4:30 pm Tue: 7:30 am - 4:30 pm Wed: 7:30 am - 4:30 pm Thu: 7:30 am - 4:30 pm Fri: 7:30 am - 4:30 pm © 2011 Tech Ridge Dental\n\n512-821-2394 Home Team Bios Office Services Reviews Contact Home Team Bios Office Services Reviews Contact Our team: CAROLINA, chrissy, Ellen, Ken, kim, LAuren, LINDSEY, LUCY, Mercedez, MINNIE, SEAN, TERESA Carolina Chrissy Ellen Ken Kim Lauren Lindsey Lucy Mercedez Dr Minnie Dr Sean Teresa © 2011 Tech Ridge Dental\n\n512-821-2394 Home Team Bios Office Services Reviews Contact Home Team Bios Office Services Reviews Contact Dental services: for your entire family ​ Preventive Dentistry Comprehensive examinations Dental cleanings Fluoride treatments Digital x-rays Tooth sealants Custom night guards Athletic mouth guards Restorative & Cosmetic Dentistry Composite white fillings Porcelain and gold c rowns & bridges Porcelain veneers Root canal therapy Implant crowns and abutments Immediate and full dentures Partial dentures and flippers Custom whitening trays and in-office whitening Periodontal and Oral Surgery Scaling and root planing (deep cleaning) Crown lengthening Tooth extractions, including wisdom teeth Implant surgery Bone grafting Laser gum contouring and removal For Your Comfort & Well Being Children's dentistry Coffee and water refreshments Spectrum TV on the ceilings Blankets and towels Intraoral cameras Nitrous oxide and oral sedation options Magnification loupes used by our dentists and hygienists Same day emergency visits Same day treatment whenever possible © 2011 Tech Ridge Dental",
+        "pages": [
+          {
+            "url": "https://www.techridgedental.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.techridgedental.com/"
+          },
+          {
+            "url": "https://www.techridgedental.com/contact.html",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.techridgedental.com/contact.html"
+          },
+          {
+            "url": "https://www.techridgedental.com/team.html",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.techridgedental.com/team.html"
+          },
+          {
+            "url": "https://www.techridgedental.com/services.html",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.techridgedental.com/services.html"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "5128212394"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": 2011,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://facebook.com/techridgedental"
+        },
+        "website": "https://www.techridgedental.com/",
+        "final_url": "https://www.techridgedental.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/2728727105",
+      "name": "Castle Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2728727105",
+        "name": "Castle Dental",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2728727105,
+          "lat": 30.2007465,
+          "lon": -97.8647251,
+          "tags": {
+            "name": "Castle Dental",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/2793750812",
+      "name": "Matthew Home Dentistry",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2793750812",
+        "name": "Matthew Home Dentistry",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2793750812,
+          "lat": 30.2004295,
+          "lon": -97.868636,
+          "tags": {
+            "name": "Matthew Home Dentistry",
+            "amenity": "dentist",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/2920762431",
+      "name": "Castle Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2920762431",
+        "name": "Castle Dental",
+        "phone": "+15124583600",
+        "email": null,
+        "website": "https://www.castledental.com/dentist-near-me/austin-dentist/35080",
+        "address": "1000 East 41st Street, Austin, TX 78751",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2920762431,
+          "lat": 30.3000118,
+          "lon": -97.7211043,
+          "tags": {
+            "fax": "+1-512-458-3033",
+            "name": "Castle Dental",
+            "brand": "Castle Dental",
+            "phone": "+1-512-458-3600",
+            "amenity": "dentist",
+            "website": "https://www.castledental.com/dentist-near-me/austin-dentist/35080",
+            "addr:city": "Austin",
+            "addr:unit": "230",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "East 41st Street",
+            "addr:postcode": "78751",
+            "opening_hours": "Mo 08:00-17:00; We-Fr 08:00-17:00; Sa 07:00-13:00",
+            "brand:wikidata": "Q108288471",
+            "addr:housenumber": "1000",
+            "healthcare:speciality": "dentist;orthodontics;periodontics;oral_surgery"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to main content Call (512) 458-3600 ☰ Menu Find an Office Tennessee Texas Affordable Care Services General Dentistry Specialty Dentistry Cosmetic Dentistry What to Expect Careers Book Now × Close Find an Office Tennessee Texas Affordable Care Services General Dentistry Specialty Dentistry Cosmetic Dentistry What to Expect Careers Call 1-800-867-6453 Book Now Dentists in Austin, TX Discover quality, affordable dentists in Austin, TX at Castle Dental. Whether you're seeking routine dental care or considering options like clear aligners and implants, our dentist in Austin, TX has you and your family's dental needs covered. 1000 East 41st Street Suite 230 | Austin, TX 78751 (512) 458-3600 Show Office Hours Book an Appointment Accepted Insurance Offers Located in the Hancock Center Shopping Center near 35 and 41st, next to Jersey Mikes and Freebirds × Office Hours Monday 8:00AM - 5:00PM Tuesday 8:00AM - 5:00PM Wednesday 8:00AM - 5:00PM Thursday 8:00AM - 5:00PM Friday 8:00AM - 5:00PM Saturday CLOSED Sunday CLOSED Book an Appointment × Accepted Insurance Below is a list of major dental insurance plans we accept in our Austin, TX office. Don't see your plan listed? Give us a call at (512) 458-3600 to confirm. Aetna DHMO Aetna PPO AmeriPlan Discount Ameritas PPO Assurant DHA SunLife PPO Assurant UDC DHMO Careington PPO Cigna DHMO Cigna PPO DNoA/BCBS PPO Delta Dental PPO Delta Dental Premier DeltaCare USA DentaQuest Dental Select PPO DenteMax PPO Dentegra PPO First Continental Life PPO GEHA/Connection PPO Guardian MDG/MDC DHMO Guardian PPO Humana/CompBenefits DHMO Humana/CompBenefits PPO Maverest/Zelis PPO MetLife PPO MetLife/Safeguard DHMO One Call Care Discount OraQuest DHMO Principal PPO/EPO QCD of America PPO Solstice PPO UCCI Medicare Advantage UCCI PPO UHC/DBP PPO UHC/National Pacific DHMO UniCare/Wellpoint PPO Book an Appointment Meet Our Dentists in Austin, TX Dr. Marco Del Valle Rivera Dentist - Read More Dr. Hania Alkudmani Periodontics - Read More Reyna S. Office Manager - Read More Book an Appointment Important Note: Dental Specialty Providers generally provide services as Independent Contractors and are not employees of Castle Dental. × Dr. Marco Del Valle Rivera Dentist \"Believe in what you do, and always do your best.\" Education: Bachelor of Science, Georgetown University , 1989 - Biology DDS, Georgetown University , 1989 - Dentistry Book an Appointment × Dr. Hania Alkudmani Periodontics \"I am committed to restoring your dental health, function, and smile in the most painless and comfortable way possible. \" Education: DDS, King Saud University, 2009 - Specialty Certification, University at Buffalo, 2015 - Periodontology Book an Appointment × Reyna S. \"My main goal is to ensure Smiles for Everyone!\" Book an Appointment Dental Services in Austin, TX We make getting the dental care you need simple. From dental cleanings, fillings and dental implants to orthodontic solutions like braces and clear aligners, we provide a comprehensive list of dental services all in one place. Trust your Austin dental team to provide the expertise and exceptional care for a radiant, healthy smile. General Dentistry Dental Implants Clear Aligners Orthodontics Emergency Dental Care Cosmetic Dentistry View All Services Castle Dental Reviews 4.3 Stars ( 35 Reviews ) Rosie G. on Google Oct 16, 2026 Good dental hygienist. Grateful for the follow up. Melinda F. on Google Oct 23, 2026 The dentist was very professional and informative on my upcoming treatments Chris S. on Google Sep 23, 2026 Great, thank you… Dental Insurance & Financing We accept hundreds of PPO and HMO dental insurance. And for those patients without insurance, we offer the OneSmile Dental Plan. Membership provides free dental check-ups and 20-40% off dental services. And for those out-of pockets expenses we have low-interest, flexible financing options. Accepted Insurance Financing Options Prices That Make You Smile We believe that everyone deserves to have a beautiful, healthy smile. With affordable prices and special offers we make it easy and cost-effective to get high quality dental care that works within your budget. New patient special $29 Exam & Digital X-Rays Offers Frequently Asked Questions It’s been a long time since I’ve visited the dentist. What do I need to do? No worries! Just make an appointment it’s that easy. If you have dental insurance please bring your insurance card with you. We’ll start with an exam and x-rays to assess your current oral health. If any additional treatment is needed we can schedule a future appointment or if everyone’s schedule permits we may be able to start treatment the same day. Do you have financing Options? Yes, we offer flexible payment plans featuring low interest rates and extended terms. Our team will help find you the financing plan that best fits your budget. We also accept most major credit cards and offer the OneSmile Dental Plan where members receive 20%-40% most dental services. Do you accept my insurance? We accept most major PPO and HMO insurances. Click on the “Accepted Insurance” button at the top of the page or call the office to confirm that we accept your specific dental insurance. Do you take emergency appointments? Yes we do! Give us a call as soon as possible so we can schedule your appointment and treat the issue quickly. Does your office take walk-ins? We will do our best to try to fit you in, please make an appointment if possible. Affordable Dental Care in Austin, TX Castle Dental is your trusted dentist in Austin, TX. We offer a comprehensive range of dental services. From preventive care to restorative and cosmetic dentistry, we have you covered. Our team of experienced professionals is dedicated to providing top-notch dental care in Austin, TX. Our dental office boasts state-of-the-art technology to ensure the best results. Plus, our office is comfortable and welcoming for everyone, making every visit a pleasant experience. Whether you’re a new patient or have been wit",
+        "pages": [
+          {
+            "url": "https://www.castledental.com/dentist-near-me/austin-dentist/35080",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.castledental.com/dental-office/austin-dentist/35080/"
+          },
+          {
+            "url": "https://www.castledental.com/about-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.castledental.com/about-us/"
+          },
+          {
+            "url": "https://www.castledental.com/dental-office/austin-dentist/35080/austin-tx-dental-services",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.castledental.com/dental-office/austin-dentist/35080/austin-tx-dental-services/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "(512) 458-3600",
+          "1-800-867-6453"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": null,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/CastleDental"
+        },
+        "website": "https://www.castledental.com/dentist-near-me/austin-dentist/35080",
+        "final_url": "https://www.castledental.com/dental-office/austin-dentist/35080/"
+      }
+    },
+    {
+      "source_key": "osm:node/2992260019",
+      "name": "Central Texas Pediatric Dentistry",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2992260019",
+        "name": "Central Texas Pediatric Dentistry",
+        "phone": "+15124747575",
+        "email": "ctpd@ctpdkid.com",
+        "website": "https://www.ctpdkid.com/",
+        "address": "1201 Barbara Jordan Boulevard, Austin, TX 78723",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2992260019,
+          "lat": 30.3053975,
+          "lon": -97.7081725,
+          "tags": {
+            "fax": "+1-512-474-7583",
+            "name": "Central Texas Pediatric Dentistry",
+            "email": "ctpd@ctpdkid.com",
+            "phone": "+1-512-474-7575",
+            "amenity": "dentist",
+            "website": "https://www.ctpdkid.com/",
+            "addr:city": "Austin",
+            "addr:unit": "1430",
+            "addr:state": "TX",
+            "check_date": "2023-11-22",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "Barbara Jordan Boulevard",
+            "addr:postcode": "78723",
+            "opening_hours": "Mo,Tu,Th 09:00-14:30",
+            "addr:housenumber": "1201",
+            "air_conditioning": "yes",
+            "healthcare:speciality": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to content Your Partner in Dental Wellness Request an Appointment Central Texas Pediatric Dentistry Menu Home About Meet the Team Testimonials Patients Schedule Appointment Insurance Patient Paperwork Guide To Pediatric Dentistry Acidity And Cavities Bad Breath Child Brushing Tips How to Brush Your Baby’s Teeth How Children Should Brush Their Teeth Toothpaste Recommendations Charcoal Toothpaste Fluoride Treatment Oil Pulling Oral Trauma Silver Diamine Fluoride Treatment Teething Relief Thumb-Sucking Solutions White Fillings & BPA Dental X-Rays FAQs & Information Child’s First Dental Visit Children’s Cavities Dental Anxiety In Children Losing Baby Teeth Guide My Tooth Hurts: What To Do Discoloration In Teeth Services Pediatric Dental Checkups What to Expect from Children’s Dental Exams Teeth Cleaning Pediatric Dental Emergencies Preventative & Diagnostic Services Fillings Fluoride Treatments Silver Diamine Fluoride Treatment Teeth Sealants Mouth Guards Sedation Dentistry What is Sedation Dentistry? Special Needs Dentistry Benefits of Special Needs Dentistry Tongue Tie Center Review Us Contact Request an Appointment Play Video Your Partner in Dental Wellness Improving your smile with cutting-edge technology. Options For Every Budget We Work With Your Insurance Upfront Pricing Request an Appointment Contact Us Your Partner in Dental Wellness Improving your smile with cutting-edge technology. Options For Every Budget We Work With Your Insurance Upfront Pricing Request an Appointment Contact Us Begin Your Journey To A Better Smile Dental Checkups Regular dental exams are the foundation of a healthy smile, allowing us to catch issues early and keep your teeth and gums in top shape. Learn More Teeth Cleanings Professional dental cleanings go beyond brushing, removing stubborn plaque and leaving your teeth feeling fresh and sparkling. Learn More Special Needs Dentistry Every patient deserves access to dental care that respects their individual needs and circumstances. Learn More Preventive Dental Care Preventive Dentistry focuses on maintaining your oral health with comprehensive care, from routine check-ups to restorative treatments, ensuring your smile stays healthy and strong. Learn More Tongue Tie Care If you are seeking an evaluation for tongue tie concerns, contact Central Texas Pediatric Dentistry today. Learn More Emergency Dentistry When dental emergencies strike, our prompt and compassionate care ensures your smile gets the attention it needs, right when you need it. Learn More Pediatric Dentist in Austin TX At Central Texas Pediatric Dentistry, our mission is to create positive, lasting experiences for children while delivering exceptional pediatric dental care. Our dentists take time to understand your child’s unique needs, ease any anxieties, and provide clear answers to all your questions. You can trust our compassionate approach and expert care every step of the way. Our pediatric dentists in Austin TX focus on more than just treating smiles—we track your child’s oral health closely at every visit, watching for developmental changes and catching concerns early. Our team embraces the latest advancements in pediatric dentistry, from minimally invasive techniques to state-of-the-art diagnostic tools, ensuring your child receives safe, gentle, and effective treatment. Your child’s smile deserves the very best. Reach out today to schedule a visit or learn more about how we can support your child’s dental health journey! Read Our Testimonials Request an Appointment Central Texas Pediatric Dentistry We focus on building lasting relationships with families while delivering outstanding pediatric dental care. We’re committed to creating a safe, supportive environment where both kids and parents feel confident in our care. Our friendly team doesn’t just provide gentle dental treatment—we also closely track your child’s oral development from visit to visit. By staying up to date with the latest advancements in pediatric dental technology, we offer innovative, child-friendly approaches for early cavity detection, preventative care, and more. Every treatment we recommend is chosen with your child’s comfort, health, and smile in mind. Education is a key part of our approach. We take time to explain your child’s oral health and clearly lay out treatment options so you can make informed decisions. Our dentists encourage families to move forward with care only when they feel fully comfortable. Recommended services may include: preventative dentistry, fluoride treatments, sealants, and gentle restorative care. We’re proud to offer positive dental experiences that help children build healthy habits and strong smiles for life. Call our Austin office today to schedule an appointment—we can’t wait to welcome you! Your Kids Deserve A Beautiful Smile Your child deserves a healthy, confident smile that lasts a lifetime. We offer modern pediatric dental care focused on both function and appearance and we understand the importance of building a strong foundation for lifelong oral health, blending clinical precision with a gentle, child-friendly approach. Whether it's guiding proper tooth development or addressing early dental concerns, our team uses age-appropriate techniques to help young smiles grow strong and bright. From the earliest visits to the teenage years, we’re here to support your child’s smile every step of the way. Request an Appointment Insurance Accepted Central Texas Pediatric Dentistry is happy to accept a variety of insurance plans. Please contact our office with any questions! Common Concerns, Conditions, And Issues With Kids' Teeth Kids’ teeth go through a lot during childhood, and pediatric dentists are specially trained to handle the unique challenges that come with growing smiles. One of the most common concerns we see is early childhood tooth decay. Even baby teeth are at risk for cavities, and catching them early is key to protecting your child’s oral health. Pediatric dentists",
+        "pages": [
+          {
+            "url": "https://www.ctpdkid.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.ctpdkid.com/"
+          },
+          {
+            "url": "https://www.ctpdkid.com/contact-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.ctpdkid.com/contact-us/"
+          },
+          {
+            "url": "https://www.ctpdkid.com/about/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.ctpdkid.com/about/"
+          },
+          {
+            "url": "https://www.ctpdkid.com/us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.ctpdkid.com/us/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "5124747575"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {},
+        "website": "https://www.ctpdkid.com/",
+        "final_url": "https://www.ctpdkid.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/2992260020",
+      "name": "Dental Smiles Family and Cosmetic",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/2992260020",
+        "name": "Dental Smiles Family and Cosmetic",
+        "phone": "+15124679955",
+        "email": "info@mydentalsmiles.com",
+        "website": "https://mydentalsmiles.com/",
+        "address": "1201 Barbara Jordan Boulevard, Austin, TX 78723",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 2992260020,
+          "lat": 30.3053536,
+          "lon": -97.7081994,
+          "tags": {
+            "name": "Dental Smiles Family and Cosmetic",
+            "email": "info@mydentalsmiles.com",
+            "phone": "+1-512-467-9955",
+            "amenity": "dentist",
+            "website": "https://mydentalsmiles.com/",
+            "addr:city": "Austin",
+            "addr:unit": "1435",
+            "addr:state": "TX",
+            "check_date": "2023-11-22",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "Barbara Jordan Boulevard",
+            "addr:postcode": "78723",
+            "opening_hours": "Mo,We 08:00-17:00; Tu,Th 07:00-15:00; Fr 07:00-13:00",
+            "addr:housenumber": "1201",
+            "air_conditioning": "yes",
+            "contact:facebook": "http://facebook.com/dentalsmiles78723",
+            "contact:linkedin": "http://linkedin.com/in/divyashetty",
+            "healthcare:speciality": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "1201 Barbara Jordan Blvd, Suite #1435, Austin, TX 78723 Reserve an Appointment 512-467-9955 ¡Se Habla Español! Home About Team Technology Our Reviews Services General Dentistry Restorative Dentistry Dental Crowns Cosmetic Dentistry Dental Sedation Emergency Dentistry First Visit Contact Us Payment Portal Blog Where Families Can Smile Confidently Providing quality dental care for patients of all ages Reserve an Appointment Welcome to Dental Smiles in Austin, TX We’re your locally owned, family-friendly dentist office that provides quality dental care for patients of all ages. We strive to create lasting relationships with each patient and take care of their oral health for a lifetime. There are few things more important that the well being of your family and we consider it a privilege when you trust our office to care for the health of your family’s smiles. From routine dental cleanings to digital X-rays to resolving a dental emergency quickly, we offer a range of comprehensive dental treatments to make sure our patients are able to take care of their dental needs in one place. Building healthy and beautiful smiles all while providing compassionate, personalized care are the pillars of our practice and one of the primary reasons why so many turn to us as their dentist in Austin, TX! Contact Us Our Mission Our practice is committed to providing high quality, friendly service in a gentle and caring environment using state-of-the-art dental materials and technology. We strive to create lasting relationships and to take care of each patient and their oral health for a lifetime. Laser Dentistry We use new technology for evaluations and treatments. Preventive Dentistry It’s important to evaluate your oral health consistently. Sedation Dentistry We can help patients stay relaxed throughout treatments. Cosmetic Dentistry We can help you transform your smile with cosmetic treatments. Same-Day Crowns Our CEREC technology allows you to experience the convenience of same-day dentistry. Emergency Dentistry We can provide immediate care when a dental emergency strikes. We Help Smiles Thrive Dr. Divya Shetty and our friendly team offer caring and gentle dentistry while using the latest dental materials, technology, and techniques. But we care about more than just your teeth! At Dental Smiles, we take the time to get to know all of our patients. Dr. Shetty’s role as your dentist is to provide a deeper understanding of your oral health and an environment where you feel comfortable. Whether you’re a returning patient or a new patient, we look forward to seeing you and providing you with the compassionate dental care you deserve. A Personal Touch to Dental Care: Local & Female Owned At Dental Smiles, our personalized, patient-centered care isn’t the only thing that sets us apart. We’re proud to be a local, female-owned dental practice. As a locally owned and operated practice, we’re deeply rooted in the community, providing consistent care from the same friendly faces that you can rely on. About Us Care for the Whole Community We understand many patients worry about the cost of care. At Dental Smiles, we believe cost shouldn’t come between you and your oral health. As such, we provide various financial options to make getting the care you need easy. Worried about submitting a claim? Our front desk team would be happy to submit a claim on your behalf and handle the paperwork. Not covered by dental insurance? Our front desk team would also be happy to tell you about our dental membership plan. As a single-location dental practice in Austin, we’re committed to transparency and providing care for the whole community. Learn more by viewing our first visit page to prepare for yours! First Visit Insurance Options We accept most major PPO dental insurance plans and will always assist you in maximizing your dental benefits. Our highly trained financial coordinators are here to help. To find out if we accept your plan, please call our office. Read Our Reviews Address 1201 Barbara Jordan Blvd, Suite #1435 Austin, TX 78723 Contact P: 512-467-9955 F: 512-322-9966 Hours Monday: 8am to 5pm Tuesday: 7am to 3pm Wednesday: 8am to 5pm Thursday: 7am to 3pm Friday: 7am to 1pm (alternating) Reserve an Appointment © 2026 Dental Smiles Family & Cosmetic Dentistry | Marketing by Practice Cafe 512.467.9955 Home About Team Technology Our Reviews Services General Dentistry Restorative Dentistry Dental Crowns Cosmetic Dentistry Dental Sedation Emergency Dentistry First Visit Contact Us Payment Portal Blog × Close Panel\n\n1201 Barbara Jordan Blvd, Suite #1435, Austin, TX 78723 Reserve an Appointment 512-467-9955 ¡Se Habla Español! Home About Team Technology Our Reviews Services General Dentistry Restorative Dentistry Dental Crowns Cosmetic Dentistry Dental Sedation Emergency Dentistry First Visit Contact Us Payment Portal Blog Contact Dental Smiles in Austin, TX When you’re looking for a new dental office, it’s important to choose a practice that offers a variety of services for you and your family. At Dental Smiles, we’re committed to delivering quality cosmetic, general, and restorative dental care in a safe, clean, and comfortable setting. Whether you have a question about a specific dental service or need help selecting a financial option, Dr. Shetty and our friendly team would be happy to hear from you. Request an Appointment Address 1201 Barbara Jordan Blvd, Suite #1435 Austin, TX 78723 Contact P: 512-467-9955 F: 512-322-9966 Hours Monday: 8am to 5pm Tuesday: 7am to 3pm Wednesday: 8am to 5pm Thursday: 7am to 3pm Friday: 7am to 1pm (alternating) Reserve an Appointment © 2026 Dental Smiles Family & Cosmetic Dentistry | Marketing by Practice Cafe 512.467.9955 Home About Team Technology Our Reviews Services General Dentistry Restorative Dentistry Dental Crowns Cosmetic Dentistry Dental Sedation Emergency Dentistry First Visit Contact Us Payment Portal Blog × Close Panel\n\n1201 Barbara Jordan Blvd, Suite #1435, Austin, TX 78723 Reserve a",
+        "pages": [
+          {
+            "url": "https://mydentalsmiles.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://mydentalsmiles.com/"
+          },
+          {
+            "url": "https://mydentalsmiles.com/contact/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://mydentalsmiles.com/contact/"
+          },
+          {
+            "url": "https://mydentalsmiles.com/about/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://mydentalsmiles.com/about/"
+          },
+          {
+            "url": "https://mydentalsmiles.com/about",
+            "error": null,
+            "status": 200,
+            "final_url": "https://mydentalsmiles.com/about/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "+15124679955",
+          "+17372854890",
+          "512-322-9966"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/dentalsmiles78723/",
+          "linkedin": "https://www.linkedin.com/in/divyashetty/"
+        },
+        "website": "https://mydentalsmiles.com/",
+        "final_url": "https://mydentalsmiles.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/3157298458",
+      "name": "Castle Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/3157298458",
+        "name": "Castle Dental",
+        "phone": "+15128372900",
+        "email": null,
+        "website": "https://www.castledental.com/",
+        "address": "500 West Canyon Ridge Drive",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 3157298458,
+          "lat": 30.4046817,
+          "lon": -97.6733163,
+          "tags": {
+            "name": "Castle Dental",
+            "amenity": "dentist",
+            "addr:unit": "F100",
+            "check_date": "2025-12-18",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "West Canyon Ridge Drive",
+            "payment:cash": "yes",
+            "contact:phone": "+1-512-837-2900",
+            "contact:website": "https://www.castledental.com/",
+            "addr:housenumber": "500",
+            "payment:debit_cards": "yes",
+            "payment:credit_cards": "yes"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to main content Call 1-800-867-6453 ☰ Menu Find an Office Tennessee Texas Affordable Care Services General Dentistry Specialty Dentistry Cosmetic Dentistry What to Expect Careers Book Now × Close Find an Office Tennessee Texas Affordable Care Services General Dentistry Specialty Dentistry Cosmetic Dentistry What to Expect Careers Call 1-800-867-6453 Book Now Your go-to dentist. When you're ready, we're ready! Find an Office Book an Appointment Find Offers Near You Everything you need. Where you need it. Your smile, our experts.​ Thanks to innovative equipment and a highly-trained staff of doctors and assistants, nearly all of our service offerings can be performed in-office, saving you the time, hassle, and money of visiting various specialists. In addition, our offices are designed to accommodate patients of all physical abilities, and our dentists receive the time, resources, and state-of-the-art technology they need to provide exceptional, individualized care to every patient. Emergency Dental Care Dental Implants Teeth Whitening Fillings Curodont™ Dental Bridges Dentures Braces Clear Aligners Veneers Root Canals Wisdom Teeth Removal Crowns Extractions Teeth Cleaning Dental Checkup Chipped Tooth Repair Castle Dental is the complete, affordable dental provider for the whole family. For most people, a beautiful, healthy smile doesn’t just happen. This may be because of financial obstacles, years of poor dental health, or just general anxiety about visiting the dentists. At Castle Dental, we believe everyone deserves a smile they’re proud of. We provide comprehensive dental care with an uncommon approach, one where our priority is the patient, not the profit. Our patients benefit from greater flexibility in service pricing, so we can offer best-in-class care at prices you can afford. Patients in our network can visit any location, any time, so you can schedule at the one that’s most convenient to you, including offices that offer weekend and evening appointments, and our multiple retail locations are easy to find and easy to get to, not tucked away in hard-to-reach medical plazas. What’s more, our emergency care services are available to anyone who needs them. Existing patients or new, walk-in or appointment, dental plan or uninsured, we provide the same compassionate, high-quality care. Complete Dental Care at Castle Dental Open Evenings & Weekends Here when you need us. Your neighborhood dentist. Braces or bridges, exams or extractions, you’ll find all the dental services you need for a lifetime of good dental health, all in one place, at Castle Dental. Get a grin worth sharing with general dentistry services including cleanings, checkups, and exams, and protect your pearly whites with preventative treatments like fluoride and sealants, as well as fillings and root canals. Read More In addition to family, pediatric, and emergency dental care, Castle Dental is also here for you when your oral health is less than perfect, with periodontics to help you get ahead of gum disease and prosthodontics to restore damaged, decayed, or even missing teeth. From scaling and root planing to deep pocket cleanings and dentures, Castle Dental has everything you need for a better, brighter smile including more than 100 dentists who are qualified to place dental implants. At Castle Dental, you can create an immaculate smile with our cosmetic dentistry services like bonding, veneers, and professional teeth whitening, as well as with our expanded orthodontic offerings, including traditional braces or clear aligner treatment. Many of our dentists are even specially trained and certified to direct Clear Aligner treatment, making it even easier to get the straight, stunning smile you’ve always wanted! Online Booking What to expect at your first visit Your budget. Your choices. Offers/Insurance/OneSmile Dental Plan/Financing Dental Care that fits your budget. Castle Dental’s affordable dental services help you save money without sacrificing quality. In addition to accepting CareCredit and most major dental insurance plans, we also have an array of other financing and payment options to help you pay for the care you need, including: Castle Dental’s affordable dental services help you save money without sacrificing quality. In addition to accepting CareCredit and most major dental insurance plans, we also have an array of other financing and payment options available via our online payment portal to help you pay for the care you need. Read More Take advantage of regular offers and discounts, like our New Patient Special, featuring a $59 exam and digital x-rays, or ask about our low-interest financing options and flexible payment plans with no or low down payments, all payable through affordable monthly installments. No insurance is no problem with our OneSmile Dental plan, which provides members with free x-rays and big savings on most other dental services for one low annual fee. Choose from plans structured for one or two individuals as well as for a family. We’ll also help you save time. With more than 60 affiliated locations across Tennessee and Texas, there is a Castle Dental location near you. And, you can visit whichever one is most convenient for you. All of our offices are strategically situated in central retail areas, so they’re fast and easy to find, get into, and get out of so you can stay on schedule with your busy life. We understand that not everyone can fit good dental care between 9-5 on weekdays. That’s why many of our locations offer evening or extended hours, weekend appointments, and emergency dental services, giving you more opportunities to receive the standard of care you expect and deserve.* *Individual office hours vary. $59 Exam & Digital X-Rays Click for your offer See accepted insurance plans and financing options Find a Castle Dental office by state: Tennessee Texas Get the same great dental care from our family of offices at Monarch Dental in AR , TX , UT or Bright Now! Dental",
+        "pages": [
+          {
+            "url": "https://www.castledental.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.castledental.com/"
+          },
+          {
+            "url": "https://www.castledental.com/about-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.castledental.com/about-us/"
+          },
+          {
+            "url": "https://www.castledental.com/services/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.castledental.com/services/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "1-800-867-6453",
+          "(512) 458-3600"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": null,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/CastleDental"
+        },
+        "website": "https://www.castledental.com/",
+        "final_url": "https://www.castledental.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/3825322745",
+      "name": "High Point Dentistry",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/3825322745",
+        "name": "High Point Dentistry",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": "2719 East 7th Street",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 3825322745,
+          "lat": 30.259739,
+          "lon": -97.7107213,
+          "tags": {
+            "name": "High Point Dentistry",
+            "amenity": "dentist",
+            "healthcare": "dentist",
+            "addr:street": "East 7th Street",
+            "coa:place_id": "124061",
+            "addr:housenumber": "2719"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/3856445942",
+      "name": "Aloha Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/3856445942",
+        "name": "Aloha Dental",
+        "phone": "+15127077300",
+        "email": "riverside@aloha-dental.com",
+        "website": "https://www.aloha-dental.com/",
+        "address": "1614 East Riverside Drive, Austin, TX 78741",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 3856445942,
+          "lat": 30.245304,
+          "lon": -97.730394,
+          "tags": {
+            "name": "Aloha Dental",
+            "email": "riverside@aloha-dental.com",
+            "phone": "+1-512-707-7300",
+            "amenity": "dentist",
+            "website": "https://www.aloha-dental.com/",
+            "addr:city": "Austin",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "East Riverside Drive",
+            "addr:postcode": "78741",
+            "opening_hours": "Mo 08:00-17:00; Tu 09:00-18:00; We 08:00-17:00; Th 09:00-18:00; Fr 08:00-17:00",
+            "addr:housenumber": "1614"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to content 1614 E. Riverside DR. Austin, TX 78741 Call Us | (512)707-7300 Text Us | (512) 494-5655  Envelope Comment Phone-alt Home About Us Dr. Mark Whitney Jumper, DDS Dr. Rohit Chaudhari Dr. Paulo Mazini Our Team Location Dental Services General & Family Dentistry Fluoride Treatment Dental Cleanings Dental Exams Botox for TMJ Emergency Dentistry Restorative Dentistry Root Canals Dentures Teeth Extractions Wisdom Tooth Extraction Preventative Dentistry Cosmetic Dentistry Dental Veneers Dental Implants Invisalign Teeth Whitening Dental Bonding Patient Info CBCT 3D Imaging Post-Op Instructions Financing & Forms Insurance CareCredit Sunbit Cherry Financing New Patient Forms ⤻ Patient Anesthesia History Form ⤻ Payment Portal ⤻ Schedule Online ⤻ Patient Education FAQs Contact Us Book Now Home About Us Dr. Mark Whitney Jumper, DDS Dr. Rohit Chaudhari Dr. Paulo Mazini Our Team Location Dental Services General & Family Dentistry Fluoride Treatment Dental Cleanings Dental Exams Botox for TMJ Emergency Dentistry Restorative Dentistry Root Canals Dentures Teeth Extractions Wisdom Tooth Extraction Preventative Dentistry Cosmetic Dentistry Dental Veneers Dental Implants Invisalign Teeth Whitening Dental Bonding Patient Info CBCT 3D Imaging Post-Op Instructions Financing & Forms Insurance CareCredit Sunbit Cherry Financing New Patient Forms ⤻ Patient Anesthesia History Form ⤻ Payment Portal ⤻ Schedule Online ⤻ Patient Education FAQs Contact Us Book Now Book Now A Tranquil Oasis for Your Smile Experience Dental Serenity at Its Finest Contact Us Welcome to Aloha Dental! Aloha Dental exists for the benefit and convenience of our patients and their families. We are a diverse group of people serving a diverse group of patients in a welcoming environment. Our purpose is to take care of you to the best of our abilities in a family-friendly environment. SAME-DAY APPOINTMENTS We offer same-day dental appointments whenever possible, and dental emergencies are seen the same day. Your time is important to us! DIGITAL X-RAYS The latest technology radio-graphs are taken with minimum exposure. Intraoral photos are taken at every visit so you can visualize every treatment that may need to be completed. We are happy to provide you a copy of your color photos for you to take home. FAMILY-FRIENDLY We offer family-friendly care and will see a whole family at the same time. We want your children to have a great experience at the dentist's office. And yes! Parents are welcome to stay with their children in the back. IN-OFFICE PROCEDURES Aloha Dental prides itself on being able to complete most procedures in our office including extractions, bone grafting, TMJ treatment and root canals, to name just a few. There may be times when you may need to be seen by a specialist. About Us INSURANCE FRIENDLY Who can figure out your dental coverage? We can! We have 2 people that are dedicated to getting this information for you. We are in the PPO Network with most major insurance carriers. We accept CareCredit and Sunbit, ApplePay, health/flex pay cards at time of service, as well as MasterCard, Visa, American Express & Discover Card and cash. We are also excited to offer the Aloha Dental Discount Plan and an affordable New Patient Cash Special. We also offer an in-house loyalty plan for patients that include 2 cleanings per year and 30% off treatment. CareCredit Cherry Financing In-House Loyalty Plan Austin Experience For your comfort, we have Roku and blankets in every room for you to enjoy during your appointments. ALOHA BENEFITS The benefits of being an Aloha patient include free Take-Home whitening trays and the convenience of 24 hours a day, seven days a week scheduling from our website. Aloha Dental offers: High quality cosmetic, general dentistry, extractions, root canals, pediatric dentistry, and implant restorative services. Friendly, compassionate care Children's dentistry The latest in dental technology and sterilization procedures Short wait times Flat Screen TVs in treatment rooms/Roko's Nitrous Oxide and sedation English, Spanish, Portuguese and Gujarati are the languages spoken in the office Our Dental Services Aloha Dental uses the latest digital radiography and intra-oral cameras to ensure you have the best smile possible at an affordable cost. General & Family Dentistry General & Family Dentistry General and family dentistry is the cornerstone of comprehensive oral health care, catering to individuals of all ages and addressing a broad spectrum of dental needs. Invisalign Invisalign Invisalign utilizes a series of clear, virtually invisible aligners to shift your teeth into their desired position gradually. Dental Crowns & Bridges Dental Crowns & Bridges Restorative dentistry is a specialized branch of dental care focused on diagnosing and treating issues affecting teeth and their supporting structures. Botox for TMJ Botox for TMJ In a city buzzing with vitality, we bring you a transformative approach to addressing the discomfort of Temporomandibular Joint (TMJ) disorders. Teeth Extractions Teeth Extractions Tooth extraction is a dental procedure involving removing a tooth from its socket in the jawbone. Cosmetic Dentistry Cosmetic Dentistry Cosmetic dentistry is a specialized field that focuses on enhancing the aesthetic appearance of the smile, encompassing a range of procedures designed to improve the overall look of teeth and gums. THE LATEST TECHNOLOGY At Aloha Dental, we utilize the latest in dental technology in order to deliver the best care possible to our patients. Dental technology has changed tremendously in just the last 20 years. LUMINEERS Ultra-thin LUMINEERS are custom-designed to give you the beautiful smile you've always dreamed of. Unlike traditional veneers, there are no shots, no drilling of sensitive tooth structures, and no pain. IN-HOUSE & TAKE-HOME WHITENING Brighten your smile in just one visit with Zoom Whitening, a safe and powerful in-office treatment designed to lift years of stai",
+        "pages": [
+          {
+            "url": "https://www.aloha-dental.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.aloha-dental.com/"
+          },
+          {
+            "url": "https://www.aloha-dental.com/contact-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.aloha-dental.com/contact-us/"
+          },
+          {
+            "url": "https://www.aloha-dental.com/about-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.aloha-dental.com/about-us/"
+          },
+          {
+            "url": "https://www.aloha-dental.com/our-team/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.aloha-dental.com/our-team/"
+          }
+        ],
+        "emails": [
+          "riverside@aloha-dental.com"
+        ],
+        "phones": [
+          "(512)707-7300",
+          "(512) 494-5655"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2024,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "instagram": "https://www.instagram.com/alohadentaltx/"
+        },
+        "website": "https://www.aloha-dental.com/",
+        "final_url": "https://www.aloha-dental.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/3857696615",
+      "name": "Kunik Orthodontics",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/3857696615",
+        "name": "Kunik Orthodontics",
+        "phone": "+15123277575",
+        "email": "contact@drkunik.com",
+        "website": "https://www.kunikorthodontics.com/",
+        "address": "830 West 3rd Street, Austin, TX 78703",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 3857696615,
+          "lat": 30.2684867,
+          "lon": -97.7534402,
+          "tags": {
+            "name": "Kunik Orthodontics",
+            "phone": "+1-512-327-7575",
+            "amenity": "dentist",
+            "website": "https://www.kunikorthodontics.com/",
+            "addr:city": "Austin",
+            "addr:unit": "1138",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "West 3rd Street",
+            "addr:postcode": "78703",
+            "addr:housenumber": "830",
+            "healthcare:speciality": "orthodontics"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to main content Treatments Invisalign Braces Hybrid Retainers All Ages Before & Afters Invisalign Gallery Braces Gallery Hybrid Gallery About Us Locations Domain Downtown Westlake Service Areas Patient Resources Payment Plans Insurance Faq Notice of Privacy Practices Patient Login Text Us Call Us Free Consultation The Premier Orthodontist in Austin, Texas 3 Convenient Locations in Central Texas to Meet Your Orthodontic Needs Schedule Free Consultation View Treatments Ready to Transform Your Smile? Schedule your free consultation today and take the first step toward your dream smile Schedule Free Consultation Call (512) 327-8818 Text Us Creating beautiful smiles since 1991 Over three decades of experience creating confident, healthy smiles for patients of all ages in Austin, Texas. Top 1% Invisalign Sapphire Provider Recognized as a top-tier Invisalign provider, placing us among the elite orthodontic practices nationwide. State-of-the-art treatment utilizing the latest technology We use cutting-edge orthodontic technology and techniques to deliver efficient, comfortable treatment plans. Get The Smile Of Your Dreams With Austin's Best Orthodontist! Everyone is a candidate! Our team will find the right treatment plan for you, no matter the case. We offer customized orthodontic treatment plans tailored to your unique needs. Invisalign Clear, removable aligners that straighten your teeth discreetly and comfortably. Learn More → Braces Traditional and modern braces options for effective, reliable orthodontic treatment. Learn More → Hybrid Combining the best of both worlds for optimal results tailored to your needs. Learn More → View All Treatment Options Meet Our Team Most experienced orthodontic team in Austin, with over 350 years of combined experience 350+ Years Combined Experience 15+ Team Members Think of us as your go-to orthodontic experts in Austin, Texas! We make your teeth-straightening experience one you can actually look forward to. Meet The Team View All Team Members Our Locations Three convenient locations throughout Austin to serve you better Domain 11821 Rock Rose Ave #140 Austin, TX 78758 (512) 327-7575 Downtown 830 W 3rd St #1138 Austin, TX 78701 (512) 767-1327 Westlake 3423 Bee Caves Rd, C202 Austin, TX 78746 (512) 327-8818 Find Your Location Our Work Real results from real patients. See the transformations we've helped create. View Invisalign Gallery View All Galleries A Trusted Leader in Orthodontic Care Kunik Orthodontics is a top 1% Invisalign Sapphire provider, placing us among the elite orthodontic practices in the nation. The Invisalign Sapphire designation is awarded to fewer than 1% of all Invisalign providers. This achievement reflects our commitment to excellence, expertise in complex cases, and dedication to delivering outstanding results for our patients. When you choose Kunik Orthodontics, you're choosing a practice with proven expertise and a track record of success. Sapphire Invisalign Provider 2026 Top 1% of All Providers Everyone Is a Candidate for Orthodontics in Austin Our orthodontist in Austin offers flexible orthodontic treatment plans for all ages including adults, teens, and children. Learn more about our comprehensive array of treatment options tailored to your specific needs and preferences. All Age Candidates Flexible Orthodontic Financing Plans Starting as low as $150/month We believe everyone deserves the smile of their dreams. Zero-interest financing, flexible down payments, and HSA/FSA accepted. Learn More What Patients Are Saying Real stories from real patients at Kunik Orthodontics “ Great experience at the Domain office with all the very attentive and considerate staff. The office is clean and modern, and being there feels comfortable. Just talking to the staff you know that they have a lot of valuable experience in orthodontic procedures and will do the best to get the results you need. ” Jonathan “ I trust Dr. Kunik. Every time I have had an appointment for myself or my son, the staff has been very professional. Dr Kunik is spot on every time and is very passionate about his craft. He looks at the big picture and then goes through a process to lay out options. You can tell that it is a happy environment; they sincerely like their work. ” Beckie “ Dr. Kunik has been amazing and his team is top notch. I'd been told over and over that I wasn't a good candidate for Invisalign by different providers. Dr. Kunik didn't hesitate to take on my treatment and he never made me feel like a lost cause. I'm happy and confident in my smile now. It's a feeling I've literally never felt before. ” Chela See more reviews on Google Let's Get Social @kunikorthodontics Austin Orthodontist • Over 80% Adult patients • Invisalign & Braces • 3 Austin Locations Follow Us on Instagram Frequently Asked Questions Common questions about orthodontic treatment and our practice How long does orthodontic treatment take? Treatment duration varies depending on your individual case, typically ranging from 12 to 24 months. During your free consultation, we'll provide an estimated treatment timeline based on your specific needs. Do you accept insurance? Yes, we accept most major insurance plans and will work with you to maximize your benefits. We also offer flexible payment plans to make treatment affordable. Learn more about our insurance and payment options. At what age should children have their first orthodontic visit? The American Association of Orthodontists recommends children have their first orthodontic evaluation by age 7. Early evaluation allows us to identify potential issues and determine the best time to begin treatment, if needed. View All FAQs Insurance Accepted We accept most major insurance plans and work with you to maximize your orthodontic benefits. Our team will help you understand your coverage and file claims on your behalf. Learn About Insurance Flexible Payment Plans We offer flexible payment plans to make orthodontic treatment affordable for every",
+        "pages": [
+          {
+            "url": "https://www.kunikorthodontics.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.kunikorthodontics.com/"
+          },
+          {
+            "url": "https://www.kunikorthodontics.com/about",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.kunikorthodontics.com/about"
+          },
+          {
+            "url": "https://www.kunikorthodontics.com/ortho-treatment-guide",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.kunikorthodontics.com/ortho-treatment-guide"
+          }
+        ],
+        "emails": [
+          "contact@drkunik.com"
+        ],
+        "phones": [
+          "5123278818",
+          "+15123277575",
+          "+15127671327"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/RandyKunikDDS",
+          "instagram": "https://www.instagram.com/kunikorthodontics/"
+        },
+        "website": "https://www.kunikorthodontics.com/",
+        "final_url": "https://www.kunikorthodontics.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/3876692988",
+      "name": "Canvas Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/3876692988",
+        "name": "Canvas Dental",
+        "phone": "+15126464505",
+        "email": "smile@canvasdental.com",
+        "website": "https://canvasdental.com/",
+        "address": "8517 Farm to Market Road 1826, Austin, TX 78737",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 3876692988,
+          "lat": 30.2226655,
+          "lon": -97.8917628,
+          "tags": {
+            "name": "Canvas Dental",
+            "email": "smile@canvasdental.com",
+            "phone": "+1-512-646-4505",
+            "amenity": "dentist",
+            "website": "https://canvasdental.com/",
+            "addr:city": "Austin",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "Farm to Market Road 1826",
+            "addr:postcode": "78737",
+            "addr:housenumber": "8517"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to content Services Office Patient Resources About Us Patient Portal Pay Online (512) 646 4505 Appointments Services Office Patient Resources About Us Call Us (512) 646 4505 Online Patient Portal Online Payment Make an Appointment Inspired By You See Our Services Make an Appointment Pay Online Inspired By You See Our Services Make an Appointment Pay Online Every Smile Is Different – So Are We At Canvas Dental, we redefine the dental experience with you in mind. We understand dentistry can be intimidating and is why we focus on building trustworthy relationships. Our friendly doctors and staff take time to listen to your needs so we can work collectively in creating an enjoyable experience. Extra Health & Safety Our heightened protocols ensure the safety of our patients and staff. Make an Appointment A Refreshing Approach to Dentistry Canvas Dental is a modern full-service dental office. We combine the latest technology with thorough expertise and a patient-centered approach for an experience you’ll actually love. General Dentistry For the Whole Family Oral Exams, Teeth Cleanings, Fillings, Crowns, Bridges, X-Rays Cosmetic Dentistry For that Perfect Smile Tooth Colored Restorations, Veneers, Teeth Whitening, Bonding, Tooth Recontouring Specialty Dentistry For Everything Else Root Canals, Dental Implants, Extractions, Dentures, Emergency Care, Night Guards High-End Equipment For Great Results Our modern office uses the latest technology to give you great results with the most comfort. See All Services and Details Dr. Arismendi and Our Caring Team At Canvas Dental, we realize our success and reputation is dependent on the quality of people we employ. Our doctors, hygienists and staff are passionate individuals that strive to provide you and your family the best care and make every experience an enjoyable one. See More About Us Take a Virtual Tour of Our Office We designed our office with you in mind. We have all the right equipment in a modern but welcoming environment for the ultimate comfort. Check Out The Office Request an Appointment Today Your Full Name Your Phone Your Email Patient Type New Patient Existing Patient Reason for Visit New Patient Visit Emergency Dental Check-up/Cleaning Cosmetic/Whitening Broken/Chipped Tooth Tooth Ache/Pain Other Preferred Day (optional) Monday Tuesday Wednesday Thursday Preferred Time (optional) Morning Afternoon Comments to Doctor (optional) How Did You Hear of Us? (optional) Mailer Friend/Family Driving by Online Search Social Media Other Request an Appointment What Our Patients Are Saying My family and I had such a great experience at Canvas Dental! – Gina A. What I was most impressed with was Dr. Arismendi and the level of care and understanding he took with my grandmother. – Briana B. I can smile with no worries or fear. Great Job Canvas Dental Staff and excellent Patient Care Dr. Arismendi. Thank you again! – Maria S. Today was an awesome experience. Everyone made my seven year old feel super comfortable with her visit. They took the time to explain everything so she knew what to expect. – Amy M. Amazing first time visit and so glad I found this dentist. Honest, clean and super capable. You will be glad you went here. He is our new family dentist! – Eileen B. Had a really great experience with this office! The staff is all really kind and friendly and the doctor does great work. I’ll definitely be going back there for all my dental work from now on! – Matt D. Feel Free to Call Us Today at (512) 646 4505 Facebook Yelp Google-plus Canvas Dental – Inspired by You Services General Dentistry Oral Exams Teeth Cleanings Fillings Crowns Bridges Emergency Care Cosmetic Dentistry Veneers Teeth Whitening Bonding Tooth Recontouring Specialty Dentistry Root Canals Dental Implants Extractions Dentures Night Guards Sedation Appointments Appointment Form (512) 646 4505 Resources New Patients Secure Online Patient Portal Online Payment Insurance & Financing Post-Op Instructions About Us About Canvas Our Team Testimonials Our Office 8517 FM 1826 Bldg. 1 Suite 500 Austin, Texas 78737 See Virtual Tour (512) 646 4505 Email Us Facebook Yelp Google Reviews © 2026 Canvas Dental / Privacy Policy / Site by Pacifica Studio\n\nSkip to content Services Office Patient Resources About Us Patient Portal Pay Online (512) 646 4505 Appointments Services Office Patient Resources About Us Call Us (512) 646 4505 Online Patient Portal Online Payment Make an Appointment About Us About Us About Canvas Dental Any dental office can provide dental services, but not all patients enjoy their dental experience. Canvas Dental was created because we understand there is more to your dental experience than just providing dental treatment. We are in the art of humanizing dentistry at Canvas Dental and believe everyone who visits should feel welcomed, comfortable and treated like a close friend or family member rather than just another patient. We are in the people business and take pleasure in getting to know you individually and connecting with you as a person while providing quality care. With each and every visit, our knowledgeable doctors, hygienists and staff will be honest with you, while working with you to recommend only what is necessary to achieve proper oral health as well as meet your smile expectations. Your smile is unique and is your personal piece of art that is displayed every day and we want to make sure we handle you and your smile with the utmost attention. Every staff member at Canvas Dental is passionate about what they do and stays up-to-date through continuing education beyond what is required by the State Board. We utilize modern technology so we can ensure proper treatment while you enjoy your experience here with us. Because of our personal approach, we help decrease much of the anxiety you may have during dental visits. We go above and beyond by providing many amenities to make you feel comfortable as well as offer nitrous and conscious sedation options to help calm ",
+        "pages": [
+          {
+            "url": "https://canvasdental.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://canvasdental.com/"
+          },
+          {
+            "url": "https://canvasdental.com/about-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://canvasdental.com/about-us/"
+          },
+          {
+            "url": "https://canvasdental.com/about-us",
+            "error": null,
+            "status": 200,
+            "final_url": "https://canvasdental.com/about-us/"
+          },
+          {
+            "url": "https://canvasdental.com/services/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://canvasdental.com/services/"
+          }
+        ],
+        "emails": [
+          "smile@canvasdental.com"
+        ],
+        "phones": [
+          "5126464505"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/canvasdental/"
+        },
+        "website": "https://canvasdental.com/",
+        "final_url": "https://canvasdental.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/4966513023",
+      "name": "Austin Dental Center, PC",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/4966513023",
+        "name": "Austin Dental Center, PC",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": "2304 Hancock Drive, Austin, TX 78756",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 4966513023,
+          "lat": 30.3079955,
+          "lon": -97.7485955,
+          "tags": {
+            "name": "Austin Dental Center, PC",
+            "amenity": "dentist",
+            "addr:city": "Austin",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "Hancock Drive",
+            "addr:postcode": "78756",
+            "addr:housenumber": "2304"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/4966513024",
+      "name": "Brush 32 | Central Austin",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/4966513024",
+        "name": "Brush 32 | Central Austin",
+        "phone": null,
+        "email": null,
+        "website": null,
+        "address": "3500 Jefferson Street, Austin, TX 78731",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 4966513024,
+          "lat": 30.3082015,
+          "lon": -97.7523302,
+          "tags": {
+            "name": "Brush 32 | Central Austin",
+            "amenity": "dentist",
+            "addr:city": "Austin",
+            "addr:state": "TX",
+            "addr:street": "Jefferson Street",
+            "addr:postcode": "78731",
+            "addr:housenumber": "3500"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "",
+        "pages": [],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": null,
+          "has_form": null,
+          "page_load_ok": null,
+          "copyright_year": null,
+          "mobile_viewport": null,
+          "https_and_mobile": null
+        },
+        "socials": {},
+        "website": null,
+        "final_url": null
+      }
+    },
+    {
+      "source_key": "osm:node/4966513038",
+      "name": "Smile 360",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/4966513038",
+        "name": "Smile 360",
+        "phone": "+1-512-444-4746",
+        "email": null,
+        "website": "https://www.smile360atx.com/",
+        "address": "1509 South Lamar Boulevard, Austin, TX 78704",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 4966513038,
+          "lat": 30.2518939,
+          "lon": -97.7639533,
+          "tags": {
+            "name": "Smile 360",
+            "phone": "+1-512-444-4746",
+            "amenity": "dentist",
+            "website": "https://www.smile360atx.com/",
+            "addr:city": "Austin",
+            "addr:unit": "#675",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "South Lamar Boulevard",
+            "addr:postcode": "78704",
+            "opening_hours": "09:00-17:30",
+            "addr:housenumber": "1509"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Menu Menu Location (512) 444-4746 Call Contact Menu Menu Location (512) 444-4746 Call Contact Menu Menu Location (512) 444-4746 Call Contact A Modern Cosmetic Dentist & Sleep Apnea Specialist Request an Appointment Call: (512) 444-4746 Helping Austin Patients Look Better And Feel Great Welcome to Smile 360 We understand that the residents of Austin have no shortage of options when it comes to choosing a dentist. But Dr. Vincent Ip and the team at Smile 360 are committed to providing a superior level of care. Unlike other cosmetic dentistry practices in Texas, we know that your teeth and jaws have a profound impact on your mind and body. In addition to enhancing the appearance of your smile, Dr. Ip is qualified to treat dental problems that can lead to other serious health conditions like sleep apnea . Our goal is to improve your smile, and by doing so, improve your quality of life. Learn More About Smile 360 The Smile 360 Difference What Sets Us Apart in Austin? \"Our mission is to provide our patients with excellent and individualized patient-centered dental care in a friendly environment. We are building a practice that will prosper in our local community by treating our patients in such a memorable way that they tell others how great we are!\" Cutting-Edge Technology Advancements in dental technology have dramatically improved the efficiency and quality of traditional dental procedures. While many dentists still rely on old-fashioned methods, Dr. Ip can provide cutting-edge services like same-day dental restorations, 3D imaging and no-mess impressions, and oral cancer detection, all in our Austin office. Affordable Care In order to keep your treatment costs as low as possible, Smile 360 is happy to accept dental insurance through most major providers. If you are uninsured or need additional help with out-of-pocket expenses, we also offer in-house financing for a wide range of procedures and can work with you on a custom payment plan. Connection to Our Community We believe in not only supporting our local community in Austin but in giving back to the world in a broader sense. In addition to volunteering with nonprofits like Smiles on Wheels to provide dental work to underserved populations, our team has implemented several sustainability initiatives to help combat climate change. The Best Smile of Your Life Starts at Smile 360 Join Our Dental Practice Today Learn more about how our dentist can help you achieve your best smile by scheduling a consultation at our Austin office. Inquire about our availability online , or give us a call at: (512) 640-0426 Request an Appointment Austin, TX, Loves Our Dental Care Amy DeFrank 2024 Best dental experience I have ever had. Dr. Ip is passionate about his practice. He and his team are world class! I highly recommend SMILE 360 View on Google Lorenzo Loya 2024 Love coming to smile 360! The staff and Dr. Ip are knowledgeable and friendly! I trust them to take care of my dental needs! View on Google Meet Our Austin Dentist Dr. Vincent Ip Dr. Vincent Ip is an airway-focused, physiologic and cosmetic dentist redefining modern dentistry in Austin, TX. As the founder of Smile 360, he provides patient-centered care that blends advanced airway science with refined aesthetic dentistry — because lasting beauty begins with health. Dr. Ip believes that optimal smile design, jaw development, and facial aesthetics must be supported by proper airway function and structural balance. By evaluating breathing patterns, bite dynamics, skeletal development, and sleep quality, he ensures cosmetic results are not only beautiful, but biologically sound and built to last. Patients seek Dr. Ip for veneers, comprehensive smile transformations, and aesthetic rehabilitation, as well as solutions for snoring, clenching, TMJ discomfort, and sleep-disordered breathing. As a Diplomate of the American Board of Dental Sleep Medicine — a distinction held by only nine dentists in Austin — he has advanced training in treating sleep-related breathing disorders with oral appliance therapy. Dr. Ip earned his undergraduate degree from The University of Texas at Austin and his Doctor of Dental Surgery from New York University College of Dentistry. Through ongoing post-doctoral education, he continues refining his expertise at the intersection of health, function, and aesthetics to provide a comfortable, elevated dental experience for every patient. Get to Know Dr. Vincent Ip Dr. Ip's Professional Affiliations Aesthetics, Airways, Alignment Our Treatment Specialities Cosmetic Dentistry While oral health is undoubtedly a priority, the aesthetic elements of your smile are just as important in your dental care. You can look and feel like the best version of yourself thanks to our wide selection of modern cosmetic treatments. Dr. Ip stays up to date on the latest techniques and technology to provide superior results that are customized for your appearance and your goals. Learn More about Cosmetic Dentistry Sleep Apnea Therapy Many people who suffer from obstructive sleep apnea (OSA) do not realize the serious side effects of the condition and fail to get properly diagnosed. Fortunately, Dr. Ip has undergone extensive training in dental sleep medicine, the specialty of dentistry focused on treating snoring and sleep apnea. Unlike most dentists, Dr. Ip can provide upper airway examinations to diagnose sleep disorders. Furthermore, we offer conservative therapies for OSA that can improve your sleep without the need for uncomfortable CPAP machines. Learn More about Sleep Apnea Invisalign Looking for a straighter smile without braces? Invisalign® is a great alternative for many common orthodontic issues including overbites, underbites, and crooked teeth. Instead of obvious metal brackets and wires, you can wear nearly invisible trays that gently shift your teeth into their proper position. As an Invisalign Gold Plus Provider, Dr. Ip treats dozens of Austin patients a year with the clear aligner system a",
+        "pages": [
+          {
+            "url": "https://www.smile360atx.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.smile360atx.com/"
+          },
+          {
+            "url": "https://www.smile360atx.com/contact/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.smile360atx.com/contact/"
+          },
+          {
+            "url": "https://www.smile360atx.com/about-the-practice",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.smile360atx.com/about-the-practice/"
+          },
+          {
+            "url": "https://www.smile360atx.com/services/sleep-apnea-treatment/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.smile360atx.com/services/sleep-apnea-treatment/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "+15124444746",
+          "+15126400426"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "x": "https://twitter.com/SMILE360ATX",
+          "facebook": "https://www.facebook.com/SMILE360",
+          "instagram": "https://www.instagram.com/smile360atx"
+        },
+        "website": "https://www.smile360atx.com/",
+        "final_url": "https://www.smile360atx.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/5157878032",
+      "name": "Ortho 360 Orthodontics",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/5157878032",
+        "name": "Ortho 360 Orthodontics",
+        "phone": "+1-512-340-0360",
+        "email": null,
+        "website": "https://www.ortho360.com/",
+        "address": "1500 West 38th Street, Austin, TX 78731",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 5157878032,
+          "lat": 30.3081582,
+          "lon": -97.7487578,
+          "tags": {
+            "fax": "+1-512-494-5824",
+            "name": "Ortho 360 Orthodontics",
+            "phone": "+1-512-340-0360",
+            "amenity": "dentist",
+            "website": "https://www.ortho360.com/",
+            "addr:city": "Austin",
+            "addr:unit": "27",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "West 38th Street",
+            "addr:postcode": "78731",
+            "opening_hours": "Mo-We 07:45-16:30; Th 07:00-15:00; Fr 08:00-12:00",
+            "addr:housenumber": "1500",
+            "healthcare:speciality": "orthodontics"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "About Us Dr. Amber Burgess Dr. Stanton J. Henry Careers Reviews Review 38th St Review Avery Ranch Review Bastrop Review Liberty Hill Review Moulton Review Lakeway Treatments Invisalign Braces WildSmiles Braces Early Orthodontic Treatment Zoom Teeth Whitening Before & After For Patients Financing Insurance AAO Transfer Form How To Care For Braces How To Turn Your Expander Handling Orthodontic Issues At Home Locations 38th Street Avery Ranch Bastrop Liberty Hill Moulton Lakeway Doctor Referral Text Us 512-716-0307 Call Us Now! Complimentary Consultation Complimentary Consultation About Us Dr. Amber Burgess Dr. Stanton J. Henry Careers Reviews Review 38th St Review Avery Ranch Review Bastrop Review Liberty Hill Review Moulton Review Lakeway Treatments Invisalign Braces WildSmiles Braces Early Orthodontic Treatment Zoom Teeth Whitening Before & After For Patients Financing Insurance AAO Transfer Form How To Care For Braces How To Turn Your Expander Handling Orthodontic Issues At Home Locations 38th Street Avery Ranch Bastrop Liberty Hill Moulton Lakeway Complimentary Consultation Complimentary Consultation Doctor Referral Doctor Referral Perfecting Smiles in 6 Locations in Texas, Doctor Owned Since 2001 - Orthodontics For Children and Adults hablamos espanol Complimentary Consultation Complimentary Consultation Orthodontist Austin TX Crafting Smiles in Texas Welcome to Ortho 360, where creating smiles is what we do best! Dr. Amber Burgess, Dr. Stanton Henry, and our friendly, talented team can’t wait to meet you. We’re not just about straightening teeth we’re all about making your orthodontic journey comfortable, fun, and tailored just for you. From kiddos to adults, we love bringing out the best in every smile! Plus, we’re here to make things easy for everyone our team speaks Spanish, so all patients feel at home. With convenient locations in Central Austin , Bastrop , Avery Ranch , Liberty Hill , Moulton , and Lakeway , we’re always nearby to serve you. Whether you’re looking for traditional braces, clear braces, or Invisalign, we’ve got options to suit your lifestyle and our interest-free financing keeps it hassle-free. Let’s make your dream smile a reality and schedule now ! Austin Orthodontists Crafting Smiles in Texas Meet Our Patients Discover We are not your typical orthodontic office. At Ortho 360, we believe orthodontics should be just as fun as it is effective. Our team is full of energy, laughs, and a little bit of silliness because we know a great experience leads to the best smiles! We are not your typical orthodontic office; we love making our patients feel at home and comfortable while working magic on their smiles. We keep things fun and friendly, and we know a good time is as contagious as a beautiful smile ! We Love Social ¡Hablamos Español! Central Austin 38th Street, 1600 W 38th St #321, Austin, TX 78731 Avery Ranch 10510 W Parmer Ln #112, Austin, TX 78717 Bastrop 3965 Highway 71 E Bastrop, TX 78602 Liberty Hill 14365 Hwy 29 Suite 12 Liberty Hill, TX 78642 Moulton 112 S Main St Moulton, TX 77975 Lakeway 1 Lakeway Centre Ct A Lakeway, TX 78734 Ask About Your Complimentary Consultation Best Contact Method Text Email Phone Call Desired Office Central Austin Avery Ranch Bastrop Liberty Hill Moulton Lakeway Δ 2026 © Ortho360 Orthodontics • All Rights Reserved • Privacy Policy Website by Duptronics\n\nAbout Us Dr. Amber Burgess Dr. Stanton J. Henry Careers Reviews Review 38th St Review Avery Ranch Review Bastrop Review Liberty Hill Review Moulton Review Lakeway Treatments Invisalign Braces WildSmiles Braces Early Orthodontic Treatment Zoom Teeth Whitening Before & After For Patients Financing Insurance AAO Transfer Form How To Care For Braces How To Turn Your Expander Handling Orthodontic Issues At Home Locations 38th Street Avery Ranch Bastrop Liberty Hill Moulton Lakeway Doctor Referral Text Us 512-716-0307 Call Us Now! Complimentary Consultation Complimentary Consultation About Us Dr. Amber Burgess Dr. Stanton J. Henry Careers Reviews Review 38th St Review Avery Ranch Review Bastrop Review Liberty Hill Review Moulton Review Lakeway Treatments Invisalign Braces WildSmiles Braces Early Orthodontic Treatment Zoom Teeth Whitening Before & After For Patients Financing Insurance AAO Transfer Form How To Care For Braces How To Turn Your Expander Handling Orthodontic Issues At Home Locations 38th Street Avery Ranch Bastrop Liberty Hill Moulton Lakeway Complimentary Consultation Complimentary Consultation Doctor Referral Doctor Referral About Ortho 360 Welcome to Ortho 360, where creating smiles is what we do best! Dr. Amber Burgess, Dr. Stanton Henry, and our friendly, talented team can’t wait to meet you. We’re not just about straightening teeth—we’re all about making your orthodontic journey comfortable, fun, and tailored just for you. From kiddos to adults, we love bringing out the best in every smile! Plus, we’re here to make things easy for everyone—our team speaks Spanish, so all patients feel at home. With convenient locations in Central Austin, Bastrop, Avery Ranch, Liberty Hill, Moulton, and Lakeway, we’re always nearby to serve you. Whether you’re looking for traditional braces, clear braces, or Invisalign, we’ve got options to suit your lifestyle—and our interest-free financing keeps it hassle-free. Ready to start your smile transformation? Contact us today for your complimentary consultation. Let’s make your dream smile a reality! We Strive Daily to Give The Best Orthodontic Treatments in Austin We care about our patients and the pursuit of excellence in our practice, and we invest many outside hours as orthodontic educators for students and practitioners. Please take your time looking through our website to find out more information about the latest orthodontic treatment options. Our education, honors, publications and professional affiliations will provide you with plenty of reasons to place your trust in us as your orthodontic specialists. But if you’re wondering what ",
+        "pages": [
+          {
+            "url": "https://www.ortho360.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.ortho360.com/"
+          },
+          {
+            "url": "https://www.ortho360.com/about-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.ortho360.com/about-us/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "512-716-0307",
+          "+1-512-321-1000",
+          "+1-512-263-1661"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": null,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/ortho360/",
+          "linkedin": "https://www.linkedin.com/company/ortho-360-orthodontics/mycompany/?viewAsMember=true",
+          "instagram": "https://www.instagram.com/ortho_360/"
+        },
+        "website": "https://www.ortho360.com/",
+        "final_url": "https://www.ortho360.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/8301802491",
+      "name": "Valencia Smiles",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/8301802491",
+        "name": "Valencia Smiles",
+        "phone": "+1-512-609-8228",
+        "email": null,
+        "website": "https://valenciasmilesdentalcare.com/",
+        "address": "911 West Anderson Lane, Austin, TX 78757",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 8301802491,
+          "lat": 30.3476641,
+          "lon": -97.7148387,
+          "tags": {
+            "name": "Valencia Smiles",
+            "phone": "+1-512-609-8228",
+            "amenity": "dentist",
+            "website": "https://valenciasmilesdentalcare.com/",
+            "addr:city": "Austin",
+            "addr:unit": "115",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "West Anderson Lane",
+            "addr:postcode": "78757",
+            "opening_hours": "Mo-Fr 09:00-17:00",
+            "addr:housenumber": "911"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Call Us +1 (512) 609 82 28 info@valenciasmilesdentalcare.com Home About Us Blog Services Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Treatment Implants Dentures Veneers Referral Forms Contact Facebook Instagram Tiktok Youtube Home About Us Blog Services Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Treatment Implants Dentures Veneers Referral Forms Contact Facebook Instagram Tiktok Youtube © Copyright 2026 DENTISTRY COMPLETE & COMPREHENSIVE* FAMILY MODERN DENTISTRY CLINIC Meet the Doctors Dr. Dario A. Valencia DDS Prosthodontist Dr. Melody Salehi DDS Cosmetic and General Dentist Dr. Deana Smalls DDS Cosmetic and General Dentist Dr. Lilia Marcela Ferral DDS Periodontist Schedule an Appointment Convenient Weekday Hours Monday to Thursday 9:00am - 5:00pm Friday 9:00am - 4:00pm Find Our Office Visit our great location in 911 W. Anderson Ln #115 Austin, Tx 78757 FAMILY DENTIST Welcome To Valencia Smiles Dental Care Valencia Smiles is a family and cosmetic dental office, taking care of all dental needs for the entire family. Dr. Dario Valencia and his trained staff of dental professionals at Valencia Smiles Dental Care are pleased to serve their family of patients from throughout the Austin, TX area. We believe that part of providing a better quality of service involves being able to communicate with all of our patients, which is why our staff is bilingual, making it easier to better serve both our English-speaking and Spanish-speaking patients. SERVICES Our Services Trusted Dental Care For The Entire Family Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Services Implants Dentures Veneers METODS Financing Methods DENTISTS Meet The Doctors Dr. Dario A. Valencia, DDS Prosthodontist Dr. Melody Salehi, DDS Cosmetic and General Dentist Dr. Deana Smalls, DDS Cosmetic and General Dentist Dr. Lilia Marcela Ferral. DDS Periodontist PATIENTS 5 STARS DENTAL CARE Our Patients At Valencia Smiles, we understand how important it is for you and every member of your family to have a pleasant, comfortable experience at the dentist’s office. That’s why we are proud to provide the highest-quality professional dental services to both our English-speaking and Spanish-speaking patients. Visit us today and enjoy personalized, caring, one-on-one services from Dr. Valencia and our entire staff. Lucas Patient Excellent service. All the staff is very professional and extremely friendly. They make you feel comfortable and keep you well informed of all the options that you have for your treatment. Highly recommended. Letti Patient Wonderful place!! 100% recommended!!! Staff are super friendly and attentive!!! Best dental office, and the Dr. Valencia is awesome. Chelsea Patient Dr. Valencia and his entire staff are amazing. From scheduling, to billing, to the dental care they provide; 5 stars! Thanks Valencia Smiles for taking excellent care of my family! OFFICE Our Office Facebook Instagram Youtube Adress: 911 W. Anderson lane #115 Austin, TX 78757 Phone: (512) 609-8228 Hours Monday to Thursday 9:00am - 5:00pm Friday 9:00am - 4:00pm Services Cleanings Withening Root Canal Implants Bridges Dentures Extractions Veneers Crownns Fillings Periodontal Services Social Networks Facebook Instagram Youtube Contact Us (512) 609-8228 911 W. Anderson Ln #115 Austin, TX 78757 Dental Emergencies (317) 946-7724 E-Mail: info@ valenciasmilesdentalcare.com //N3W CH4T Copyright © 2026 Valencia Smiles Dental CAre. All Rights Reserved | Powered by DSTec.com.co Contact Us Privacy Policy imunify-bot-check\n\nCall Us +1 (512) 609 82 28 info@valenciasmilesdentalcare.com Home About Us Blog Services Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Treatment Implants Dentures Veneers Referral Forms Contact Facebook Instagram Tiktok Youtube Home About Us Blog Services Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Treatment Implants Dentures Veneers Referral Forms Contact Facebook Instagram Tiktok Youtube © Copyright 2026 Contact CONTACT Get in touch with us ... Send Your Message —Please choose an option— Cleanings Root Canal Bridges Crowns Fillings Whitening Implants Dentures Veneers Others By completing this form, you are giving us permission to follow-up by phone, email or text.(*) Phone +1 (512) 609 82 28 Address 911 W. Anderson lane #115 Austin, TX 78757 Support info@valenciasmilesdentalcare.com Services Cleanings Withening Root Canal Implants Bridges Dentures Extractions Veneers Crownns Fillings Periodontal Services Social Networks Facebook Instagram Youtube Contact Us (512) 609-8228 911 W. Anderson Ln #115 Austin, TX 78757 Dental Emergencies (317) 946-7724 E-Mail: info@ valenciasmilesdentalcare.com //N3W CH4T Copyright © 2026 Valencia Smiles Dental CAre. All Rights Reserved | Powered by DSTec.com.co Contact Us Privacy Policy imunify-bot-check\n\nCall Us +1 (512) 609 82 28 info@valenciasmilesdentalcare.com Home About Us Blog Services Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Treatment Implants Dentures Veneers Referral Forms Contact Facebook Instagram Tiktok Youtube Home About Us Blog Services Cleanings Root Canal Bridges Extractions Crowns Fillings Whitening Periodontal Treatment Implants Dentures Veneers Referral Forms Contact Facebook Instagram Tiktok Youtube © Copyright 2026 About Us DENTALCARE About Valencia Smiles Dental Care Dr. Dario Valencia and his trained staff of dental professionals are pleased to serve their family of patients from throughout the Austin, TX area. We believe that part of providing a better quality of service involves being able to communicate with all of our patients, which is why our staff is bilingual, making it easier to better serve both our English-speaking and Spanish-speaking patients. Of course, the other critical part of providing an excellent quality of service involves the training and experience of Dr. Valencia an",
+        "pages": [
+          {
+            "url": "https://valenciasmilesdentalcare.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.valenciasmilesdentalcare.com/indexnew/"
+          },
+          {
+            "url": "https://www.valenciasmilesdentalcare.com/indexnew/contact/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.valenciasmilesdentalcare.com/indexnew/contact/"
+          },
+          {
+            "url": "https://www.valenciasmilesdentalcare.com/indexnew/about/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.valenciasmilesdentalcare.com/indexnew/about/"
+          },
+          {
+            "url": "https://www.valenciasmilesdentalcare.com/indexnew/services/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.valenciasmilesdentalcare.com/indexnew/services/"
+          }
+        ],
+        "emails": [
+          "info@valenciasmilesdentalcare.com",
+          "support@yoursite.com"
+        ],
+        "phones": [
+          "0015126098228",
+          "+13179467724"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/ValenciaSmiles/",
+          "instagram": "https://www.instagram.com/ValenciaSmiles/"
+        },
+        "website": "https://valenciasmilesdentalcare.com/",
+        "final_url": "https://www.valenciasmilesdentalcare.com/indexnew/"
+      }
+    },
+    {
+      "source_key": "osm:node/8421607399",
+      "name": "BLVD Dentistry & Orthodontics",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/8421607399",
+        "name": "BLVD Dentistry & Orthodontics",
+        "phone": "+1-512-640-8747",
+        "email": "austin@blvddentistry.com",
+        "website": "https://www.blvddentistry.com/",
+        "address": "1920 East Riverside Drive, Austin, TX 78741",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 8421607399,
+          "lat": 30.2427465,
+          "lon": -97.7284544,
+          "tags": {
+            "name": "BLVD Dentistry & Orthodontics",
+            "email": "austin@blvddentistry.com",
+            "phone": "+1-512-640-8747",
+            "amenity": "dentist",
+            "website": "https://www.blvddentistry.com/",
+            "addr:city": "Austin",
+            "addr:unit": "A-140",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "East Riverside Drive",
+            "addr:postcode": "78741",
+            "opening_hours": "Mo 09:00-18:00; Tu-Th 08:00-17:00; Fr 08:00-14:00",
+            "addr:housenumber": "1920",
+            "healthcare:speciality": "dentist;orthodontics;emergency"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to main content Patient Forms (opens a PDF file) Insurance Blog Contact Us Locations Image Locations AUSTIN 5th Street Riverside HOUSTON Galleria Heights Oak Forest Richmond Spring Cypress FORT WORTH Hulen About Us Book An Appointment Select Page BOOK AN APPOINTMENT A healthy smile you love is just around the corner. Compassionate, stress-free dental care for the whole family. Book An Appointment Find your nearest location Get in. Get exceptional care. Get on with your day. At BLVD Dentistry & Orthodontics, we redefine dental experiences. Expect exceptional care in a modern, comfortable setting. We prioritize your needs and never recommend unnecessary services. Scheduling is as easy as ordering takeout. Love your dental visits with us! What our patients say Monica G. | Google Reviews I have been going to these guys for a very long time and am extremely satisfied with the professionalism of all staff. The dentist are very good at what they do and the hygienist are extremely qualified. There is very little wait time and I have always been satisfied with the treatments. I liked them so much I have started to take my kids in too. My youngest son got his braces there and the orthodontist is super, and so good with my teen. Making an appointment is easy, no time on hold and they always return calls in a timely manner. Thank you all for the great work that you do! Heather G. | Google Reviews I couldn’t possibly say enough nice things about BLVD Dentistry. Personally, I’ve never experienced this level of customer service in any dental or doctor capacity. They truly go above and beyond in every respect (they even send a nice postcard after your first visit). Other notes: Their scheduling is flexible (no waiting months for a visit!) and they’re great at working with you to fit in appointments. Regarding billing: They showed me the cost breakdown before I chose to proceed with the dental work, and committed to it even though they had to do a bit of extra (and unplanned) work. They’re also reasonably priced. Kristine C.S.| Google Reviews Best dental clinic for young kids, I used to worry every time its dental appointment with kids as they will immediately think of the Dentist as a Monster, our recent visit with the BLVD Dentistry & Orthodontics was really the most enjoyable one, first time that both my kids were so happy coming in and leaving the clinic, thank you very much to all the staff, they are all extremely friendly and really showed cared ensuring the kids will be comfortable, loved and well taken care of. No best words to describe how we are so elated with the customer service experience you showed us. Find a location AUSTIN 5th Street Riverside HOUSTON Galleria Heights Oak Forest Richmond Spring Cypress FORT WORTH Hulen 5TH STREET 1011 W 5th St Ste 120 Austin, TX 78703, USA (737) 990-4135 blvd5thstreet@mb2dental.com Mon: 9:00am – 6:00pm Tue - Thu: 8:00am – 4:00pm Fri: 7:00am – 2:00pm Emergency Dentistry and Walk In Dentistry Available. Learn More RIVERSIDE 1920 E Riverside Dr, Suite A-140, Austin, TX 78741, USA 512.640.8747 austin@blvddentistry.com Mon 9:00am–6:00pm Tue 8:00am–5:00pm Wed 8:00 am–5:00pm Thu 8:00am–5:00pm Fri 8:00am–2:00pm Emergency Dentistry and Walk In Dentistry Available. Learn More GALLERIA 5000 Westheimer Rd #630, Houston, TX 77056, USA 832.709.2420 galleria@blvddentistry.com Monday, Tuesday & Thursday: 8 AM–5 PM Wednesday: 7 AM–3 PM Friday: 8 AM–2 PM Emergency Dentistry and Walk In Dentistry Available. Learn More HEIGHTS 107 Yale St #300, Houston, TX 77007, USA 832.709.2418 heights@blvddentistry.com Mon-Tue 7:00am–7:00pm Wed-Thu 8:00am–5:00pm Fri 7:00am–4:00pm Sat 8:00am–2:00pm Emergency Dentistry and Walk In Dentistry Available. Learn More OAK FOREST 1343 W 43rd Suite F, Houston, TX 77018, USA 713.454.7594 oakforest@blvddentistry.com Mon, Tue, Thu 8:00am–5:00pm Wed 9:00am–6:00pm Fri 8:00am–2:00pm Emergency Dentistry and Walk In Dentistry Available. Learn More RICHMOND 18320 W. Airport Blvd, Suite 200, Richmond, TX 77407 281.552.8720 Richmond@blvddentistry.com Mon-Thu 8:00am–5:00pm Fri 8:00am–12:00pm Emergency Dentistry and Walk In Dentistry Available. Learn More SPRING 21301 Kuykendahl Rd Suite D, Spring, TX 77379, USA 281.205.0948 spring@blvddentistry.com Mon-Tue 8:00am–5:00pm Wed 7:00am–4:00pm Thu 9:00am–6:00pm Fri 8:00am–2:00pm Emergency Dentistry and Walk In Dentistry Available. Learn More HULEN 2739 S Hulen St, Fort Worth, TX 76109, USA 817-678-4908 hulen@blvddentistry.com Mon 8:30-5:30 Tue 7:00-3:00 Wed 8:30-5:30 Thu 7:00-3:00 Fri 8:30-1:30 Emergency Dentistry and Walk In Dentistry Available. Learn More Austin 5th Street Riverside Houston Galleria Heights Oak Forest Richmond Spring Cypress Hulen Let’s Get You Scheduled! Poor dental hygiene and neglecting small oral issues can lead to pain and expenses. Proactively care for your smile to ensure it doesn’t hinder your world. Schedule an appointment. With nine convenient locations, scheduling at a time and office that suits you is effortless. Walk-in appointments are also welcomed. Have a great visit. Discover a dental experience tailored just for you and your loved ones. Smile confidently. Cross one task off your checklist and rest assured that your dental health is well taken care of! Book An Appointment Our Dental Services At BLVD Dentistry & Orthodontics, we strive to make dental visits pleasant and stress-free. Our offices are designed with patient comfort in mind. Whether it’s a routine checkup or extensive dental work, we’ll discuss any concerns before treatment, ensuring all your questions are answered in a relaxed, pressure-free environment. Cosmetic Bonding Crowns Dentures & Bridges Invisalign® Sedation Dentistry Teeth Whitening Tooth Colored Fillings Braces Endodontics Dental Implants Veneers Wisdom Teeth Removal Emergency Dentistry Our mission & values W A welcoming and friendly atmosphere for both patients and their family members. W A detailed presentation of necessary treatments, coupled with va",
+        "pages": [
+          {
+            "url": "https://www.blvddentistry.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.blvddentistry.com/"
+          },
+          {
+            "url": "https://www.blvddentistry.com/about/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.blvddentistry.com/about/"
+          },
+          {
+            "url": "https://www.blvddentistry.com/dental-services/cosmetic-bonding/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.blvddentistry.com/dental-services/cosmetic-bonding/"
+          }
+        ],
+        "emails": [
+          "austin@blvddentistry.com",
+          "galleria@blvddentistry.com",
+          "heights@blvddentistry.com",
+          "oakforest@blvddentistry.com",
+          "richmond@blvddentistry.com",
+          "spring@blvddentistry.com",
+          "hulen@blvddentistry.com",
+          "cypress@blvddentistry.com",
+          "blvd5thstreet@mb2dental.com"
+        ],
+        "phones": [
+          "7379904135",
+          "5126408747",
+          "8327092420",
+          "8327092418",
+          "7134547594",
+          "2815528720",
+          "2812050948",
+          "8176784908",
+          "2812705282",
+          "8177565105"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {},
+        "website": "https://www.blvddentistry.com/",
+        "final_url": "https://www.blvddentistry.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/8507869276",
+      "name": "Austin Children's Dentistry",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/8507869276",
+        "name": "Austin Children's Dentistry",
+        "phone": "+1-512-716-1500",
+        "email": null,
+        "website": "https://www.austinchildrensdentistry.com/",
+        "address": "10510 West Parmer Lane, Austin, TX 78717",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 8507869276,
+          "lat": 30.4965582,
+          "lon": -97.7738987,
+          "tags": {
+            "name": "Austin Children's Dentistry",
+            "phone": "+1-512-716-1500",
+            "amenity": "dentist",
+            "website": "https://www.austinchildrensdentistry.com/",
+            "addr:city": "Austin",
+            "addr:unit": "100",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "West Parmer Lane",
+            "addr:postcode": "78717",
+            "opening_hours": "Mo-Fr 07:30-17:00",
+            "addr:housenumber": "10510"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to main content A fully integrated care experience designed around the needs of growing children and busy families. Austin Round Rock Leander Pediatric dentistry and orthodontics under one roof From early dental development through orthodontic planning and treatment, we offer a unified, family‑centered environment that supports long‑term oral health with comfort, continuity, and expertise. Our collaborative approach streamlines scheduling, improves communication, and ensures consistent, high‑quality care as your child grows. Pediatric Dentistry Orthodontists Austin 13616 N Highway 183, Unit A Austin, TX 78750 Pediatric Dentistry (512) 333-0945 Learn more Orthodontics (512) 258-9007 Learn more Round Rock 893 N Interstate Hwy 35, Suite 210 & Suite 110 Round Rock, TX 78664 Pediatric Dentistry (512) 893-6357 Learn more Orthodontics (512) 258-9007 Learn more Leander 1395 US-183, Suite 140 Leander, TX 78641 Pediatric Dentistry (512) 893-6184 Learn more Orthodontics (512) 258-9007 Learn more (512) 687-9139 (512) 774-5655",
+        "pages": [
+          {
+            "url": "https://www.austinchildrensdentistry.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.austinchildrensdentistry.com/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "+15123330945",
+          "+15122589007",
+          "+15128936357",
+          "+15128936184",
+          "+15126879139",
+          "+15127745655"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": false,
+          "page_load_ok": true,
+          "copyright_year": null,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "x": "https://x.com/austinchildrens",
+          "facebook": "https://www.facebook.com/profile.php?id=100044452465703",
+          "instagram": "https://www.instagram.com/austinchildrensdentistry/"
+        },
+        "website": "https://www.austinchildrensdentistry.com/",
+        "final_url": "https://www.austinchildrensdentistry.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/8530550364",
+      "name": "Walden Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/8530550364",
+        "name": "Walden Dental",
+        "phone": "+1-512-337-8560",
+        "email": null,
+        "website": "https://www.waldendentaltx.com/",
+        "address": "9800 North Lake Creek Parkway, Cedar Park, TX 78613",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 8530550364,
+          "lat": 30.4744021,
+          "lon": -97.794144,
+          "tags": {
+            "name": "Walden Dental",
+            "phone": "+1-512-337-8560",
+            "amenity": "dentist",
+            "website": "https://www.waldendentaltx.com/",
+            "addr:city": "Cedar Park",
+            "addr:unit": "150",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "North Lake Creek Parkway",
+            "addr:postcode": "78613",
+            "opening_hours": "Mo-Fr 08:00-17:00",
+            "addr:housenumber": "9800"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to content 9800 N Lake Creek Pkwy #150, Austin, TX 78717 Menu Home About Meet Dr. Frank Our Team Our Technology Patient Stories Patient Case Studies Smile Gallery Walden Dental in the News Services General Dentistry Cosmetic Dentistry Dental Implants Emergency Dentistry Dental Cleanings & Exams Dental Fillings Same-Day Crowns Smile Makeover Teeth Whitening Veneers Patient Resources Dental Videos Patient Forms Frequently Asked Questions Insurance Options Finance Options Refer a Friend Blog Contact Call Book Online (512) 337-8560 Book Online Walden Dental · Austin, Texas Comprehensive Dental Care in Austin Walden Dental provides comprehensive dental care for adults in Austin, near Cedar Park. Preventive, restorative, and cosmetic care, with time to talk through your options. Book Online Call (512) 337-8560 Book a visit online, or call our Austin team for help getting started. Ⅱ Pause video One Austin office Near Cedar Park Adult dental care Personalized care for adults Online scheduling Choose a visit time directly Financial information Insurance, payment, and CareCredit resources Your dental home in Austin Good care starts with getting to know you Walden Dental provides complete dental care for adults and seniors at one North Austin office. Our team takes time to understand your needs, preferences, and goals before recommending a path forward. We combine preventive, restorative, implant, and cosmetic options with modern technology and straightforward next steps. If you are planning around a budget, review our financing information, including CareCredit , and our insurance information before your visit. Explore your options Find the care you need From a brighter smile to replacing a missing tooth, explore your options with our Austin team. Cosmetic Dentistry A thoughtful approach to the shape, color, and balance of your smile. View cosmetic dentistry ↗ Dental Implants Explore your options for replacing missing teeth. ↗ Dental Veneers Address the shape, color, and appearance of your teeth. ↗ Same-Day Crowns CEREC technology supports selected crowns in one visit. ↗ Teeth Whitening Professional whitening, including in-office Zoom treatment. ↗ Smile Makeover Bring your cosmetic goals together in one treatment plan. ↗ Your dentist Meet Dr. David Frank, DMD Owner and Founder of Walden Dental Dr. Frank moved with his family to Central Texas to open Walden Dental after becoming fond of the region during his service in the Air Force. Today, he leads the Austin practice with a personal, practical approach to care. Dr. Frank studied at the United States Air Force Academy and earned his dental degree at Tufts University School of Dental Medicine. Read Dr. Frank's story Credentials & Recognition A commitment to continued learning. Dr. David Frank completed the Institute of Houston Dental Synergy Implant Fellowship in spring 2021. Implant Fellowship Institute of Houston Dental Synergy Spring 2021 View all credentials → People first A team that gets to know you Dental care is personal. The Walden Dental team works to understand what matters to you, explain options clearly, and keep each next step easy to follow. Meet the Walden Dental team Plan your visit Technology and ways to pay Learn about our technology and payment options before your visit. Your exam, treatment plan, and current benefits will determine what applies to your care. Digital radiographs Selected according to clinical need to help examine areas that are not visible during a clinical exam and support treatment planning. Intraoral images Enlarged color photos and video can help you and Dr. Frank review findings and discuss treatment choices together. CEREC CAD/CAM On-site design and milling can support selected same-day crown and applicable restorative or cosmetic cases. Electric handpieces Used during applicable restorative and cosmetic procedures, including selected crown and veneer preparation. Zoom whitening An in-office whitening option available through the practice. Explore Walden Dental technology Ways to plan for care Payment and insurance information We accept Visa, Mastercard, Discover, American Express, and HSA cards. CareCredit financing is also available, subject to the provider’s approval and terms. View insurance carriers Ameritas PPO, Anthem Blue Cross Blue Shield, Assurant, Connection Dental (GEHA), Guardian PPO, Humana PPO, MetLife PPO, Principal PPO, Sun Life Financial, Unicare, and UnitedHealthcare. Please confirm participation and benefits before treatment. Ask our team about the in-office discount plan for patients without insurance. Current pricing, eligibility, and terms apply; veneers and cosmetic services are excluded. Review insurance information Explore payment and financing options Patient gallery Smiles from our patients Get to know some of the smiles in our patient gallery. Each treatment plan and result is individual. View the Smile Gallery 4.9 ★★★★★ Google rating Patient experience 1,484 reviews. One Austin team. Every review reflects an individual experience. Read patient stories shared by the practice. Read Patient Stories Posted on Google Emily Long Trustindex verifies that the original source of the review is Google. We have been going to Walden for years. We always receive excellent care! They fixed my husband’s crown that was done wrong at two other dentist’s offices. They are conservative with their treatment plans and work amazingly with cash pay patients. Clean, friendly, on time care! Posted on Google Joseph Clutter Trustindex verifies that the original source of the review is Google. Went in for a cleaning. Staff were very friendly and accommodating. Exceptional first-time experience! Posted on Google Oksana Trustindex verifies that the original source of the review is Google. I cannot recommend Dr. Frank highly enough! I came to his practice seeking a second opinion regarding a tooth implant and a veneer, and I am incredibly grateful that I did.From the moment I walked in, the experience w",
+        "pages": [
+          {
+            "url": "https://www.waldendentaltx.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.waldendentaltx.com/"
+          },
+          {
+            "url": "https://www.waldendentaltx.com/contact-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.waldendentaltx.com/contact-us/"
+          },
+          {
+            "url": "https://www.waldendentaltx.com/our-team/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.waldendentaltx.com/our-team/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "+15123378560"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "x": "https://twitter.com/dental_walden",
+          "facebook": "https://www.facebook.com/waldendentalaustin/",
+          "instagram": "https://www.instagram.com/waldendental/"
+        },
+        "website": "https://www.waldendentaltx.com/",
+        "final_url": "https://www.waldendentaltx.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/9384814115",
+      "name": "Union Dental Salon",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/9384814115",
+        "name": "Union Dental Salon",
+        "phone": "+1-512-337-6984",
+        "email": null,
+        "website": "https://www.takeheartshop.com",
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 9384814115,
+          "lat": 30.2680647,
+          "lon": -97.7267334,
+          "tags": {
+            "name": "Union Dental Salon",
+            "phone": "+1-512-337-6984",
+            "amenity": "dentist",
+            "website": "https://www.takeheartshop.com",
+            "alt_name": "Union Implantology",
+            "healthcare": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Search Log in or Create account Cart 0 Menu Cart 0 New Apparel Baby & Kids Books & Paper + - All Books & Paper CARDS PAPER STICKERS Home Goods + - All Home Goods KITCHEN TEA & COFFEE CANDLES & SCENTS Jewelry Self-Care + - All Self-Care FACE HAIR BODY BODY TOOLS Seasonal Log in Create account Search New Apparel Baby & Kids Books & Paper CARDS PAPER STICKERS Home Goods KITCHEN TEA & COFFEE CANDLES & SCENTS Jewelry Self-Care FACE HAIR BODY BODY TOOLS Seasonal INFO About Visit Us Policy Job Opportunities VISIT US 1211 e 11th st suite 100 austin, tx 78702 directions HOURS mon - fri: 11am to 6pm sat: 10am to 6pm sun: 10 am to 5pm FOLLOW US Facebook Pinterest Instagram JOIN OUR MAILING LIST join Copyright © 2026, take heart shop . Powered by Shopify\n\nSearch Log in or Create account Cart 0 Menu Cart 0 New Apparel Baby & Kids Books & Paper + - All Books & Paper CARDS PAPER STICKERS Home Goods + - All Home Goods KITCHEN TEA & COFFEE CANDLES & SCENTS Jewelry Self-Care + - All Self-Care FACE HAIR BODY BODY TOOLS Seasonal Log in Create account Search New Apparel Baby & Kids Books & Paper CARDS PAPER STICKERS Home Goods KITCHEN TEA & COFFEE CANDLES & SCENTS Jewelry Self-Care FACE HAIR BODY BODY TOOLS Seasonal Thank you for visiting our take heart 'About' page! I like to share the story of my journey opening 'take heart' because many people ask me about it. I hope that by sharing my experience it may encourage others to take a chance and pursue their dreams. Prior to opening take heart I was a Social Worker for many years and when I was 35 years old, I started to think about what else I might like to do for a career — I want to emphasize here: I had no idea . Owning a unique retail shop had been a dream I had since childhood, although I did not realize the possibility until I did a deep dive into my creative side through doing the workbook The Artist’s Way by Julia Cameron. In the past I did not consider myself a creative person, but rather an ‘art appreciator'. I had a narrow view of what it meant to be creative, and I thought if I did not make a hard product such as a painting, pottery, or textile weaving, that I was not an artist or a creative. Through doing The Artist's Way , my mind opened to a broader understanding of what it means to be creative — that ALL of us are creative beings. By beginning this purposeful journey of self-discovery, it came to me that I've always loved unique and independently-owned retail businesses where one could feel the owner's heart and aesthetic throughout the shop. I was reminded of my love of hunting for unique finds, whether it was at a thrift store, estate sale, or art fair. I thought opening a retail business was a venture ‘other people’ pursued, yet as I opened my mind to the possibilities for myself, I decided to take a chance and began the steps to open 'take heart'. This involved taking a business class, writing a business plan, winning a grant, finding a great location and growing my faith and belief in myself. My journey of opening a business was full of ups and downs and many learning experiences. Opening 'take heart' is one of the accomplishments in my life that I feel incredibly proud of. I have grown over the years, along with the business, and can see I am capable of much more than I thought: sourcing our products, merchandising, curating how products are presented, and supporting a healthy work environment, among many other tasks that come with owning and operating a small retail business. I like to share this piece because I believe when any of us take a chance the possibility of wonderful things happening reach far beyond what we can imagine ourselves. This is exactly what happened to me with the creation and growth of ‘take heart.’ I have embraced that I am a creative and ‘take heart’ is a deep expression of that. ‘take heart’ is a retail boutique located in East Austin. The shop reflects my love of special, handmade and thoughtfully designed objects for the home and person. Our shop showcases local and US artists, as well as a selection of international designers, with an emphasis on Japanese design. We believe in the importance of supporting small businesses and artists. We value the energy, spirit, and craftsmanship put into the items we carry in our shop and our relationship with the makers and designers. Our hope is that ‘take heart' will inspire creativity, self-discovery and invite one to appreciate life’s beautiful details and gifts. We always love seeing our regulars and look forward to meeting those of you on your next visit to Austin! With love and gratitude, - Nina Gordon, Founder and Creative Director INFO About Visit Us Policy Job Opportunities VISIT US 1211 e 11th st suite 100 austin, tx 78702 directions HOURS mon - fri: 11am to 6pm sat: 10am to 6pm sun: 10 am to 5pm FOLLOW US Facebook Pinterest Instagram JOIN OUR MAILING LIST join Copyright © 2026, take heart shop . Powered by Shopify",
+        "pages": [
+          {
+            "url": "https://www.takeheartshop.com",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.takeheartshop.com"
+          },
+          {
+            "url": "https://www.takeheartshop.com/pages/about-take-heart",
+            "error": null,
+            "status": 200,
+            "final_url": "https://www.takeheartshop.com/pages/about-take-heart"
+          }
+        ],
+        "emails": [],
+        "phones": [],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "facebook": "https://www.facebook.com/takeheartshop",
+          "instagram": "https://instagram.com/takeheartshop"
+        },
+        "website": "https://www.takeheartshop.com",
+        "final_url": "https://www.takeheartshop.com"
+      }
+    },
+    {
+      "source_key": "osm:node/9676315032",
+      "name": "Touch To",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/9676315032",
+        "name": "Touch To",
+        "phone": "+1-512-961-3960",
+        "email": null,
+        "website": "https://touchto.io",
+        "address": "2823 E Martin Luther King Jr Blvd, Austin, TX 78702",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 9676315032,
+          "lat": 30.2813918,
+          "lon": -97.7099781,
+          "tags": {
+            "name": "Touch To",
+            "phone": "+1-512-961-3960",
+            "amenity": "dentist",
+            "website": "https://touchto.io",
+            "addr:city": "Austin",
+            "addr:unit": "145",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "addr:street": "E Martin Luther King Jr Blvd",
+            "description": "From developing data-rich Business Insight engines and creating lean web and mobile applications to refactoring messy code and streamlining organizational performance - Touch To brings full-stack development, backend technology and an integrated team.",
+            "addr:country": "US",
+            "addr:postcode": "78702",
+            "opening_hours": "Mo-Fr 09:00-18:00",
+            "addr:housenumber": "2823",
+            "healthcare:speciality": "general"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Skip to content Menu Services Web Development Why Touch To Work Get Started Design and development at any stage. We are your Outsourced Innovation Team A Complete Solution for Every Initiative No matter your initiative or development stage, Touch To brings the people, experience and cutting-edge technology to get you (and keep you) on the right path. We are Austin-based, working with some of the world’s largest enterprises and bringing our experience and best practices to businesses of all sizes and stages. Contact us today Let us grow with you For Enterprises Have engineering, cloud and business intelligence teams but no bandwidth? We partner with them to develop your platform, integrating deeply into your existing infrastructure for a seamless partnership that creates less work for you. Save time with Touch To For SMBs and Entrepreneurs Have a product idea and lack an infrastructure to bring it to market? We help you progress to a production-ready product and deliver a maintainable solution that will grow with you. Get access to our intelligence, best practices and custom solutions to start operating autonomously. Tell us about your product idea What we bring No matter the deliverable, we approach it with fresh eyes and a custom solution driven by how your users will interact with your product. UX/UI Design Interactive Installations Full Stack Web Development Hardware/Software Integration Full Stack Mobile Development Existing Code Optimization Why Touch To? Smart People Touch To is a team of smart people who’ve been doing this a long time. We don’t add layers of complexity and middlemen, only personal attention you won’t find anywhere else. Future-Proof Solutions We design solutions to high standards so they’re built to last. Our technology solutions are well-architected with clean, scalable code to set you up for long-term success. Customized Approach Give us a challenge, and we’ll innovate a solution. We are a custom shop, delivering design and development services specific to your precise requirements. Relationships We don’t consider ourselves a service provider but part of your team. We work with you as your trusted partner, offering everything you need to reach your goals. Ready to get started? Let us show you what Touch To can do for you. Contact us today (512) 961-3960 hello@touchto.io 2823 East MLK Jr. Blvd., Ste 145 Austin, TX 78702 LinkedIn Services Why Touch To Work Blog Get Started TERMS OF USE | PRIVACY POLICY | © 2026 COPYRIGHT TOUCH TO twindor kasyno\n\nSkip to content Menu Services Web Development Why Touch To Work Get Started Ready to take the next step with Touch To? You’re Steps Away from a Valuable Partnership Touch To can serve as your outsourced design and development partner or integrate with your existing team to reduce workloads and approach your initiative collaboratively. Either way, we bring industry experts and cutting-edge technology to help you at any stage on any technology initiative. Let us set up a project, execute an initiative or structure your current design with best practices using our enterprise-level experience. You don’t have to tackle technology initiatives alone. Touch To has the people and expertise to get you where you want to go. Complete this form and we’ll reach out to you to schedule a consultation. Name * First Last Name Company Phone Email * Company Name Phone Number Request Consultation (512) 961-3960 hello@touchto.io 2823 East MLK Jr. Blvd., Ste 145 Austin, TX 78702 LinkedIn Services Why Touch To Work Blog Get Started TERMS OF USE | PRIVACY POLICY | © 2026 COPYRIGHT TOUCH TO\n\nSkip to content Menu Services Web Development Why Touch To Work Get Started What We Do At Touch To, we bring our extensive industry knowledge, agile practices and innovation mindset to every project we undertake. You can count on us to integrate into your existing team as a partner or manage the workflow from start to finish. UX/UI Design Our primary objective is to provide your customers with the absolute best user experience. Our designers focus on each detail across web, mobile and interactive applications for a seamless, omnichannel experience. Full Stack Web Development Touch To is unique in that we offer both front end (what your customers see online) and back end (the technology to support it) development. We believe by taking care of the software and hardware elements, you get a more complete solution. Full Stack Mobile Development Mobile is everything today, and we bring the same approach to mobile development as we do web development. From UX/UI design to implementing best-of-breed technologies, Touch To brings the people, technology and experience to execute the full stack. We have a solution for you. Interactive Installations As one of the premier interactive installation providers, some of the world’s largest brands rely on Touch To for state-of-the-art, custom, interactive software platforms that operate via touchscreen, body motion, eye motion or mobile integration. Hardware/Software Integration Whether you have existing hardware or software applications you want to integrate or you want the solution we build for you to integrate with your hardware or software, our team will redesign digital workflows for optimal organizational performance. Existing Code Optimization Not all code is clean code, limiting your abilities and expansion. Touch To refactors messy code to provide clean, well-architected code for optimal stability and scalability. If you need to add onto the code later, we make sure any engineer can understand it. What can Touch To do for you? Bring us your concepts, challenges or initiatives, and we’ll customize a solution with a dedicated team focused on your success. Contact us today (512) 961-3960 hello@touchto.io 2823 East MLK Jr. Blvd., Ste 145 Austin, TX 78702 LinkedIn Services Why Touch To Work Blog Get Started TERMS OF USE | PRIVACY POLICY | © 2026 COPYRIGHT TOUCH TO",
+        "pages": [
+          {
+            "url": "https://touchto.io",
+            "error": null,
+            "status": 200,
+            "final_url": "https://touchto.io"
+          },
+          {
+            "url": "https://touchto.io/get-started/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://touchto.io/get-started/"
+          },
+          {
+            "url": "https://touchto.io/services/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://touchto.io/services/"
+          }
+        ],
+        "emails": [
+          "hello@touchto.io"
+        ],
+        "phones": [
+          "512-961-3960"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "linkedin": "https://www.linkedin.com/company/touch-to"
+        },
+        "website": "https://touchto.io",
+        "final_url": "https://touchto.io"
+      }
+    },
+    {
+      "source_key": "osm:node/10265147209",
+      "name": "Groovy Molar",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/10265147209",
+        "name": "Groovy Molar",
+        "phone": "+1 512 349 9500",
+        "email": "info@groovymolar.com",
+        "website": "https://groovymolar.com/",
+        "address": null,
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 10265147209,
+          "lat": 30.3524115,
+          "lon": -97.7500318,
+          "tags": {
+            "name": "Groovy Molar",
+            "email": "info@groovymolar.com",
+            "level": "2",
+            "phone": "+1 512 349 9500",
+            "amenity": "dentist",
+            "website": "https://groovymolar.com/",
+            "opening_hours": "Mo-Th 08:30-17:00; Fr 08:30-12:00"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Groovy Experience Groovy Office Patient Information FAQs Meet the Doctor Choose a Category Meet the Groovy Doctor Groovy Parents Groovy Dental Links Testimonials Groovy Dental Humor Contact Us Click for our Blog! Click for our Contact Info Groovy Molar Pediatric Dentistry in Austin is “Groovy!” …your molars are the “grooviest” teeth Groovy (gru’ vee ) 1 : marvelous, wonderful, excellent 2 : hip, trendy Groove (gruv) n. 1. A furrow, channel, or long hollow example: Your teeth have numerous anatomical grooves. Thus, teeth are very groovy ! Molar (mo’lr) n. 1. A tooth with a broad crown used to grind food. example: The molar has deep grooves. Thank you for giving us the privilege of taking care of your child’s groovy molars , and starting him or her off to years of excellent dental care and a lifetime of smiles! ~ Read more… Meet Brad Singleton, DDS | Austin Pediatric Dentist Diplomate, American Board of Pediatric Dentistry* I love what I do! Working with your children to instill good habits, educate, and care for his or her oral health, together we will see that trips to the dentist can be fun, comfortable, and rewarding. As a pediatric dentist and father of two boys, it is not only important for a pediatric dentist to have excellent clinical skills and education, but an ability to provide a calm, reassuring environment for children. I understand that each child is different in regards to how he or she may respond to others and individual dental needs. My oldest son, born with special needs, has taught me more than 6 years of dental training ever could in “patient care,” and I am proud to bring that understanding and compassion to your children. ~ Read more… Website created for Brad Singleton of Groovy Molar, 3410 Far West Blvd. Suite 310 Austin, TX 78731-3194 Phone: 512-349-9500 by Quattroapps.com.\n\nGroovy Experience Groovy Office Patient Information FAQs Meet the Doctor Choose a Category Return to Home Page Meet the Groovy Doctor Groovy Parents Groovy Dental Links Testimonials Groovy Dental Humor Contact Us Click for our Blog! Click for our Contact Info Dr. Brad Singleton, DDS, Board Certified, Diplomate American Board 3410 Far West Blvd. Suite 310 Austin TX 78731-3194 info@groovymolar.com 512-349-9500 If your school, daycare, mom’s group, church, or organization would like to schedule a dental health presentation from the Groovy Molar, please contact us. We will tailor the content of the presentation toward your needs and audience. Enter your Name Email Address Message Subject Message SEND Website created for Brad Singleton of Groovy Molar, 3410 Far West Blvd. Suite 310 Austin, TX 78731-3194 Phone: 512-349-9500 by Quattroapps.com.",
+        "pages": [
+          {
+            "url": "https://groovymolar.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://groovymolar.com/"
+          },
+          {
+            "url": "https://groovymolar.com/contact-us/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://groovymolar.com/contact-us/"
+          }
+        ],
+        "emails": [
+          "info@groovymolar.com"
+        ],
+        "phones": [
+          "78731-3194",
+          "512-349-9500"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": null,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {},
+        "website": "https://groovymolar.com/",
+        "final_url": "https://groovymolar.com/"
+      }
+    },
+    {
+      "source_key": "osm:node/11083906192",
+      "name": "Rivery Dental",
+      "saved_at": "2026-11-08",
+      "raw": {
+        "source": "osm",
+        "source_ref": "node/11083906192",
+        "name": "Rivery Dental",
+        "phone": "+1-512-626-7019",
+        "email": "highland@riverydental.com",
+        "website": "https://riverydental.com/",
+        "address": "6929 Airport Boulevard, Austin, TX 78752",
+        "category": "dentist",
+        "rating": null,
+        "review_count": null,
+        "business_status": null,
+        "data": {
+          "id": 11083906192,
+          "lat": 30.3361029,
+          "lon": -97.7168657,
+          "tags": {
+            "name": "Rivery Dental",
+            "email": "highland@riverydental.com",
+            "phone": "+1-512-626-7019",
+            "amenity": "dentist",
+            "website": "https://riverydental.com/",
+            "addr:city": "Austin",
+            "addr:unit": "164",
+            "addr:state": "TX",
+            "healthcare": "dentist",
+            "wheelchair": "yes",
+            "addr:street": "Airport Boulevard",
+            "addr:postcode": "78752",
+            "opening_hours": "Tu,Th 08:00-17:00; Fr 09:00-17:00; Sa 09:00-15:00",
+            "addr:housenumber": "6929",
+            "healthcare:speciality": "dentist"
+          },
+          "type": "node"
+        }
+      },
+      "enrichment": {
+        "text": "Call Georgetown: 512-763-7606 , or Book online at Georgetown Call Austin: 512-626-7019 , or Book online at Austin Toggle navigation Locations Gallery About Meet the Dentists Meet the Team Blog New Patient Financial Info Payment Plans FAQ Promotion Contact Refer a Patient Services Bad Breath Botox & Dermal Fillers Clear Aligner Treatment Comprehensive Examinations Cosmetic Dentistry Crowns & Bridges Dentures & Partials Extractions Fillings Fluoride Treatments ICON Laser Dentistry Night Guards Oral Cancer Screenings Pediatric Dentistry Periodontal Disease Root Canal Therapy Same Day Emergency Appointments Sedation Dentistry Sleep Apnea Sports Mouthguards Teeth Whitening Ultrasonic Cleanings Veneers The latest advances in Painless Laser Dentistry Learn More Same Day Dental Treatments Got a toothache? Walk-ins Welcome! Learn More No Insurance? No Problem. Enroll in our In-House Discount Dental Plan. Learn More Welcome to Rivery Dental If you are looking for a great and caring dentist, then look no further! Because our dental care team at Rivery Dental will treat you like family. No matter what your dental needs are, Rivery Dental offers outstanding services that cover a broad range of dental treatments. Our Dentist will help you along the path to your journey for a healthy and beautiful smile. With painless procedures and clear clinical explanations, you can count on us for all your family’s dental needs. We are here to ensure that every member of your family is happy and healthy. Walk-in patients are always welcome. We will always accommodate your emergency appointments. At Rivery Dental, you will always be our first priority. Explore Our Office Our Services: Comprehensive Exam Crown & Bridge Denture & Partial Snoring Device / Sleep Dentistry Root Canal Therapy Filling Invisalign / ClearCorrect Extractions Veneer Sedation Dentistry Laser Dentistry AND MORE! Laser Dentistry From laser dentistry to sedation dentistry, we provide painless and needleless alternatives to traditional procedures. Learn More In House Treatment We do most complex procedures, e.g. sleep apnea, invisalign, in house, so you don’t have to go out to see a specialist. Explore Our Services Treating the Whole Family We are your one stop shop for all your family’s dental needs, from proper brushing etiquette to dentures. Kids are welcome! Request an Appointment A Change For the Happier The miracle we’ve both been waiting for is here: Solea. Now available to you. Solea is a powerful dental laser that replaces the dental drill in the majority of procedures in our practice. In fact, nearly every patient skips anesthesia because they just don’t need it. Solea is our way of keeping you happy. Because more than anything, we love to see you smile. What is Solea? Solea is the first CO2 dental laser system cleared by the FDA for hard, soft, and osseous tissue procedures. It was developed in Boston, Massachusetts by Convergent Dental, based on research conducted at the University of California School of Dentistry. Solea offers a unique wavelength guided by sophisticated computers to deliver virtually painless dental procedures for both teeth and gums, from simple cavities to complex surgeries. The experience is so unique that you will find it hard to believe you were just at a dental appointment. Why Solea? The majority of hard and soft tissue procedures in our office are done with virtually no anesthesia, and soft tissue procedures are done with virtually no bleeding. Blood-free and anesthesia-free procedures represent a major leap forward in dentistry as we are able to execute multi-quadrant dentistry, fillings on the fly, and soft tissue procedures in a single appointment. What does that mean for you, our patients? You are now able to receive the care you need, in a fraction of the time. When patients have anesthesia, they typically leave the office with that numb feeling still prevalent. With Solea, you are able to go right out to lunch or back to work without that numb sensation following your appointment. Solea is truly changing what it means to go to the dentist. Walk Ins Welcome Most Insurances Accepted Open Monday - Friday Meet Our Dentists At Rivery Dental we want you to be more than satisfied with our services. Our patients aren’t just patients, they are family. We will personally be treating each and every one of my patients that walks through my door. Learn More Special Offer First Visit Includes Comprehensive Exam, Cleaning And X-Rays If Necessary. In the absence of periodontal disease. Offer Valid For New Patients Only. Cannot Be Combined With Any Other Offer. Limited Time Only. Call For Details. Special Offer $1500 OFF Clear Aligners Treatment $1500 off Clear Aligners Treatment (e.g. Invisalign, Clear Correct, and etc). Cannot be combined with any other offer or dental insurance. Limited time only. Call for details. Special Offer $1000 OFF Sleep Apnea Treatment $1000 off Sleep Apnea Treatment Cannot Be Combined With Any Other Offer. Limited Time Only. Call For Details. Georgetown Office: 512-763-7606  1103 Rivery Blvd. Suite 140 Georgetown TX 78628 Austin Office: 512-626-7019  6929 Airport Blvd. Suite 164 Austin TX 78752 © 2026 Rivery Dental | Sitemap | ADA Responsive Menu Add more content here...\n\nCall Georgetown: 512-763-7606 , or Book online at Georgetown Call Austin: 512-626-7019 , or Book online at Austin Toggle navigation Locations Gallery About Meet the Dentists Meet the Team Blog New Patient Financial Info Payment Plans FAQ Promotion Contact Refer a Patient Services Bad Breath Botox & Dermal Fillers Clear Aligner Treatment Comprehensive Examinations Cosmetic Dentistry Crowns & Bridges Dentures & Partials Extractions Fillings Fluoride Treatments ICON Laser Dentistry Night Guards Oral Cancer Screenings Pediatric Dentistry Periodontal Disease Root Canal Therapy Same Day Emergency Appointments Sedation Dentistry Sleep Apnea Sports Mouthguards Teeth Whitening Ultrasonic Cleanings Veneers Send Us Your Message We will",
+        "pages": [
+          {
+            "url": "https://riverydental.com/",
+            "error": null,
+            "status": 200,
+            "final_url": "https://riverydental.com/"
+          },
+          {
+            "url": "https://riverydental.com/contact",
+            "error": null,
+            "status": 200,
+            "final_url": "https://riverydental.com/contact/"
+          },
+          {
+            "url": "https://riverydental.com/about",
+            "error": null,
+            "status": 200,
+            "final_url": "https://riverydental.com/about/"
+          },
+          {
+            "url": "https://riverydental.com/about/meet-the-team",
+            "error": null,
+            "status": 200,
+            "final_url": "https://riverydental.com/about/meet-the-team/"
+          }
+        ],
+        "emails": [],
+        "phones": [
+          "5127637606",
+          "5126267019",
+          "5126269017"
+        ],
+        "signals": {
+          "https": true,
+          "has_form": true,
+          "page_load_ok": true,
+          "copyright_year": 2026,
+          "mobile_viewport": true,
+          "https_and_mobile": true
+        },
+        "socials": {
+          "x": "https://twitter.com/RiveryDental/",
+          "facebook": "https://www.facebook.com/Rivery-Dental-1546654538729380/",
+          "instagram": "https://www.instagram.com/riverydental/"
+        },
+        "website": "https://riverydental.com/",
+        "final_url": "https://riverydental.com/"
+      }
+    }
+  ]
+}
