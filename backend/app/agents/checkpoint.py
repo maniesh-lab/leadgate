@@ -13,7 +13,8 @@ handing it out, so a Postgres restart doesn't leave the worker with a dead conne
 For a SQLite URL (unit tests, quick local tries) it gives the in-memory saver instead:
 fine for one process, but nothing survives a restart.
 
-Used by `app.worker.main`.
+Used by `app.worker.main`. `app.services.deletion.purge_checkpoints()` deletes a thread's
+rows from these tables by `thread_id` (a delete, or an opt-out).
 """
 
 from collections.abc import Iterator

@@ -7,7 +7,8 @@
 - `collect --campaign <id>`: run the campaign's sources (osm, google_places, csv)
 - `enrich --lead <id> | --campaign <id> | --stale [--limit N] [--force]`: crawl the
   leads' websites (`--stale`: every lead never enriched or past ENRICH_CACHE_DAYS)
-- `opt-out --lead <id>`: wipe a lead's contact data and never collect or crawl it again
+- `opt-out --lead <id>`: wipe a lead's contact data (and its copies in the audit log and
+  finished checkpoints) and never collect or crawl it again
 - `start-run --campaign <id>`: queue a run (the worker, `python -m app.worker`, does it)
 - `decide --item <id> --decision approved|rejected [--reason ...] [--reviewer email]`:
   a reviewer's decision on a run item waiting at the approval gate (default reviewer:

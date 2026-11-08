@@ -48,7 +48,7 @@ export function LeadPage() {
             {user?.role === "admin" && (
               <DeleteButton
                 path={`/api/leads/${data.id}`}
-                question={`Delete ${data.name} and its history? This can't be undone. The audit log keeps its rows with the name and contact details blanked. A later run may find it again: to keep it out for good, use Opt out instead.`}
+                question={`Delete ${data.name} and its history? This can't be undone. The audit log keeps its rows with the name and contact details blanked. Anything already sent to Airtable or Discord stays there. A later run may find it again: to keep it out for good, use Opt out instead.`}
                 onDeleted={() => navigate("/leads")}
               />
             )}

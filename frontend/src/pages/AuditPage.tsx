@@ -1,7 +1,7 @@
 /**
  * The audit log: every step the agents, the worker and people took, newest first
- * (`GET /api/audit`). The rows never change: the API is read-only and Postgres refuses
- * updates and deletes. Filters live in the URL (`/audit?run_id=6&action=approval.approved`),
+ * (`GET /api/audit`). Rows are never edited or deleted: the API is read-only and Postgres
+ * refuses it, apart from blanking a deleted or opted-out lead's details. Filters live in the URL (`/audit?run_id=6&action=approval.approved`),
  * so the run page or a lead can link to its own trail. Dates are UTC days.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -75,7 +75,7 @@ export function AuditPage() {
             Audit <span className="text-gradient">log</span>
           </>
         }
-        subtitle="What the agents, the worker and people did, newest first. Rows are append-only: nobody can change or delete them."
+        subtitle="What the agents, the worker and people did, newest first. Rows are never edited or deleted; only a deleted or opted-out lead's details are blanked."
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

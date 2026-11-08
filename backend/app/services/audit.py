@@ -4,8 +4,11 @@ Everyone writes through `record()`: the `@tracked_node` wrapper (one row per gra
 node), the worker (`run.started`, `lead.collected`, `run.completed`, ...), the
 approval service (`approval.approved` / `approval.rejected`), the retry service
 (`run_item.retried`) and the API routes (`auth.login_failed`, `user.password_changed`,
-users, rubrics, campaigns, leads, CSV uploads and exports, webhooks). Rows are only
-ever added; on Postgres a trigger blocks UPDATE and DELETE (see the initial migration).
+users, rubrics, campaigns, leads, CSV uploads and exports, webhooks, and the deletes:
+`lead.deleted`, `run.deleted`, `campaign.deleted`, `csv.deleted`). Rows are only ever
+added, apart from a delete or opt-out blanking a row's `details`
+(`app.services.deletion.redact_audit()`); on Postgres a trigger blocks DELETE and every
+other UPDATE (the initial and `audit_redaction` migrations).
 
 `record()` only adds the row to the session: the caller commits it together with the
 change it describes, so the audit row and the change land (or fail) together.

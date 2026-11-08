@@ -155,8 +155,10 @@ erDiagram
 - **csv_uploads** hold the CSV files admins upload in the dashboard (the file's text, its
   columns and row count). A campaign points to one in `source_options`, so every worker reads
   the same copy; the API never takes a file path (only the CLI and the demo set one).
-- **audit_log** is append-only: a Postgres trigger refuses UPDATE and DELETE. Its ids
-  aren't foreign keys, so the trail never blocks or depends on the rows it describes.
+- **audit_log** is append-only: a Postgres trigger refuses DELETE and every UPDATE but one,
+  a delete or opt-out blanking a row's `details` (only in a transaction that sets
+  `leadgate.audit_redaction`). Its ids aren't foreign keys, so the trail never blocks or
+  depends on the rows it describes.
 - **LangGraph's checkpoint tables** are created by LangGraph's own `.setup()`, not Alembic.
 - The same models run on SQLite (unit tests) and Postgres (everything else); Postgres-only
   parts (the audit trigger, `pg_trgm`, one index) are guarded in the migrations.

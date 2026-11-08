@@ -6,9 +6,10 @@ of the campaign's runs), `area`, `min_score` / `max_score`, `has_email`, `flag` 
 run item of the lead carries that flag, e.g. `possible_duplicate`) and `q` (part of the
 name). Flags live on run items, not leads, so `campaign_id` and `flag` look there.
 
-The opt-out wipes the lead's contact data (`app.services.privacy`), writes an audit row,
-and rejects the lead's items still waiting at the approval gate: their checkpoints hold
-the old contact data, so they must never be approved (see `app.services.approvals`).
+The opt-out wipes the lead's contact data (`app.services.privacy`, which also blanks it in
+the audit log and deletes finished items' checkpoints), writes an audit row, and rejects
+the lead's items still waiting at the approval gate: their checkpoints hold the old
+contact data, so they must never be approved (see `app.services.approvals`).
 
 `DELETE /api/leads/{id}` removes the lead and its history and blanks it in the audit log
 (`app.services.deletion`); unlike an opt-out, a later run may find the business again.
@@ -172,8 +173,9 @@ def get_lead(lead_id: int, _user: CurrentUser, db: DbSession) -> LeadDetail:
     "/{lead_id}/data", status_code=status.HTTP_204_NO_CONTENT, responses=error_docs(403, 404)
 )
 def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
-    """Opt the lead out: wipe its contact data and website findings, never collect or crawl
-    it again, and reject its items waiting for approval. Safe to repeat."""
+    """Opt the lead out: wipe its contact data and website findings (also in its audit rows
+    and finished items' checkpoints), never collect or crawl it again, and reject its items
+    waiting for approval. Safe to repeat."""
     lead = get_or_404(db, Lead, lead_id, "lead")
     opt_out_lead(db, lead)
     record(
