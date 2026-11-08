@@ -4,9 +4,15 @@ Flags are short strings a reviewer sees on the lead card:
 - `possible_duplicate:<lead_id>`: another lead with the same phone (E.164 or as the
   source wrote it), the same website domain, the same source ref from another source,
   or a very similar name in the same area / city (stdlib `difflib`)
-- `category_mismatch`: the extracted category isn't the campaign's niche (only for niches
-  on the list in `app.agents.categories`)
+- `category_mismatch`: the extracted category isn't the campaign's niche or close to it
+  (only for niches on the list in `app.agents.categories`)
 - `closed`: the source says the business is closed
+
+It also says whether the category was checked at all (`category_checked`): a niche off the
+list, or a failed extraction that fell back to "other" (no hint from the source), leaves
+nothing to compare. Such a lead counts as matching, so the rubric doesn't punish it, and
+the score card says "not checked" instead of a tick. A failed extraction that kept the
+source's category hint is compared as usual.
 
 "Possible": a chain's branches share a website and a name, so a human decides.
 Only leads already processed have a clean phone and city in the DB, so a duplicate is
@@ -58,7 +64,8 @@ def check(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
         flags.append("closed")
 
     log.info("node_check", lead_id=lead.id, flags=flags)
-    return {"flags": flags, "category_matches_niche": matches}
+    checked = wanted != OTHER and not not_judged
+    return {"flags": flags, "category_matches_niche": matches, "category_checked": checked}
 
 
 def find_duplicates(session: Session, lead: Lead, raw: dict, extracted: dict) -> list[int]:

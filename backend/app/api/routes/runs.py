@@ -204,8 +204,9 @@ def item_row(item: RunItem, lead_name: str) -> RunItemRow:
 
 
 def reviews_for(db: Session, item_ids: Iterable[int]) -> dict[int, Review]:
-    """Each item's rubric (its run's), score breakdown + explanation (its `score` step) and
-    extraction issues (its `extract` step). An item that hasn't got that far gets a `Review`
+    """Each item's rubric (its run's), score breakdown + explanation (its `score` step),
+    whether its category was checked (its `check` step) and extraction issues (its
+    `extract` step). An item that hasn't got that far gets a `Review`
     with only the rubric."""
     item_ids = list(item_ids)
     reviews = {item_id: Review() for item_id in item_ids}
@@ -223,7 +224,7 @@ def reviews_for(db: Session, item_ids: Iterable[int]) -> dict[int, Review]:
         select(RunStep)
         .where(
             RunStep.run_item_id.in_(item_ids),
-            RunStep.node.in_(("score", "extract")),
+            RunStep.node.in_(("score", "check", "extract")),
             RunStep.status == StepStatus.COMPLETED,
         )
         .order_by(RunStep.id)  # a later row wins (there's only one per node, see tracking)
@@ -234,6 +235,8 @@ def reviews_for(db: Session, item_ids: Iterable[int]) -> dict[int, Review]:
         if step.node == "score":
             review.score_breakdown = output.get("score_breakdown") or []
             review.score_explanation = output.get("score_explanation")
+        elif step.node == "check":
+            review.category_checked = output.get("category_checked")
         else:
             review.extraction_issues = output.get("extraction_issues") or []
     return reviews

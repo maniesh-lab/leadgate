@@ -10,8 +10,9 @@ objects, not data), so the caller passes it again on every run and resume:
 `graph.invoke(..., context=AgentContext(...))`.
 
 Changes from PLAN §5's state (logged in Decisions): `thread_id` (the idempotency key
-for the CRM), `rubric_id` (runs pin their rubric) and `category_matches_niche` (set by
-`check`, read by the rubric).
+for the CRM), `rubric_id` (runs pin their rubric), `category_matches_niche` (set by
+`check`, read by the rubric) and `category_checked` (set by `check`, shown on the score
+card).
 """
 
 from collections.abc import Callable
@@ -49,6 +50,10 @@ class LeadState(TypedDict, total=False):
     # check
     flags: list[str]  # "possible_duplicate:<lead_id>", "category_mismatch", "closed", ...
     category_matches_niche: bool
+    # False when there was nothing to compare: a niche off the list, or a failed extraction
+    # that fell back to "other" (then category_matches_niche is True, so the rubric
+    # doesn't punish the lead)
+    category_checked: bool
     # score
     score: int  # 0–100
     score_breakdown: list[dict[str, Any]]  # [{"rule", "field", "points", "hit", "required"}]

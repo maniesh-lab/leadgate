@@ -56,6 +56,7 @@ from app.services.runs import BUSY, refresh_run_status
 # a name, contact detail, source data, website text, free-text reason or error message.
 SAFE_DETAILS = frozenset(
     {
+        "category_checked",
         "category_matches_niche",
         "crm_record_id",
         "decision",

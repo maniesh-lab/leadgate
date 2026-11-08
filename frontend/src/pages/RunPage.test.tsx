@@ -1,6 +1,6 @@
 /** A run that found nothing says why: a skipped source shows its reason. An admin can
  * delete a run that has stopped moving. The page keeps checking a waiting run. */
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunDetail } from "../api/types";
@@ -55,8 +55,11 @@ describe("RunPage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Delete" }));
 
     expect(await screen.findByRole("heading", { name: /runs/i })).toBeInTheDocument();
-    const runs = calls.find((call) => call.method === "GET" && call.url.pathname === "/api/runs");
-    expect(runs?.url.searchParams.get("campaign_id")).toBe("27");
+    // The list's request starts just after its heading shows, so wait for it.
+    await waitFor(() => {
+      const runs = calls.find((c) => c.method === "GET" && c.url.pathname === "/api/runs");
+      expect(runs?.url.searchParams.get("campaign_id")).toBe("27");
+    });
     expect(calls.some((call) => call.method === "DELETE")).toBe(true);
   });
 

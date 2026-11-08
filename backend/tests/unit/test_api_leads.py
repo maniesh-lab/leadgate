@@ -126,6 +126,7 @@ def test_lead_detail(client: TestClient, world: World, as_reviewer) -> None:
     rubric = world.rubrics["general-b2b"]
     assert detail["review"] == {
         "rubric": {"id": rubric.id, "name": "general-b2b", "version": 1, "description": None},
+        "category_checked": None,
         "score_breakdown": [],
         "score_explanation": None,
         "extraction_issues": [],

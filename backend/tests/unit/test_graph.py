@@ -172,6 +172,7 @@ def test_category_mismatch_is_flagged_and_the_web_agency_gate_gives_zero(world: 
 
     assert state["extracted"]["category"] == "restaurant"
     assert "category_mismatch" in state["flags"]
+    assert state["category_checked"] is True
     assert "rubric_gate:category matches niche" in state["flags"]
     assert state["score"] == 0
     assert "required rule failed" in state["score_explanation"]
@@ -187,8 +188,22 @@ def test_a_niche_off_the_list_has_no_category_to_mismatch(world: World) -> None:
 
     assert state["extracted"]["category"] == "doctor"
     assert state["category_matches_niche"] is True
+    assert state["category_checked"] is False  # the score card says "not checked"
     assert "category_mismatch" not in state["flags"]
     assert not any(flag.startswith("rubric_gate") for flag in state["flags"])
+
+
+def test_a_guest_house_is_right_for_a_hotel_campaign(world: World) -> None:
+    world.campaign.niche = "hotel"
+    world.db.commit()
+    lead = add_lead(world.db, name="Hillside Guest House", category="guest_house", website=None)
+
+    state = world.start(lead, rubric="web-agency")
+
+    assert state["extracted"]["category"] == "guest house"
+    assert (state["category_matches_niche"], state["category_checked"]) == (True, True)
+    assert "category_mismatch" not in state["flags"]
+    assert state["score"] > 0  # a close neighbour no longer zeroes the web-agency score
 
 
 def test_a_doctor_lead_is_right_for_a_specialist_campaign(world: World) -> None:
@@ -290,6 +305,7 @@ def test_a_failed_extraction_is_not_a_wrong_category(db: Session) -> None:
     assert state["extraction_ok"] is False
     assert state["extracted"]["category"] == "other"
     assert state["category_matches_niche"] is True
+    assert state["category_checked"] is False
     assert "category_mismatch" not in state["flags"]
     assert state["score"] > 0
 
