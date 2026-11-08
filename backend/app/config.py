@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     llm_mode: Literal["fake", "groq", "openai"] = "fake"
     # The model for groq/openai; empty = the default in app/agents/llm.py.
     llm_model: str | None = None
+    # How long gpt-oss thinks before answering (Groq only). "low" fits the free tier;
+    # "medium" finds services better but uses about twice the tokens (app/agents/llm.py).
+    llm_reasoning_effort: Literal["low", "medium", "high"] = "low"
     groq_api_key: str | None = Field(default=None, repr=False)
     openai_api_key: str | None = Field(default=None, repr=False)
 

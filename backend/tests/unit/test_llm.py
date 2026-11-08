@@ -106,6 +106,21 @@ def test_make_llm_groq_uses_the_default_model(settings: Settings) -> None:
     assert llm.params == {"max_tokens": 2048, "temperature": 0, "reasoning_effort": "low"}
 
 
+def test_make_llm_takes_the_reasoning_effort_from_settings(settings: Settings) -> None:
+    llm = make_llm(
+        settings.model_copy(
+            update={
+                "llm_mode": "groq",
+                "groq_api_key": "test-key",
+                "llm_reasoning_effort": "medium",
+            }
+        )
+    )
+    assert isinstance(llm, SteadfastLLM)
+    assert llm.params == {"max_tokens": 4096, "temperature": 0, "reasoning_effort": "medium"}
+    llm.close()
+
+
 def test_make_llm_sends_the_reasoning_effort_only_to_gpt_oss(settings: Settings) -> None:
     llm = make_llm(
         settings.model_copy(

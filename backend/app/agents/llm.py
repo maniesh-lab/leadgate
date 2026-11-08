@@ -42,11 +42,12 @@ RATE_PER_MINUTE = {"groq": 30, "openai": 60}
 MAX_ATTEMPTS = 3
 # Tries per request when the API is busy or down (429, 5xx, timeouts).
 MAX_RETRIES = 4
-# gpt-oss models think before they answer, and the thinking counts as output tokens.
-MAX_TOKENS = 2048
-# At its default effort the model can spend the whole limit thinking and answer with nothing
-# (measured on real leads: 2,046 of 2,048 tokens). Low effort used 23-124.
-GPT_OSS_REASONING_EFFORT = "low"
+# gpt-oss models think before they answer, and the thinking counts as output tokens, so the
+# limit grows with LLM_REASONING_EFFORT. At medium effort and 2,048 the model spent the whole
+# limit thinking and answered with nothing (2,046 of 2,048 on real leads); low used 23-124.
+# Austin eval, 7 leads with services (2026-11-08): low 79% precision / 79% recall at 18.7k
+# tokens; medium 90% / 93% at 34.6k, and one reply was still cut off at 4,096 and retried.
+MAX_TOKENS = {"low": 2048, "medium": 4096, "high": 8192}
 
 # A check on a parsed answer: returns None when fine, or a sentence saying what's wrong
 # (that sentence is sent back to the model).
@@ -229,8 +230,9 @@ def make_llm(settings: Settings, tracer: Tracer | None = None) -> LLM:
 
     client = SteadfastClient(max_retries=MAX_RETRIES)
     client.register(provider, rate=RATE_PER_MINUTE[settings.llm_mode], period=60)
-    params: dict[str, Any] = {"max_tokens": MAX_TOKENS, "temperature": 0}
+    effort = settings.llm_reasoning_effort
+    params: dict[str, Any] = {"max_tokens": MAX_TOKENS[effort], "temperature": 0}
     # Only these models take the setting; others may refuse a request that has it.
     if settings.llm_mode == "groq" and "gpt-oss" in model:
-        params["reasoning_effort"] = GPT_OSS_REASONING_EFFORT
+        params["reasoning_effort"] = effort
     return SteadfastLLM(client, provider.name, model=model, tracer=tracer, **params)
