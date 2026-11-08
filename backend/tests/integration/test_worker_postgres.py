@@ -42,7 +42,7 @@ from app.db.models import (
 )
 from app.db.session import make_engine, make_session_factory
 from app.services.approvals import decide
-from app.services.deletion import delete_campaign
+from app.services.deletion import delete_campaign, purge_checkpoints
 from app.services.privacy import opt_out_lead
 from app.services.runs import create_run
 from app.worker.handlers import Deps
@@ -259,3 +259,10 @@ def test_opt_out_and_delete_clear_the_checkpoints_and_blank_the_audit_log(pg) ->
     lead_rows = db.scalars(select(AuditLog).where(AuditLog.entity_type == "lead")).all()
     assert lead_rows and all("redacted" in row.details for row in lead_rows)
     assert "Barton Creek" not in str([row.details for row in lead_rows])
+
+
+def test_purging_checkpoints_before_any_worker_started(pg) -> None:
+    # The checkpoint tables only exist once a worker has run `PostgresSaver.setup()`.
+    _, db, _ = pg
+    assert db.scalar(text("SELECT to_regclass('checkpoints')")) is None
+    purge_checkpoints(db, ["thread-that-never-ran"])

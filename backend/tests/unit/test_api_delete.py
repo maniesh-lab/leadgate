@@ -14,6 +14,8 @@ from app.db.models import (
     Campaign,
     CsvUpload,
     Job,
+    JobStatus,
+    JobType,
     Lead,
     Run,
     RunItem,
@@ -172,6 +174,55 @@ def test_a_run_the_worker_has_not_started_is_not_deleted(
     )
     world.db.expire_all()
     assert world.db.get(Run, queued) is not None
+
+
+def test_a_run_still_collecting_is_not_deleted(client: TestClient, world: World, started) -> None:
+    run = world.db.get(Run, started["run"]["id"])
+    run.status = RunStatus.COLLECTING
+    world.db.commit()
+
+    response = client.delete(f"/api/runs/{run.id}", headers=started["as_admin"])
+
+    assert response.status_code == 409
+    assert "still collecting leads" in message(response)
+
+
+def test_a_lead_with_a_queued_job_is_not_deleted(
+    client: TestClient, world: World, started, as_reviewer
+) -> None:
+    item = waiting(client, as_reviewer)[0]
+    # Like a decision the worker hasn't picked up yet: the item still waits, its job doesn't.
+    world.db.add(
+        Job(
+            type=JobType.RESUME_ITEM,
+            payload={"run_item_id": item["run_item_id"]},
+            status=JobStatus.QUEUED,
+        )
+    )
+    world.db.commit()
+
+    response = client.delete(f"/api/leads/{item['lead']['id']}", headers=started["as_admin"])
+
+    assert response.status_code == 409
+    assert "job queued for one of these leads" in message(response)
+
+
+def test_a_queued_run_whose_job_is_gone_can_be_deleted(
+    client: TestClient, world: World, started
+) -> None:
+    as_admin = started["as_admin"]
+    queued = client.post(
+        f"/api/campaigns/{started['campaign']['id']}/runs", headers=as_admin
+    ).json()["id"]
+    for job in world.db.scalars(select(Job).where(Job.payload["run_id"].as_integer() == queued)):
+        world.db.delete(job)
+    world.db.commit()
+
+    response = client.delete(f"/api/runs/{queued}", headers=as_admin)
+
+    assert response.status_code == 204
+    world.db.expire_all()
+    assert world.db.get(Run, queued) is None
 
 
 def test_deleting_a_campaign_takes_its_runs_leads_and_file(
