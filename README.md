@@ -17,14 +17,14 @@ Each lead goes through these steps:
 
 | Step | What it does | LLM? |
 |---|---|---|
-| `enrich` | Reads up to 4 pages of the lead's own website (robots.txt respected, public addresses only): emails, phones, social links, and site signals like https, a mobile layout and the copyright year | no |
+| `enrich` | Reads up to 4 pages (by default) of the lead's own website (robots.txt respected, public addresses only): emails, phones, social links, and site signals like https, a mobile layout and the copyright year | no |
 | `extract` | Cleans the data by rule (phones to international format), then the LLM fills the fields that need reading. A check sends back any value that isn't in the source data or on the website, so it can't invent an email | yes |
-| `check` | Flags possible duplicates, a category that doesn't match the campaign, and closed businesses | no |
+| `check` | Flags possible duplicates, a category that doesn't match the campaign (close neighbours like hotel and guest house count as a match; a niche off the 119-type list shows "not checked"), and closed businesses | no |
 | `score` | Adds up the campaign's rubric (rules stored as data). The LLM only writes a one-sentence explanation; it never changes the score | explanation only |
 | `approval_gate` | Stops and waits for a person, for hours if needed | no |
 | `route` + `act` | Approved and clean: write to Airtable + post to Discord. Approved but unsure (failed extraction, serious flags): escalate to an admin channel. Rejected: nothing | no |
 
-Every lead in the queue shows its **reasons**: the score broken down rule by rule, the flags, what the website showed, and the full timeline of steps. The audit log keeps who (or which agent) did what, and it can't be edited.
+Every lead in the queue shows its **reasons**: the score broken down rule by rule, which rubric scored it and who that rubric suits (so "+30 for no website" makes sense), the flags, what the website showed, and the full timeline of steps. The queue shows the newest leads first and can sort oldest first or by score. The audit log keeps who (or which agent) did what, and it can't be edited.
 
 ## How it works
 
@@ -65,7 +65,7 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 - A run started from n8n went through the same queue, and when the last lead was decided, its summary was posted back to n8n.
 - The audit log showed every step of every lead exactly once, from `lead.collected` to `crm.written` and `run.completed`.
 
-**Extraction** (`backend/scripts/extraction_eval.py`, 20 real OpenStreetMap leads, `openai/gpt-oss-20b` on Groq's free tier): email, area, city, country, category and founding year right on 20/20; services 86% precision, 93% recall. Treat this as a smoke test, not proof: 12 of the 20 leads have no website, which makes most cases easy, and it's one run of one model.
+**Extraction** (`backend/scripts/extraction_eval.py`, `openai/gpt-oss-20b` on Groq's free tier, 2026-11-08): on 20 real OpenStreetMap leads, email, area, city, country, category and founding year were right on 20/20; services 77% precision, 89% recall. Treat this as a smoke test, not proof: 12 of those 20 have no website, which makes most cases easy, and it's one run of one model. The eval has since grown to 30 leads, 18 of them with websites, including harder ones (a software firm tagged as a dentist, a wrong website, a placeholder email), and its services answers now list every service on each site. The leads and their saved site text are in the repo, so the eval runs without a database.
 
 **SQL:** every index was measured with `EXPLAIN ANALYZE` on 50k leads and ~1M rows of history, with and without it. 14 were kept because they helped (e.g. one run's audit trail: 27 ms → 0.03 ms; the worker's job claim: 4.6 ms → 0.002 ms), and 2 were left out because they didn't. Details: [docs/sql-notes.md](docs/sql-notes.md).
 
@@ -73,11 +73,11 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 
 [leadgate-ocu8.onrender.com](https://leadgate-ocu8.onrender.com) runs the real code on free hosting (Render for the API and the dashboard, Neon for Postgres). It logs you in as a reviewer, so you can work the approval queue, open any lead's step timeline, read the audit log and the dashboard's reports. The [admin tools](#admin-tools) need the admin login, which isn't public.
 
-To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin dentists with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
+To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin businesses (11 dentists and a pharmacy), 7 of them with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
 
 ## Quick start (Docker)
 
-You need Docker with the compose plugin.
+You need Docker with the compose plugin. Running it on your own machine to try it out needs no permission; using it for business work does (see [License](#license)).
 
 ```bash
 git clone https://github.com/maniesh-lab/leadgate
@@ -139,6 +139,7 @@ Admins get a few extra tools in the dashboard. Each one is admin-only, and each 
 - **Upload a CSV** of your own leads on the New campaign page (UTF-8 with a header row, up to 1 MB by default, `CSV_UPLOAD_MAX_BYTES`). The file is stored in Postgres, so every worker reads the same copy; the API never takes a file path on the server.
 - **Export approved leads** as a CSV from a run's page or a campaign's row. Escalated approvals are included, with a `route` column to tell them apart; opted-out leads are left out; a campaign gives one row per lead; a cell that starts like a spreadsheet formula gets a leading `'` so it can't run in Excel.
 - **Users** (Settings → Users): list the accounts, add a reviewer, turn an account off or back on. Turning one off ends its logins at once, and turning it back on doesn't bring the old ones back. You can't turn off yourself or the last active admin.
+- **Delete** a lead, a run or a campaign from its page, and an uploaded CSV with its campaign. A run takes the leads that are in no other run; a campaign takes its runs and its file when no other campaign uses it. A delete is refused while the worker is still on something. The audit log keeps its rows, with names, contact details and free text blanked. Anything already sent to Airtable or Discord stays there, and a later run may find a deleted lead again: to keep a lead out for good, opt it out instead.
 - **Retry a failed lead** from its run item page. It goes through the job queue like everything else and continues from the lead's last checkpoint, so steps that already finished don't run again and the CRM write still happens once. A second click gets a 409.
 
 ## API
@@ -147,7 +148,7 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| `POST` | `/auth/login` | anyone | Email + password → a login token (60 min) |
+| `POST` | `/auth/login` | anyone | OAuth2 form (`username` is your email, plus `password`) → a login token (60 min) |
 | `GET` | `/auth/me` | logged in | Who you are |
 | `POST` | `/auth/password` | logged in | Change your password; ends every older token |
 | `GET`, `POST` | `/users` | admin | List users, add a reviewer |
@@ -156,11 +157,12 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 | `POST` | `/campaigns/{id}/runs` | admin | Start a run |
 | `POST` | `/uploads/csv` | admin | Upload a CSV of leads (the body is the file); a campaign uses it by id |
 | `GET` | `/runs`, `/runs/{id}`, `/run-items/{id}` | logged in | Runs, their leads, each lead's step timeline |
-| `GET` | `/approvals/queue` | reviewer | Leads waiting for a decision, oldest first |
+| `GET` | `/approvals/queue` | reviewer | Leads waiting for a decision, newest first (`?sort=` `created_at` for oldest, `-score` for highest) |
 | `POST` | `/run-items/{id}/decision` | reviewer | `{decision, reason}`; 409 if someone already decided |
 | `POST` | `/run-items/{id}/retry` | admin | Queue a failed lead again; 409 if it isn't failed |
 | `GET` | `/leads`, `/leads/{id}` | logged in | Filter, sort, search, pages |
 | `DELETE` | `/leads/{id}/data` | admin | Opt-out: wipe the lead's contact data |
+| `DELETE` | `/leads/{id}`, `/runs/{id}`, `/campaigns/{id}`, `/uploads/csv/{id}` | admin | Delete; 409 while the worker is still on it (or a campaign still uses the file) |
 | `GET` | `/exports/approved-leads` | admin | `?run_id=` or `?campaign_id=`: the approved leads as a CSV |
 | `GET` | `/audit` | logged in | The audit trail, with filters (login, account, campaign, upload and export records: admins only) |
 | `GET`, `POST` | `/rubrics`, `/rubrics/{id}` | admin to change | Scoring rules; an edit makes a new version |
@@ -203,17 +205,18 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 489 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 545 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
 npm run lint && npm run typecheck && npm test && npm run build
+npm run check:api                        # schema.d.ts still matches the API (needs the backend installed, not running; gen:api remakes it)
 npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Docker stack
 ```
 
-The 20 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
+The 27 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
-CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 50 Vitest tests, build), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
+CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 70 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
 ## Project structure
 
@@ -232,8 +235,8 @@ backend/
     observability/                 JSON logs, correlation ids, Langfuse
   alembic/                         migrations
   tests/unit/  tests/integration/  SQLite tests, Postgres tests
-  scripts/                         live checks, the extraction eval, the SQL index bench
-  eval/                            the extraction eval's checked answers
+  scripts/                         live checks, the extraction eval, the SQL index bench, the OpenAPI export
+  eval/                            the extraction eval's leads (with their saved site text) and checked answers
 frontend/                          React + TypeScript + Vite + Tailwind; e2e/ = Playwright
 docs/ARCHITECTURE.md               how it fits together (diagrams)
 docs/sql-notes.md                  indexes and reports, with measurements
@@ -244,7 +247,7 @@ render.yaml                        the live demo's hosting
 
 ## Settings
 
-All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. Every outside service is off when its keys are empty.
+All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `LLM_REASONING_EFFORT` (how long gpt-oss thinks: `low` by default, `medium` finds services better for about twice the tokens), `LLM_TOKENS_PER_MINUTE` (empty = 8,000 on Groq, its free tier's limit), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `OVERPASS_BACKUP_URL` (a second Overpass server for when the public one is busy; `NOMINATIM_URL` and `OVERPASS_URL` change the main ones), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. The optional services are off when their keys are empty. OpenStreetMap and website visits need no keys, so they stay on.
 
 ## Design decisions
 
@@ -265,16 +268,16 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 
 - **Google's terms don't allow what this app does with Places data.** Google's Maps Platform terms forbid storing Places content outside the service (they name copying and saving business names and addresses), and only the place ID, plus latitude and longitude for 30 days, may be kept. The `google_places` source saves those fields on the lead and an approved lead's fields go to the CRM, and its 30-day wipe doesn't fix that. It stays off without a key: OpenStreetMap or your own CSV are the sources to use for a real lead list. The dashboard shows the required "Google Maps" credit next to Google leads.
 - **No ratings from OpenStreetMap.** OSM has no reviews, so on the `web-agency` rubric most OSM leads score 0–20. Google Places data scores higher, but its API needs a billing card even for the free tier.
-- **The public Overpass server is often busy** (HTTP 502) or slow; a collect may need a second try.
+- **The public Overpass server is often busy** (HTTP 502), slow, or can't be reached. A collect waits and tries again twice, and with `OVERPASS_BACKUP_URL` set it asks a second server straight away; with both busy, it may still need a second try later.
 - **Fewer emails than you'd hope:** many sites hide their email behind Cloudflare's obfuscation, and leadgate leaves it hidden. Sites built only with JavaScript show the crawler little text (no headless browser, on purpose).
-- **The LLM is a small free model.** It sometimes cuts an answer off or gets rate-limited; the lead is then marked "extraction not ok" and escalated rather than guessed.
+- **The LLM is a small free model on a free tier.** Groq allows 8,000 tokens a minute, and leadgate waits for room instead of hitting the limit (`LLM_TOKENS_PER_MINUTE`). It also allows 200,000 tokens a day, which several evals and runs can use up. When the daily limit is reached, or an answer is still invalid after three tries, the lead is marked "extraction not ok" and escalated rather than guessed.
 - **Two tiny crash windows remain:** a kill in the instant between two back-to-back commits could record a step twice or post a Discord message twice. Closing them would need an idempotency key at the provider, and Discord webhooks have none.
 - **Login tokens can't be cut off one by one** before they expire (no refresh tokens or deny list); a password change or deactivating the user ends them.
 - **The login limit can be used to lock someone out** for 15 minutes by typing their email wrong 5 times, and an admin can't unlock it early. No two-factor login.
 - **The crawler's address check has a small DNS gap:** the address is looked up for the check and again to connect, so a DNS server that answers differently the second time could slip through.
 - **The n8n results address isn't address-checked**, because it has to reach n8n on the private network; only someone with the shared secret can set it.
-- **An opted-out lead's old data stays in its LangGraph checkpoint** (approvals are blocked, but the checkpoint isn't wiped).
-- **An uploaded CSV is kept in the database as it was uploaded**, with no way to delete it yet, so an opt-out doesn't wipe the lead's row in that file.
+- **An opted-out lead's old data can stay in a LangGraph checkpoint** when the opt-out comes from the command line while the lead waits for a decision (approving it is blocked). Through the dashboard or the API, the waiting lead is rejected and its checkpoint deleted once it finishes, and its audit rows are blanked.
+- **An uploaded CSV is kept in the database as it was uploaded** until an admin deletes it, so an opt-out doesn't wipe the lead's row in that file.
 - **The demo's admin still sees New campaign and Start run.** On the public demo they answer with a message that real searches run on your own machine, rather than being hidden.
 - **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, campaign, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
 - **Small hardening left undone:** the API's own JSON answers carry no security headers (the live API is HTTPS-only anyway: `onrender.com` is on the browsers' HSTS preload list), the local nginx shows its version, and the local database password defaults to `leadgate` (its port only listens on 127.0.0.1).
@@ -283,10 +286,10 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 ## Legal and ethics
 
 - **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Google's terms are stricter than this app's storage, so read the known limit above before using a Google key.
-- **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages, and there are no login walls, CAPTCHA solving or proxies.
+- **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages by default, and there are no login walls, CAPTCHA solving or proxies.
 - **Public business data only:** a business's own listing and public website. Any lead can be opted out: its contact data is wiped and it's never collected or crawled again.
 - **Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)** (ODbL 1.0), also credited in the dashboard's footer. The ODbL covers OpenStreetMap's data, not leadgate's code; the few saved Overpass answers in the tests are small extracts.
 
 ## License
 
-All rights reserved. The code is public so it can be read and reviewed, not reused; see [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL). Built by [Manish Pandeya](https://github.com/maniesh-lab).
+Not open source. You may read and review the code, and run or change your own private copy to test it, without asking. Using it, or the leads it finds, for a business, a client or paid work needs written approval, and so do hosting it for others and sharing a changed copy; the details are in [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL). Built by [Manish Pandeya](https://github.com/maniesh-lab).

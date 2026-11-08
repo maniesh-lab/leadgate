@@ -36,6 +36,7 @@ were measured and **left out** are here too, with the reason.
 | query | index | without | with | kept? |
 |---|---|---|---|---|
 | approval queue, page 1 (oldest first, as measured in Phase 2) | `ix_run_items_awaiting_approval` (partial) | 2.17 ms | 0.18 ms | yes (Phase 2) |
+| approval queue, newest first (the default since 2026-11-08) | same | 2.67 ms | 0.19 ms | yes |
 | approval queue, best score first (2026-11-08) | same | 2.64 ms | 0.52 ms | yes |
 | approval queue, total | same | 1.99 ms | 0.31 ms | yes |
 | worker claim | `ix_jobs_queued_run_after` (partial) | 4.62 ms | 0.002 ms | yes (Phase 2) |

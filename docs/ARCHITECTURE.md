@@ -53,9 +53,9 @@ flowchart TD
 
 | Node | What it does | Uses the LLM? |
 |---|---|---|
-| `enrich` | Reads up to 4 pages of the lead's own website (robots.txt respected, 1 s between requests to a site, public addresses only): emails, phones, social links, site signals (https, mobile viewport, copyright year, contact form). Reuses findings younger than 14 days. | no |
-| `extract` | Cleans the data by rule first (phones to E.164 with `phonenumbers`), then asks the LLM for the fields that need reading (email, area, city, category, services, founding year). A traceability check sends back any value that isn't in the source data or the website text. | yes |
-| `check` | Flags possible duplicates (same phone, domain or source, or a near-identical name nearby), a category that doesn't match the campaign, and closed businesses. | no |
+| `enrich` | Reads up to 4 pages (`ENRICH_MAX_PAGES`) of the lead's own website (robots.txt respected, 1 s between requests to a site, public addresses only): emails, phones, social links, site signals (https, mobile viewport, copyright year, contact form). Reuses findings younger than 14 days. | no |
+| `extract` | Cleans the data by rule first (phones to E.164 with `phonenumbers`), then asks the LLM for the fields that need reading (email, area, city, category, services, founding year). A traceability check sends back any value that isn't in the source data or the website text. The prompt offers only the campaign's sector of business types (e.g. health for a dentist). On Groq a token budget (`LLM_TOKENS_PER_MINUTE`, 8,000 by default) waits before a call that would pass the free tier's per-minute limit. | yes |
+| `check` | Flags possible duplicates (same phone, domain or source, or a near-identical name nearby), a category that doesn't match the campaign, and closed businesses. Close neighbours (hotel and guest house, hair and beauty salon, ...) count as a match; a niche off the 119-type list, or a lead whose extraction failed, isn't judged and shows "not checked". | no |
 | `score` | Adds up the campaign's rubric (rules stored as data, versioned). The LLM only writes a one-sentence explanation of the points; it never changes the score. | explanation only |
 | `approval_gate` | `interrupt()`: the thread stops and is saved. On resume it stores the decision. No side effects, because LangGraph re-runs this node from its top on resume. | no |
 | `route` | Rule-based: rejected → skip; approved and clean → notify; approved with serious flags or a failed extraction → escalate. | no |
@@ -97,6 +97,10 @@ sequenceDiagram
   `act` checks `notified_at` and the CRM key, so a message or CRM record happens once.
   This is tested by killing the worker mid-run (`tests/integration/test_worker_postgres.py`)
   and was checked by hand with `docker compose kill worker`.
+- **Busy sources:** OpenStreetMap's public Overpass server is often busy. A collect waits
+  10 s, then 30 s, and tries again; with `OVERPASS_BACKUP_URL` set it asks that server
+  straight away when the first is busy or can't be reached. `NOMINATIM_URL` and
+  `OVERPASS_URL` change the main servers.
 - **One process when hosting is tight:** `RUN_WORKER_IN_API=true` runs the same loop in a
   background thread of the API (the live demo does this).
 
@@ -132,6 +136,18 @@ lock the item, check it is still `failed` (else 409), then save the audit row an
 one transaction. The job is `resume_item` when a reviewer already decided (the lead failed
 in `route` / `act`), else `process_item`; a completed run is reopened. The worker continues
 the thread from its last checkpoint, so finished nodes don't run again.
+
+**The queue** (`GET /api/approvals/queue`) shows the newest waiting leads first; `?sort=`
+gives oldest first or best score first. Each lead's score card names the rubric that scored
+it and who that rubric suits.
+
+**Deleting** a lead, run, campaign or uploaded CSV (admins) happens in one transaction:
+the run items go with their steps, approvals, jobs and LangGraph checkpoints, a run takes
+the leads in no other run, and a campaign its runs and its file when no other campaign uses
+it. It's refused (409) while the worker may still be on any of it. Audit rows stay: a
+narrow exception in the trigger lets the delete blank their names, contact details and free
+text, and a `lead.deleted` / `run.deleted` / `campaign.deleted` / `csv.deleted` row records
+it. Nothing outside leadgate (Airtable, Discord) changes.
 
 ## 5. Data
 
