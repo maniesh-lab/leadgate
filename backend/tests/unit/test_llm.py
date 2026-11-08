@@ -3,6 +3,8 @@
 No network: the retry loop runs on `ScriptedProvider`, which replays canned replies.
 """
 
+from types import SimpleNamespace
+
 import pytest
 import structlog
 from pydantic import BaseModel
@@ -250,4 +252,78 @@ def test_make_llm_takes_the_budget_from_settings(settings: Settings) -> None:
     )
     assert isinstance(llm, SteadfastLLM)
     assert llm.budget is not None and llm.budget.per_minute == 30000
+    llm.close()
+
+
+def claude(settings: Settings, **update: object) -> SteadfastLLM:
+    llm = make_llm(
+        settings.model_copy(
+            update={"llm_mode": "anthropic", "anthropic_api_key": "test-key", **update}
+        )
+    )
+    assert isinstance(llm, SteadfastLLM)
+    return llm
+
+
+def test_make_llm_anthropic_needs_a_key(settings: Settings) -> None:
+    with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+        make_llm(settings.model_copy(update={"llm_mode": "anthropic"}))
+
+
+def test_make_llm_anthropic_uses_claude_haiku_with_its_own_settings(settings: Settings) -> None:
+    llm = claude(settings)
+
+    assert llm.client.providers["anthropic"].model == "claude-haiku-5-5"
+    # Room for thinking, the effort level, and no temperature (Claude refuses one).
+    assert llm.params == {"max_tokens": 16000, "output_config": {"effort": "low"}}
+    assert llm.budget is None  # paid plans have far higher limits; the setting can add one
+    llm.close()
+
+
+def test_make_llm_anthropic_adds_the_refusal_fallback_only_where_it_exists(
+    settings: Settings,
+) -> None:
+    opus = claude(settings, llm_model="claude-opus-5-5", llm_reasoning_effort="medium")
+    assert opus.params == {
+        "max_tokens": 16000,
+        "output_config": {"effort": "medium"},
+        "extra_headers": {"anthropic-beta": "server-side-fallback-2026-07-01"},
+        "extra_body": {"fallbacks": "default"},
+    }
+    opus.close()
+
+
+def test_claude_request_sends_effort_and_no_temperature(settings: Settings) -> None:
+    llm = claude(settings)
+    provider = llm.client.providers["anthropic"]
+    sent: dict = {}
+
+    async def create(**request: object) -> SimpleNamespace:
+        sent.update(request)
+        return SimpleNamespace(
+            content=[
+                SimpleNamespace(type="thinking", thinking=""),
+                SimpleNamespace(type="text", text='{"name": "Rex", "legs": 4}'),
+            ],
+            usage=SimpleNamespace(input_tokens=120, output_tokens=40),
+            stop_reason="end_turn",
+            model="claude-haiku-5-5",
+        )
+
+    provider.client.messages.create = create  # no request leaves the machine
+
+    assert ask(llm) == Pet(name="Rex", legs=4)
+    assert sent["model"] == "claude-haiku-5-5"
+    assert sent["system"] == "Answer in JSON."
+    assert sent["output_config"] == {"effort": "low"}
+    assert sent["max_tokens"] == 16000
+    assert "temperature" not in sent
+    llm.close()
+
+
+def test_make_llm_openai_works_in_the_image_too(settings: Settings) -> None:
+    llm = make_llm(settings.model_copy(update={"llm_mode": "openai", "openai_api_key": "test"}))
+    assert isinstance(llm, SteadfastLLM)
+    assert llm.client.providers["openai"].model == "gpt-4o-mini"
+    assert llm.params == {"max_tokens": 2048, "temperature": 0}
     llm.close()

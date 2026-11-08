@@ -10,7 +10,8 @@ last problems, and the node decides what to do (e.g. extraction marks itself not
 - `fake`: `FakeLLM`, no network. It returns the `fake_answer` the node passes in (a
   plain, rule-based answer built from the data), after running the same validators.
   Used by tests, CI, e2e and offline demos.
-- `groq` / `openai`: `SteadfastLLM` on the real API (Groq's free tier by default).
+- `groq` / `openai` / `anthropic`: `SteadfastLLM` on the real API (Groq's free tier by
+  default; `anthropic` is Claude, Claude Haiku 5.5 unless LLM_MODEL says other).
 
 Tests that need the real retry loop use `scripted_llm()`: a `SteadfastLLM` on a pretend
 provider that replays canned replies, so no request ever leaves the machine.
@@ -46,9 +47,15 @@ from app.observability.tracing import Tracer
 
 log = structlog.get_logger(__name__)
 
-DEFAULT_MODELS = {"groq": "openai/gpt-oss-20b", "openai": "gpt-4o-mini"}
-# Calls per minute: Groq's free tier allows 30 for the gpt-oss models (checked 2026-10-28).
-RATE_PER_MINUTE = {"groq": 30, "openai": 60}
+DEFAULT_MODELS = {
+    "groq": "openai/gpt-oss-20b",
+    "openai": "gpt-4o-mini",
+    # Fast and cheap ($0.10 / $0.50 per million tokens in / out, 2026-11-08), Boss's pick.
+    "anthropic": "claude-haiku-5-5",
+}
+# Calls per minute: Groq's free tier allows 30 for the gpt-oss models (checked 2026-10-28);
+# Anthropic's first paid tier allows 50.
+RATE_PER_MINUTE = {"groq": 30, "openai": 60, "anthropic": 50}
 # Tries per answer: the first one plus two corrections.
 MAX_ATTEMPTS = 3
 # Tries per request when the API is busy or down (429, 5xx, timeouts).
@@ -67,6 +74,21 @@ TOKENS_PER_MINUTE = {"groq": 8000}
 # characters per token for the prompt, plus room for the answer (thinking + JSON).
 CHARS_PER_TOKEN = 4
 ANSWER_TOKENS_GUESS = 400
+# Claude always thinks first on the current models, and the thinking counts toward
+# max_tokens; LLM_REASONING_EFFORT sets how much (`output_config.effort`). They take no
+# temperature (it's a 400), so none is sent. Room for thinking plus the JSON answer, kept
+# under the SDK's limit for a request that isn't streamed.
+CLAUDE_MAX_TOKENS = 16000
+CLAUDE_TIMEOUT_SECONDS = 120.0
+# Claude models that can hand a request they decline to another model on Anthropic's side
+# (server-side fallback, "default" picks the model); Claude Haiku 5.5 can't.
+CLAUDE_FALLBACK_MODELS = {
+    "claude-opus-5-5",
+    "claude-opus-5",
+    "claude-sonnet-5-5",
+    "claude-fable-5-1",
+}
+CLAUDE_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 # A check on a parsed answer: returns None when fine, or a sentence saying what's wrong
 # (that sentence is sent back to the model).
@@ -283,35 +305,55 @@ def make_llm(settings: Settings, tracer: Tracer | None = None) -> LLM:
 
     `tracer` (the worker's) puts each real call in Langfuse; FakeLLM calls aren't traced.
     A real LLM gets a `TokenBudget` from LLM_TOKENS_PER_MINUTE (empty = 8,000 on groq).
-
-    LLM_MODE=openai also needs the optional openai SDK (`pip install -e ".[openai]"`); the
-    Docker image is built without it, so there it raises ImportError.
     """
     if settings.llm_mode == "fake":
         return FakeLLM()
 
-    model = settings.llm_model or DEFAULT_MODELS[settings.llm_mode]
-    if settings.llm_mode == "groq":
+    mode = settings.llm_mode
+    model = settings.llm_model or DEFAULT_MODELS[mode]
+    effort = settings.llm_reasoning_effort
+    # Each SDK is imported only for its own mode.
+    if mode == "groq":
         if not settings.groq_api_key:
             raise ValueError("LLM_MODE=groq needs GROQ_API_KEY")
         from steadfast.providers.groq_provider import GroqProvider
 
-        provider = GroqProvider(api_key=settings.groq_api_key, model=model)
-    else:
+        provider: Any = GroqProvider(api_key=settings.groq_api_key, model=model)
+    elif mode == "openai":
         if not settings.openai_api_key:
             raise ValueError("LLM_MODE=openai needs OPENAI_API_KEY")
-        # Imported here: the openai SDK is an optional extra (pip install -e ".[openai]").
         from steadfast.providers.openai_provider import OpenAIProvider
 
         provider = OpenAIProvider(api_key=settings.openai_api_key, model=model)
+    else:
+        if not settings.anthropic_api_key:
+            raise ValueError("LLM_MODE=anthropic needs ANTHROPIC_API_KEY")
+        from steadfast.providers.anthropic_provider import AnthropicProvider
+
+        provider = AnthropicProvider(
+            api_key=settings.anthropic_api_key, model=model, timeout=CLAUDE_TIMEOUT_SECONDS
+        )
 
     client = SteadfastClient(max_retries=MAX_RETRIES)
-    client.register(provider, rate=RATE_PER_MINUTE[settings.llm_mode], period=60)
-    effort = settings.llm_reasoning_effort
-    params: dict[str, Any] = {"max_tokens": MAX_TOKENS[effort], "temperature": 0}
-    # Only these models take the setting; others may refuse a request that has it.
-    if settings.llm_mode == "groq" and "gpt-oss" in model:
-        params["reasoning_effort"] = effort
+    client.register(provider, rate=RATE_PER_MINUTE[mode], period=60)
+    if mode == "anthropic":
+        params = claude_params(model, effort)
+    else:
+        params = {"max_tokens": MAX_TOKENS[effort], "temperature": 0}
+        # Only these models take the setting; others may refuse a request that has it.
+        if mode == "groq" and "gpt-oss" in model:
+            params["reasoning_effort"] = effort
     per_minute = settings.llm_tokens_per_minute or TOKENS_PER_MINUTE.get(settings.llm_mode)
     budget = TokenBudget(per_minute) if per_minute else None
     return SteadfastLLM(client, provider.name, model=model, tracer=tracer, budget=budget, **params)
+
+
+def claude_params(model: str, effort: str) -> dict[str, Any]:
+    """What every Claude request sends: room for thinking, the effort level, no temperature,
+    and a server-side fallback on the models that have one (a declined request then runs on
+    another Claude model instead of failing the lead's extraction)."""
+    params: dict[str, Any] = {"max_tokens": CLAUDE_MAX_TOKENS, "output_config": {"effort": effort}}
+    if model in CLAUDE_FALLBACK_MODELS:
+        params["extra_headers"] = {"anthropic-beta": CLAUDE_FALLBACK_BETA}
+        params["extra_body"] = {"fallbacks": "default"}
+    return params

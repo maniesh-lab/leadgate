@@ -33,6 +33,7 @@ x-backend-env: &backend-env
   LLM_TOKENS_PER_MINUTE: ${LLM_TOKENS_PER_MINUTE:-}
   GROQ_API_KEY: ${GROQ_API_KEY:-}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   # true = the api runs the worker loop too (then stop the worker service).
   RUN_WORKER_IN_API: ${RUN_WORKER_IN_API:-}
   # Airtable CRM (all three empty = approved leads are kept in memory).
