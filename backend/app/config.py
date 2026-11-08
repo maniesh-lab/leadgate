@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # Sent on every request leadgate makes: OSM's Nominatim and Overpass (their policies ask
     # for a User-Agent that names the app), Google Places, and the website crawler.
     osm_user_agent: str = DEFAULT_USER_AGENT
+    # OpenStreetMap's servers (app/sources/osm.py); empty = the public ones. The backup
+    # Overpass server is asked when the first is busy or can't be reached; empty = none.
+    nominatim_url: str | None = None
+    overpass_url: str | None = None
+    overpass_backup_url: str | None = None
     # The `google_places` source only runs when this is set.
     google_places_api_key: str | None = Field(default=None, repr=False)
 

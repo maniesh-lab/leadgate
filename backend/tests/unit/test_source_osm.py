@@ -13,7 +13,9 @@ from urllib.parse import parse_qs
 import httpx2
 import pytest
 
+from app.config import Settings
 from app.db.models import Campaign
+from app.services import ingestion
 from app.sources.base import SourceError, make_http_client
 from app.sources.osm import (
     OsmSource,
@@ -39,10 +41,11 @@ class FakeOsm:
         # Status codes for the next Overpass answers (e.g. [429, 200]); 200 when used up.
         self.overpass_statuses = overpass_statuses or []
         self.nominatim_answer: list = NOMINATIM
+        self.nominatim_host = "nominatim.openstreetmap.org"
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
-        if request.url.host == "nominatim.openstreetmap.org":
+        if request.url.host == self.nominatim_host:
             return httpx2.Response(200, json=self.nominatim_answer)
         status = self.overpass_statuses.pop(0) if self.overpass_statuses else 200
         return httpx2.Response(status, json=OVERPASS if status == 200 else {})
@@ -51,10 +54,26 @@ class FakeOsm:
         return [request.url.host for request in self.requests]
 
 
-def make_source(handler: Handler, sleeps: list[float] | None = None) -> OsmSource:
+BACKUP = "https://overpass.backup.example/api/interpreter"
+
+
+def make_source(
+    handler: Handler, sleeps: list[float] | None = None, **urls: str | None
+) -> OsmSource:
     client = httpx2.Client(transport=httpx2.MockTransport(handler))
     waits = sleeps if sleeps is not None else []
-    return OsmSource(client, sleep=waits.append)
+    return OsmSource(client, sleep=waits.append, **urls)
+
+
+def unreachable(host: str, handler: Handler) -> Handler:
+    """`handler`, except that `host` can't be reached (like Render's `Errno 101`)."""
+
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        if request.url.host == host:
+            raise httpx2.ConnectError("Network is unreachable", request=request)
+        return handler(request)
+
+    return answer
 
 
 def campaign(**options: object) -> Campaign:
@@ -139,6 +158,102 @@ def test_overpass_still_busy_after_retries_raises() -> None:
     source = make_source(FakeOsm(overpass_statuses=[429, 429, 429]))
     with pytest.raises(SourceError, match="Overpass answered HTTP 429"):
         list(source.collect(campaign()))
+
+
+def test_overpass_network_error_is_retried_after_a_wait() -> None:
+    fake = FakeOsm()
+    calls = {"overpass": 0}
+
+    def flaky(request: httpx2.Request) -> httpx2.Response:
+        if request.url.host == "overpass-api.de":
+            calls["overpass"] += 1
+            if calls["overpass"] == 1:
+                raise httpx2.ConnectError("timed out", request=request)
+        return fake(request)
+
+    sleeps: list[float] = []
+    leads = list(make_source(flaky, sleeps).collect(campaign()))
+
+    assert len(leads) == 20
+    assert sleeps == [10]
+
+
+def test_other_overpass_errors_are_not_retried() -> None:
+    sleeps: list[float] = []
+    fake = FakeOsm(overpass_statuses=[400])
+    with pytest.raises(SourceError, match="Overpass answered HTTP 400"):
+        list(make_source(fake, sleeps, overpass_backup_url=BACKUP).collect(campaign()))
+    assert sleeps == []
+    assert fake.hosts() == ["nominatim.openstreetmap.org", "overpass-api.de"]
+
+
+def test_servers_can_be_changed() -> None:
+    fake = FakeOsm()
+    source = make_source(
+        fake,
+        nominatim_url="https://nominatim.mine.example/search",
+        overpass_url="https://overpass.mine.example/api/interpreter",
+    )
+    fake.nominatim_host = "nominatim.mine.example"
+
+    assert len(list(source.collect(campaign()))) == 20
+    assert fake.hosts() == ["nominatim.mine.example", "overpass.mine.example"]
+
+
+def test_backup_is_asked_at_once_when_overpass_is_busy() -> None:
+    sleeps: list[float] = []
+    fake = FakeOsm(overpass_statuses=[504])
+    leads = list(make_source(fake, sleeps, overpass_backup_url=BACKUP).collect(campaign()))
+
+    assert len(leads) == 20
+    assert sleeps == []
+    assert fake.hosts()[1:] == ["overpass-api.de", "overpass.backup.example"]
+
+
+def test_backup_is_asked_when_overpass_cant_be_reached() -> None:
+    sleeps: list[float] = []
+    fake = FakeOsm()
+    handler = unreachable("overpass-api.de", fake)
+    leads = list(make_source(handler, sleeps, overpass_backup_url=BACKUP).collect(campaign()))
+
+    assert len(leads) == 20
+    assert sleeps == []
+    assert fake.hosts()[1:] == ["overpass.backup.example"]
+
+
+def test_both_busy_waits_then_asks_both_again() -> None:
+    sleeps: list[float] = []
+    fake = FakeOsm(overpass_statuses=[429, 502, 200])
+    leads = list(make_source(fake, sleeps, overpass_backup_url=BACKUP).collect(campaign()))
+
+    assert len(leads) == 20
+    assert sleeps == [10]
+    assert fake.hosts()[1:] == ["overpass-api.de", "overpass.backup.example", "overpass-api.de"]
+
+
+def test_both_still_busy_after_retries_raises_the_last_error() -> None:
+    sleeps: list[float] = []
+    fake = FakeOsm(overpass_statuses=[429, 503] * 3)
+    with pytest.raises(SourceError, match="Overpass answered HTTP 503"):
+        list(make_source(fake, sleeps, overpass_backup_url=BACKUP).collect(campaign()))
+    assert sleeps == [10, 30]
+    assert fake.hosts().count("overpass.backup.example") == 3
+
+
+def test_collect_uses_the_server_settings() -> None:
+    settings = Settings(
+        database_url="sqlite://",
+        nominatim_url="https://nominatim.mine.example/search",
+        overpass_url="https://overpass.mine.example/api/interpreter",
+        overpass_backup_url=BACKUP,
+    )
+    client = httpx2.Client(transport=httpx2.MockTransport(FakeOsm()))
+    # The OSM source needs no session.
+    source = ingestion.make_source(None, "osm", campaign(), settings, client)
+
+    assert isinstance(source, OsmSource)
+    assert source.nominatim_url == "https://nominatim.mine.example/search"
+    assert source.overpass_urls == ["https://overpass.mine.example/api/interpreter", BACKUP]
 
 
 def test_unknown_location_raises() -> None:
