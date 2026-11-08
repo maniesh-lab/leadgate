@@ -19,12 +19,12 @@ Each lead goes through these steps:
 |---|---|---|
 | `enrich` | Reads up to 4 pages of the lead's own website (robots.txt respected, public addresses only): emails, phones, social links, and site signals like https, a mobile layout and the copyright year | no |
 | `extract` | Cleans the data by rule (phones to international format), then the LLM fills the fields that need reading. A check sends back any value that isn't in the source data or on the website, so it can't invent an email | yes |
-| `check` | Flags possible duplicates, a category that doesn't match the campaign, and closed businesses | no |
+| `check` | Flags possible duplicates, a category that doesn't match the campaign (close neighbours like hotel and guest house count as a match; a niche off the 119-type list shows "not checked"), and closed businesses | no |
 | `score` | Adds up the campaign's rubric (rules stored as data). The LLM only writes a one-sentence explanation; it never changes the score | explanation only |
 | `approval_gate` | Stops and waits for a person, for hours if needed | no |
 | `route` + `act` | Approved and clean: write to Airtable + post to Discord. Approved but unsure (failed extraction, serious flags): escalate to an admin channel. Rejected: nothing | no |
 
-Every lead in the queue shows its **reasons**: the score broken down rule by rule, the flags, what the website showed, and the full timeline of steps. The audit log keeps who (or which agent) did what, and it can't be edited.
+Every lead in the queue shows its **reasons**: the score broken down rule by rule, which rubric scored it and who that rubric suits (so "+30 for no website" makes sense), the flags, what the website showed, and the full timeline of steps. The queue shows the newest leads first and can sort oldest first or by score. The audit log keeps who (or which agent) did what, and it can't be edited.
 
 ## How it works
 
@@ -157,7 +157,7 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 | `POST` | `/campaigns/{id}/runs` | admin | Start a run |
 | `POST` | `/uploads/csv` | admin | Upload a CSV of leads (the body is the file); a campaign uses it by id |
 | `GET` | `/runs`, `/runs/{id}`, `/run-items/{id}` | logged in | Runs, their leads, each lead's step timeline |
-| `GET` | `/approvals/queue` | reviewer | Leads waiting for a decision, oldest first |
+| `GET` | `/approvals/queue` | reviewer | Leads waiting for a decision, newest first (`?sort=` `created_at` for oldest, `-score` for highest) |
 | `POST` | `/run-items/{id}/decision` | reviewer | `{decision, reason}`; 409 if someone already decided |
 | `POST` | `/run-items/{id}/retry` | admin | Queue a failed lead again; 409 if it isn't failed |
 | `GET` | `/leads`, `/leads/{id}` | logged in | Filter, sort, search, pages |
