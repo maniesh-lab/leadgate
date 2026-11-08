@@ -38,7 +38,7 @@ flowchart LR
   W --> G["LangGraph graph (one thread per lead)"]
   G -->|"checkpoint after every node"| DB
   G -->|"robots.txt-aware crawl"| WEB["Business websites"]
-  G -->|"LLM via Steadfast"| LLM["Groq / OpenAI"]
+  G -->|"LLM via Steadfast"| LLM["Groq / OpenAI / Claude"]
   G --> CRM["Airtable"]
   G --> D["Discord"]
   W -->|"results callback"| N8N
@@ -96,7 +96,7 @@ The first start builds the images, creates the tables, and adds the admin and th
 - **Dashboard:** open http://localhost:8080 and log in as the admin. Create a campaign (e.g. "dentist", "Austin, TX", source OpenStreetMap, rubric `web-agency`), press **Start run**, and the leads arrive in the **Queue** as the worker gets through them (set **Max results** to 5 for a quick first try).
 - **API docs:** http://localhost:8000/docs (log in with the **Authorize** button).
 
-Out of the box the LLM runs in fake mode and approved leads stay in memory, but the lead sources and website visits are real (they need internet). Add keys to `.env` to turn on the rest: `LLM_MODE=groq` + `GROQ_API_KEY` (free at [console.groq.com](https://console.groq.com)), the three `AIRTABLE_*` values, the `DISCORD_*` webhooks, `N8N_WEBHOOK_SECRET`, the `LANGFUSE_*` keys. Each setting is explained in [.env.example](.env.example).
+Out of the box the LLM runs in fake mode and approved leads stay in memory, but the lead sources and website visits are real (they need internet). Add keys to `.env` to turn on the rest: `LLM_MODE=groq` + `GROQ_API_KEY` (free at [console.groq.com](https://console.groq.com)), or `LLM_MODE=anthropic` + `ANTHROPIC_API_KEY` for Claude (paid, more reliable; Claude Haiku 5.5 by default), the three `AIRTABLE_*` values, the `DISCORD_*` webhooks, `N8N_WEBHOOK_SECRET`, the `LANGFUSE_*` keys. Each setting is explained in [.env.example](.env.example).
 
 ## Run it without Docker (for development)
 
@@ -247,7 +247,7 @@ render.yaml                        the live demo's hosting
 
 ## Settings
 
-All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `LLM_REASONING_EFFORT` (how long gpt-oss thinks: `low` by default, `medium` finds services better for about twice the tokens), `LLM_TOKENS_PER_MINUTE` (empty = 8,000 on Groq, its free tier's limit), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `OVERPASS_BACKUP_URL` (a second Overpass server for when the public one is busy; `NOMINATIM_URL` and `OVERPASS_URL` change the main ones), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. The optional services are off when their keys are empty. OpenStreetMap and website visits need no keys, so they stay on.
+All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq`, `openai` or `anthropic`), `LLM_MODEL` (any model of that provider; e.g. `claude-sonnet-5-5` or `claude-opus-5-5` for a stronger Claude), `LLM_REASONING_EFFORT` (how long the model thinks: `low` by default; on Groq `medium` finds services better for about twice the tokens), `LLM_TOKENS_PER_MINUTE` (empty = 8,000 on Groq, its free tier's limit), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `OVERPASS_BACKUP_URL` (a second Overpass server for when the public one is busy; `NOMINATIM_URL` and `OVERPASS_URL` change the main ones), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. The optional services are off when their keys are empty. OpenStreetMap and website visits need no keys, so they stay on.
 
 ## Design decisions
 
@@ -270,7 +270,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **No ratings from OpenStreetMap.** OSM has no reviews, so on the `web-agency` rubric most OSM leads score 0–20. Google Places data scores higher, but its API needs a billing card even for the free tier.
 - **The public Overpass server is often busy** (HTTP 502), slow, or can't be reached. A collect waits and tries again twice, and with `OVERPASS_BACKUP_URL` set it asks a second server straight away; with both busy, it may still need a second try later.
 - **Fewer emails than you'd hope:** many sites hide their email behind Cloudflare's obfuscation, and leadgate leaves it hidden. Sites built only with JavaScript show the crawler little text (no headless browser, on purpose).
-- **The LLM is a small free model on a free tier.** Groq allows 8,000 tokens a minute, and leadgate waits for room instead of hitting the limit (`LLM_TOKENS_PER_MINUTE`). It also allows 200,000 tokens a day, which several evals and runs can use up. When the daily limit is reached, or an answer is still invalid after three tries, the lead is marked "extraction not ok" and escalated rather than guessed.
+- **The default LLM is a small free model on a free tier** (a paid Claude or OpenAI key avoids these limits). Groq allows 8,000 tokens a minute, and leadgate waits for room instead of hitting the limit (`LLM_TOKENS_PER_MINUTE`). It also allows 200,000 tokens a day, which several evals and runs can use up. When the daily limit is reached, or an answer is still invalid after three tries, the lead is marked "extraction not ok" and escalated rather than guessed.
 - **Two tiny crash windows remain:** a kill in the instant between two back-to-back commits could record a step twice or post a Discord message twice. Closing them would need an idempotency key at the provider, and Discord webhooks have none.
 - **Login tokens can't be cut off one by one** before they expire (no refresh tokens or deny list); a password change or deactivating the user ends them.
 - **The login limit can be used to lock someone out** for 15 minutes by typing their email wrong 5 times, and an admin can't unlock it early. No two-factor login.
@@ -281,7 +281,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **The demo's admin still sees New campaign and Start run.** On the public demo they answer with a message that real searches run on your own machine, rather than being hidden.
 - **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, campaign, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
 - **Small hardening left undone:** the API's own JSON answers carry no security headers (the live API is HTTPS-only anyway: `onrender.com` is on the browsers' HSTS preload list), the local nginx shows its version, and the local database password defaults to `leadgate` (its port only listens on 127.0.0.1).
-- **With Langfuse or Groq keys set, lead data leaves your server:** the LLM prompts and a cut-down copy of each lead go to those services.
+- **With Langfuse or LLM keys set, lead data leaves your server:** the LLM prompts and a cut-down copy of each lead go to those services.
 
 ## Legal and ethics
 
