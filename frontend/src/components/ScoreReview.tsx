@@ -1,7 +1,8 @@
 /**
  * Why a lead scored what it did: the score in big type, the rubric that scored it and who
  * it suits (so "no website +30" makes sense), each rubric rule with whether it matched
- * and its points, then the LLM's short explanation (written from this breakdown
+ * and its points (the category rule says "not checked" when there was nothing to compare:
+ * a niche off the business list, or a failed extraction; it still gave its points), then the LLM's short explanation (written from this breakdown
  * only) and anything extraction couldn't prove. Used on the run item and lead pages
  * and in the approval queue's decision dialog.
  */
@@ -37,26 +38,40 @@ export function ScoreReview({ review, score }: { review: Review; score: number |
         <p className="text-sm text-muted">Not scored yet.</p>
       ) : (
         <ul className="space-y-1.5 text-sm">
-          {rules.map((rule) => (
-            <li key={rule.rule} className="flex items-center gap-3">
-              <span
-                className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                  rule.hit ? "bg-(--green-bg) text-(--green)" : "bg-surface-2 text-faint"
-                }`}
-              >
-                {rule.hit ? "✓" : "✗"}
-              </span>
-              <span className={rule.hit ? "font-medium" : "text-faint"}>
-                {rule.rule}
-                {rule.required && <span className="eyebrow ml-2 text-[9px]">required</span>}
-              </span>
-              <span
-                className={`ml-auto font-mono text-xs tabular-nums ${rule.hit ? "font-semibold text-(--green)" : "text-faint"}`}
-              >
-                {rule.hit ? signed(rule.points) : `(${signed(rule.points)})`}
-              </span>
-            </li>
-          ))}
+          {rules.map((rule) => {
+            const unchecked =
+              rule.field === "category_matches_niche" && review.category_checked === false;
+            return (
+              <li key={rule.rule} className="flex items-center gap-3">
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                    rule.hit && !unchecked
+                      ? "bg-(--green-bg) text-(--green)"
+                      : "bg-surface-2 text-faint"
+                  }`}
+                >
+                  {unchecked ? "–" : rule.hit ? "✓" : "✗"}
+                </span>
+                <span className={rule.hit ? "font-medium" : "text-faint"}>
+                  {rule.rule}
+                  {rule.required && <span className="eyebrow ml-2 text-[9px]">required</span>}
+                  {unchecked && (
+                    <span
+                      className="eyebrow ml-2 text-[9px]"
+                      title="The campaign's niche isn't on the business list, or extraction failed, so there was nothing to compare. The rule still gave its points."
+                    >
+                      not checked
+                    </span>
+                  )}
+                </span>
+                <span
+                  className={`ml-auto font-mono text-xs tabular-nums ${rule.hit ? "font-semibold text-(--green)" : "text-faint"}`}
+                >
+                  {rule.hit ? signed(rule.points) : `(${signed(rule.points)})`}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
       {review.score_explanation && (

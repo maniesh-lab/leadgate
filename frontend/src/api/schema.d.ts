@@ -1211,6 +1211,8 @@ export interface components {
          */
         Review: {
             rubric?: components["schemas"]["RubricRef"] | null;
+            /** Category Checked */
+            category_checked?: boolean | null;
             /**
              * Score Breakdown
              * @default []
