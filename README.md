@@ -77,7 +77,7 @@ To keep it free and safe, the demo can't make **outside calls**, for any login, 
 
 ## Quick start (Docker)
 
-You need Docker with the compose plugin.
+You need Docker with the compose plugin. Running it on your own machine to try it out needs no permission; using it for business work does (see [License](#license)).
 
 ```bash
 git clone https://github.com/maniesh-lab/leadgate
@@ -289,4 +289,4 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 
 ## License
 
-All rights reserved. The code is public so it can be read and reviewed, not reused; see [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL). Built by [Manish Pandeya](https://github.com/maniesh-lab).
+Not open source. You may read and review the code, and run or change your own private copy to test it, without asking. Using it, or the leads it finds, for a business, a client or paid work needs written approval, and so do hosting it for others and sharing a changed copy; the details are in [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL). Built by [Manish Pandeya](https://github.com/maniesh-lab).
