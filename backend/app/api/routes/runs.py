@@ -1,5 +1,6 @@
-"""Runs and run items: `GET /api/runs`, `/api/runs/{id}`, `/api/run-items/{id}`, and an
-admin's `POST /api/run-items/{id}/retry` for a failed lead.
+"""Runs and run items: `GET /api/runs`, `/api/runs/{id}`, `/api/run-items/{id}`, an
+admin's `POST /api/run-items/{id}/retry` for a failed lead, and `DELETE /api/runs/{id}`
+(admins; `app.services.deletion`).
 
 A run's detail lists its items and how many are in each status; a run item's detail is
 everything about one lead in one run: the lead card, its step timeline (`run_steps`,
@@ -16,13 +17,14 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import AdminUser, CurrentUser, DbSession, Paging, get_or_404, paginate
 from app.api.errors import error_docs
 from app.db.models import (
+    ActorType,
     Approval,
     Campaign,
     Lead,
@@ -44,6 +46,8 @@ from app.schemas.runs import (
     StepOut,
 )
 from app.services.approvals import LeadOptedOut
+from app.services.audit import record
+from app.services.deletion import StillWorking, delete_runs
 from app.services.retry import NotFailed, retry_item
 
 router = APIRouter(tags=["runs"], responses=error_docs(401))
@@ -87,6 +91,33 @@ def get_run(run_id: int, _user: CurrentUser, db: DbSession) -> RunDetail:
     for item in items:
         counts[item.status.value] = counts.get(item.status.value, 0) + 1
     return RunDetail(**run_out(run, campaign.name).model_dump(), counts=counts, items=items)
+
+
+@router.delete(
+    "/runs/{run_id}", status_code=status.HTTP_204_NO_CONTENT, responses=error_docs(403, 404, 409)
+)
+def delete_run(run_id: int, admin: AdminUser, db: DbSession) -> Response:
+    """Delete the run and its items, plus every lead that was in no other run (blanked in
+    the audit log). 409 while the run is still collecting or the worker is on an item."""
+    run = get_or_404(db, Run, run_id, "run")
+    campaign_id = run.campaign_id
+    try:
+        deleted = delete_runs(db, [run])
+    except StillWorking as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, f"{exc}; try again shortly") from exc
+    record(
+        db,
+        actor_type=ActorType.USER,
+        actor=admin.email,
+        action="run.deleted",
+        entity_type="run",
+        entity_id=run_id,
+        run_id=run_id,
+        details={"campaign_id": campaign_id, **deleted.details()},
+    )
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/run-items/{item_id}", responses=error_docs(404))

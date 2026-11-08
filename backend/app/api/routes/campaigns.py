@@ -1,6 +1,8 @@
 """Campaigns (`/api/campaigns`): anyone logged in reads them; admins create, edit and run them.
 
-Creating, editing and starting answer 403 on the public demo (PUBLIC_DEMO).
+Creating, editing and starting answer 403 on the public demo (PUBLIC_DEMO). Deleting
+(`DELETE /api/campaigns/{id}`: its runs, their leads and its unused CSV, through
+`app.services.deletion`) works there too, for the demo's admin to tidy up.
 
 Starting a run (`POST /api/campaigns/{id}/runs`) only writes the run row and its
 `start_run` job, in one transaction (`app.services.runs.create_run`); the worker does
@@ -11,7 +13,7 @@ can be followed back to this request.
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,6 +33,7 @@ from app.schemas.campaigns import CampaignCreate, CampaignOut, CampaignUpdate
 from app.schemas.common import Page
 from app.schemas.runs import RunOut
 from app.services.audit import record
+from app.services.deletion import StillWorking, delete_campaign
 from app.services.runs import create_run
 from app.sources.base import SourceError
 from app.sources.osm import canonical_niche
@@ -140,6 +143,34 @@ def start_run(
         db, campaign, datetime.now(UTC), triggered_by=admin, correlation_id=correlation_id
     )
     return RunOut.model_validate(run).model_copy(update={"campaign_name": campaign.name})
+
+
+@router.delete(
+    "/{campaign_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=error_docs(403, 404, 409),
+)
+def delete_one_campaign(campaign_id: int, admin: AdminUser, db: DbSession) -> Response:
+    """Delete the campaign, its runs, every lead found only by them (blanked in the audit
+    log) and its uploaded CSV if no other campaign uses it. 409 while a run is working."""
+    campaign = get_or_404(db, Campaign, campaign_id, "campaign")
+    name = campaign.name
+    try:
+        deleted = delete_campaign(db, campaign)
+    except StillWorking as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, f"{exc}; try again shortly") from exc
+    record(
+        db,
+        actor_type=ActorType.USER,
+        actor=admin.email,
+        action="campaign.deleted",
+        entity_type="campaign",
+        entity_id=campaign_id,
+        details={"name": name, **deleted.details()},
+    )
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def check_campaign(db: Session, campaign: Campaign) -> None:
