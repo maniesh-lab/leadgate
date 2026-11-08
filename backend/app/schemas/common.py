@@ -21,9 +21,20 @@ class Page[T](BaseModel):
     page_size: int
 
 
-class Review(BaseModel):
-    """Why the lead scored what it did, and what extraction couldn't prove (from its steps)."""
+class RubricRef(BaseModel):
+    """The rubric version a run scored with, and who it suits."""
 
+    id: int
+    name: str
+    version: int
+    description: str | None = None
+
+
+class Review(BaseModel):
+    """Why the lead scored what it did (its run's rubric and the `score` step), and what
+    extraction couldn't prove (its `extract` step)."""
+
+    rubric: RubricRef | None = None
     score_breakdown: list[dict[str, Any]] = []
     score_explanation: str | None = None
     extraction_issues: list[str] = []

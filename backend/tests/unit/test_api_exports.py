@@ -16,7 +16,9 @@ URL = "/api/exports/approved-leads"
 
 def decide_both(client: TestClient, as_reviewer: dict) -> None:
     """Approve Smile Austin Dental, reject Barton Creek Dentistry."""
-    smile, barton = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"]
+    smile, barton = client.get("/api/approvals/queue?sort=created_at", headers=as_reviewer).json()[
+        "items"
+    ]
     client.post(
         f"/api/run-items/{smile['run_item_id']}/decision",
         json={"decision": "approved"},

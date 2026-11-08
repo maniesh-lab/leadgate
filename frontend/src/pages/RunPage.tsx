@@ -1,8 +1,9 @@
 /**
  * One run: its status, what collecting found, how many leads are in each state, and
  * the list of leads (run items). While the run is still moving, the page asks the API
- * again every few seconds, so a freshly started run fills in on its own. Admins can
- * delete a run that has stopped moving.
+ * again every few seconds, so a freshly started run fills in on its own; while it waits
+ * for decisions, every 15 seconds, so decisions made elsewhere show up. Admins can delete
+ * a run that has stopped moving.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
@@ -16,9 +17,12 @@ import { EmptyState, Fact, PageHeader, Stat } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
 
-// A run in these states won't change any more (until a human decides, for the queue).
+// A run in these states isn't moving on its own: the worker is done with it for now.
 const SETTLED: RunStatus[] = ["completed", "failed", "waiting_approval"];
 const REFRESH_MS = 3000;
+// A run waiting for decisions moves on when someone decides in the queue (maybe in another
+// tab, or someone else), so the page still checks, just less often.
+const WAITING_REFRESH_MS = 15000;
 
 // What collecting found, in the order people read it (from the run's `stats`).
 const STAT_LABELS: [key: string, label: string][] = [
@@ -38,8 +42,7 @@ export function RunPage() {
   const run = useQuery({
     queryKey: ["runs", Number(runId)],
     queryFn: () => api.get<RunDetail>(`/api/runs/${runId}`),
-    refetchInterval: (query) =>
-      query.state.data && SETTLED.includes(query.state.data.status) ? false : REFRESH_MS,
+    refetchInterval: (query) => refreshEvery(query.state.data?.status),
   });
 
   if (run.isPending) return <Loading />;
@@ -192,4 +195,11 @@ export function RunPage() {
       </div>
     </section>
   );
+}
+
+/** How often to ask again: often while the run moves, now and then while it waits for
+ * decisions, never once it's finished. */
+export function refreshEvery(status: RunStatus | undefined): number | false {
+  if (status === "waiting_approval") return WAITING_REFRESH_MS;
+  return status && SETTLED.includes(status) ? false : REFRESH_MS;
 }

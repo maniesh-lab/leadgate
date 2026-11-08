@@ -1,4 +1,5 @@
-/** The approval queue: the decision dialog, its keyboard shortcuts and its errors. */
+/** The approval queue: the sort, the decision dialog, its keyboard shortcuts and errors,
+ * and going on past the end of a page. */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -34,6 +35,12 @@ function queueItem(id: number, name: string): QueueItem {
       opt_out: false,
     },
     review: {
+      rubric: {
+        id: 5,
+        name: "web-agency",
+        version: 2,
+        description: "For selling websites: favours businesses with no website.",
+      },
       score_breakdown: [{ rule: "no website", points: 30, hit: true }],
       score_explanation: "No website, so a good fit for a new one.",
       extraction_issues: [],
@@ -78,6 +85,50 @@ describe("QueuePage", () => {
       within(dialog).getByText("No website, so a good fit for a new one."),
     ).toBeInTheDocument();
     expect(await within(dialog).findByText("No website.")).toBeInTheDocument();
+    // Which rules scored it, and who they suit, so "no website +30" makes sense.
+    expect(within(dialog).getByText(/Scored with/)).toHaveTextContent(
+      "Scored with web-agency v2: For selling websites: favours businesses with no website.",
+    );
+  });
+
+  it("opens newest first and sorts by score from the menu", async () => {
+    const { calls } = setup();
+    const sorts = () =>
+      calls
+        .filter((call) => call.url.pathname === "/api/approvals/queue")
+        .map((call) => call.url.searchParams.get("sort"));
+    const menu = await screen.findByLabelText("Sort");
+    expect(menu).toHaveValue("-created_at");
+    expect(sorts()).toEqual([null]); // the default isn't sent
+
+    await userEvent.selectOptions(menu, "Highest score first");
+
+    await waitFor(() => expect(sorts()).toContain("-score"));
+  });
+
+  it("goes on to the next page's first lead after the last one on this page", async () => {
+    let decided = false;
+    fakeApi({
+      "GET /api/auth/me": () => REVIEWER,
+      "GET /api/campaigns": () => page([]),
+      // One lead per page: once it's decided, the next page's lead moves up into page 1.
+      "GET /api/approvals/queue": () =>
+        page([decided ? queueItem(2, "Lake Dental") : queueItem(1, "Bright Smiles")]),
+      "GET /api/leads/10": () => ({ enrichment: null }),
+      "GET /api/leads/20": () => ({ enrichment: null }),
+      "POST /api/run-items/1/decision": () => {
+        decided = true;
+        return reply(200, {});
+      },
+    });
+    renderApp("/queue", { user: REVIEWER });
+    await openFirst();
+
+    await userEvent.keyboard("a");
+
+    expect(
+      await within(screen.getByRole("dialog")).findByRole("heading", { name: "Lake Dental" }),
+    ).toBeInTheDocument();
   });
 
   it("approves with the A key, then opens the next lead", async () => {

@@ -157,7 +157,7 @@ def test_inline_leads_run_to_the_end_and_n8n_gets_the_summary(
     assert run.stats["new"] == 2
 
     as_reviewer = login(client, reviewer.email)
-    queue = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"]
+    queue = client.get("/api/approvals/queue?sort=created_at", headers=as_reviewer).json()["items"]
     assert [item["lead"]["name"] for item in queue] == [lead["name"] for lead in LEADS[:2]]
     smile, barton = queue
     # Barton went to the CRM in an earlier run; this run's summary must not claim that id.

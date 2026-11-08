@@ -20,7 +20,7 @@ def test_the_whole_flow_through_the_api(
     as_reviewer = login(client, reviewer.email)
     run_id = started["run"]["id"]
 
-    queue = client.get("/api/approvals/queue", headers=as_reviewer).json()
+    queue = client.get("/api/approvals/queue?sort=created_at", headers=as_reviewer).json()
     assert queue["total"] == 2
     smile, barton = queue["items"]
     assert smile["lead"]["name"] == "Smile Austin Dental"
@@ -141,6 +141,37 @@ def test_queue_filters_by_campaign(
     assert mine.json()["total"] == 2
     other = client.get(f"/api/approvals/queue?campaign_id={world.campaign.id}", headers=as_reviewer)
     assert other.json()["total"] == 0
+
+
+def test_the_queue_shows_which_rubric_scored_each_lead(
+    client: TestClient, world: World, started, as_reviewer
+) -> None:
+    rubric = world.rubrics["general-b2b"]
+    rubric.description = "For general sales outreach."
+    world.db.commit()
+
+    item = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"][0]
+
+    assert item["review"]["rubric"] == {
+        "id": rubric.id,
+        "name": "general-b2b",
+        "version": 1,
+        "description": "For general sales outreach.",
+    }
+
+
+def test_queue_sorts(client: TestClient, started, as_reviewer) -> None:
+    def names(sort: str | None = None) -> list[str]:
+        params = {"sort": sort} if sort else {}
+        queue = client.get("/api/approvals/queue", params=params, headers=as_reviewer).json()
+        return [item["lead"]["name"] for item in queue["items"]]
+
+    # Both items were collected at the same moment, so the newer id counts as newer.
+    assert names() == ["Barton Creek Dentistry", "Smile Austin Dental"]  # newest first
+    assert names("created_at") == ["Smile Austin Dental", "Barton Creek Dentistry"]
+    assert names("-score") == ["Smile Austin Dental", "Barton Creek Dentistry"]  # 60, then 15
+    bad = client.get("/api/approvals/queue?sort=name", headers=as_reviewer)
+    assert bad.status_code == 422
 
 
 def test_deciding_an_item_not_at_the_gate_is_a_conflict(

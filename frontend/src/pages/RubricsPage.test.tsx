@@ -13,6 +13,7 @@ const WEB_AGENCY: Rubric = {
     { label: "rating 4.0 or more", field: "rating", op: "gte", value: 4.0, points: 20 },
     { label: "no website", field: "website", op: "missing", value: null, points: 30 },
   ],
+  description: "For selling websites.",
   created_by: 1,
   created_at: "2026-10-30T09:00:00Z",
 };
@@ -39,6 +40,10 @@ describe("RubricsPage", () => {
     await userEvent.selectOptions(screen.getByLabelText("Rule 3 op"), "in");
     await userEvent.type(screen.getByLabelText("Rule 3 value"), "dentist, orthodontist");
     await userEvent.type(screen.getByLabelText("Rule 3 points"), "10");
+    const suits = screen.getByLabelText("Who it suits");
+    expect(suits).toHaveValue("For selling websites."); // kept from the version edited
+    await userEvent.clear(suits);
+    await userEvent.type(suits, "For selling websites to dentists.");
     await userEvent.click(screen.getByRole("button", { name: "Save as v3" }));
 
     await waitFor(() => expect(router.state.location.search).toBe("?id=9"));
@@ -70,6 +75,7 @@ describe("RubricsPage", () => {
             required: false,
           },
         ],
+        description: "For selling websites to dentists.",
       },
     ]);
   });

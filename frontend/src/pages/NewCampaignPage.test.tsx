@@ -6,8 +6,24 @@ import type { Rubric } from "../api/types";
 import { ADMIN, fakeApi, page, renderApp, reply } from "../test/render";
 
 const RUBRICS: Rubric[] = [
-  { id: 2, name: "general-b2b", version: 1, rules: [], created_by: 1, created_at: "" },
-  { id: 5, name: "web-agency", version: 2, rules: [], created_by: 1, created_at: "" },
+  {
+    id: 2,
+    name: "general-b2b",
+    version: 1,
+    rules: [],
+    description: null,
+    created_by: 1,
+    created_at: "",
+  },
+  {
+    id: 5,
+    name: "web-agency",
+    version: 2,
+    rules: [],
+    description: null,
+    created_by: 1,
+    created_at: "",
+  },
 ];
 
 async function fillIn() {

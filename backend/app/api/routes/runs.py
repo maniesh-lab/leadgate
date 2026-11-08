@@ -32,10 +32,11 @@ from app.db.models import (
     RunItem,
     RunStatus,
     RunStep,
+    ScoringRubric,
     StepStatus,
     User,
 )
-from app.schemas.common import Page, Review
+from app.schemas.common import Page, Review, RubricRef
 from app.schemas.leads import LeadSummary
 from app.schemas.runs import (
     ApprovalOut,
@@ -203,10 +204,21 @@ def item_row(item: RunItem, lead_name: str) -> RunItemRow:
 
 
 def reviews_for(db: Session, item_ids: Iterable[int]) -> dict[int, Review]:
-    """Each item's score breakdown + explanation (its `score` step) and extraction issues
-    (its `extract` step). An item that hasn't got that far gets an empty `Review`."""
+    """Each item's rubric (its run's), score breakdown + explanation (its `score` step) and
+    extraction issues (its `extract` step). An item that hasn't got that far gets a `Review`
+    with only the rubric."""
     item_ids = list(item_ids)
     reviews = {item_id: Review() for item_id in item_ids}
+    rubrics = db.execute(
+        select(RunItem.id, ScoringRubric)
+        .join(Run, Run.id == RunItem.run_id)
+        .join(ScoringRubric, ScoringRubric.id == Run.rubric_id)
+        .where(RunItem.id.in_(item_ids))
+    )
+    for item_id, rubric in rubrics:
+        reviews[item_id].rubric = RubricRef(
+            id=rubric.id, name=rubric.name, version=rubric.version, description=rubric.description
+        )
     steps = db.scalars(
         select(RunStep)
         .where(

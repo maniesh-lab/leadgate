@@ -1,6 +1,6 @@
 /**
- * The decision dialog of the approval queue: the lead card (key fields, flags, score
- * breakdown + explanation, website signals) and the two buttons. A rejection needs a
+ * The decision dialog of the approval queue: the lead card (key fields, flags, the
+ * rubric that scored it, score breakdown + explanation, website signals) and the two buttons. A rejection needs a
  * reason; an approval may have one. Keys: A approves, R rejects, Esc closes (A and R
  * are ignored while typing the reason).
  *

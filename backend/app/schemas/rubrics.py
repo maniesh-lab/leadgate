@@ -42,15 +42,26 @@ class Rule(BaseModel):
         return self
 
 
+# Who the rubric suits, in plain words; shown beside a lead's score.
+Description = Field(
+    default=None,
+    max_length=300,
+    examples=["For selling websites: favours well-reviewed businesses with no website."],
+)
+
+
 class RubricCreate(BaseModel):
     name: str = Field(pattern=r"^[a-z0-9-]{1,50}$", examples=["web-agency"])
     rules: list[Rule] = Field(min_length=1, max_length=50)
+    description: str | None = Description
 
 
 class RubricEdit(BaseModel):
-    """The new rules; they're saved as the next version of the rubric."""
+    """The new rules; they're saved as the next version of the rubric. Without a
+    `description` the new version keeps the one it's edited from."""
 
     rules: list[Rule] = Field(min_length=1, max_length=50)
+    description: str | None = Description
 
 
 class RubricOut(FromRow):
@@ -58,5 +69,6 @@ class RubricOut(FromRow):
     name: str
     version: int
     rules: list[dict[str, Any]]
+    description: str | None
     created_by: int | None
     created_at: datetime

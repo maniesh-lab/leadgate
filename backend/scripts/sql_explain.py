@@ -98,9 +98,23 @@ def count(stmt: Any) -> Any:
 CASES = [
     Case(
         "approval_queue",
-        "GET /api/approvals/queue: items waiting for a human, oldest first (page 1)",
+        "GET /api/approvals/queue: items waiting for a human, newest first (page 1)",
         ["ix_run_items_awaiting_approval"],
         lambda s: page(queue_query()),
+        ["run_items"],
+    ),
+    Case(
+        "approval_queue_oldest",
+        "GET /api/approvals/queue?sort=created_at: oldest first (page 1)",
+        ["ix_run_items_awaiting_approval"],
+        lambda s: page(queue_query(sort="created_at")),
+        ["run_items"],
+    ),
+    Case(
+        "approval_queue_by_score",
+        "GET /api/approvals/queue?sort=-score: best first (page 1)",
+        ["ix_run_items_awaiting_approval"],
+        lambda s: page(queue_query(sort="-score")),
         ["run_items"],
     ),
     Case(

@@ -386,7 +386,7 @@ export interface paths {
         };
         /**
          * Approval Queue
-         * @description Run items waiting for a decision, oldest first.
+         * @description Run items waiting for a decision, newest first unless `sort` says otherwise.
          */
         get: operations["approval_queue_api_approvals_queue_get"];
         put?: never;
@@ -476,8 +476,9 @@ export interface paths {
         post?: never;
         /**
          * Delete Lead Data
-         * @description Opt the lead out: wipe its contact data and website findings, never collect or crawl
-         *     it again, and reject its items waiting for approval. Safe to repeat.
+         * @description Opt the lead out: wipe its contact data and website findings (also in its audit rows
+         *     and finished items' checkpoints), never collect or crawl it again, and reject its items
+         *     waiting for approval. Safe to repeat.
          */
         delete: operations["delete_lead_data_api_leads__lead_id__data_delete"];
         options?: never;
@@ -1205,9 +1206,11 @@ export interface components {
         };
         /**
          * Review
-         * @description Why the lead scored what it did, and what extraction couldn't prove (from its steps).
+         * @description Why the lead scored what it did (its run's rubric and the `score` step), and what
+         *     extraction couldn't prove (its `extract` step).
          */
         Review: {
+            rubric?: components["schemas"]["RubricRef"] | null;
             /**
              * Score Breakdown
              * @default []
@@ -1237,14 +1240,25 @@ export interface components {
             name: string;
             /** Rules */
             rules: components["schemas"]["Rule"][];
+            /**
+             * Description
+             * @example For selling websites: favours well-reviewed businesses with no website.
+             */
+            description?: string | null;
         };
         /**
          * RubricEdit
-         * @description The new rules; they're saved as the next version of the rubric.
+         * @description The new rules; they're saved as the next version of the rubric. Without a
+         *     `description` the new version keeps the one it's edited from.
          */
         RubricEdit: {
             /** Rules */
             rules: components["schemas"]["Rule"][];
+            /**
+             * Description
+             * @example For selling websites: favours well-reviewed businesses with no website.
+             */
+            description?: string | null;
         };
         /** RubricOut */
         RubricOut: {
@@ -1258,6 +1272,8 @@ export interface components {
             rules: {
                 [key: string]: unknown;
             }[];
+            /** Description */
+            description: string | null;
             /** Created By */
             created_by: number | null;
             /**
@@ -1265,6 +1281,20 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * RubricRef
+         * @description The rubric version a run scored with, and who it suits.
+         */
+        RubricRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Description */
+            description?: string | null;
         };
         /** Rule */
         Rule: {
@@ -2836,6 +2866,7 @@ export interface operations {
             query?: {
                 /** @description only this campaign's items */
                 campaign_id?: number | null;
+                sort?: "-created_at" | "created_at" | "-score";
                 /** @description 1 = the first page */
                 page?: number;
                 /** @description items per page */

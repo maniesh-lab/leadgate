@@ -99,3 +99,24 @@ def test_a_redaction_changes_nothing_but_the_details(postgres_url: str, statemen
     with engine.connect() as conn:
         assert conn.scalar(text("SELECT details FROM audit_log")) == {"name": "Smile"}
     engine.dispose()
+
+
+def test_the_built_in_rubrics_get_their_description(postgres_url: str) -> None:
+    config = alembic_config(postgres_url)
+    command.upgrade(config, "7d4e2b9c1a60")  # before the description column
+    engine = make_engine(postgres_url)
+    with engine.begin() as conn:
+        for name in ("general-b2b", "web-agency", "my-rules"):
+            conn.execute(
+                text("INSERT INTO scoring_rubrics (name, version, rules) VALUES (:n, 1, '[]')"),
+                {"n": name},
+            )
+
+    command.upgrade(config, "head")
+
+    with engine.connect() as conn:
+        rows = dict(conn.execute(text("SELECT name, description FROM scoring_rubrics")).all())
+    assert rows["general-b2b"].startswith("For general sales outreach")
+    assert rows["web-agency"].startswith("For selling websites")
+    assert rows["my-rules"] is None
+    engine.dispose()

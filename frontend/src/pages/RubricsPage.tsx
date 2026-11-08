@@ -4,6 +4,8 @@
  * (`POST /api/rubrics/{id}`), so campaigns and past scores keep the rules they used;
  * pick the new version on a campaign to use it. "New rubric" starts version 1
  * (`POST /api/rubrics`). The API checks every rule and its 422 is shown as is.
+ * "Who it suits" is the rubric's description, shown beside every score: it starts with
+ * the open version's text and is sent as typed (the API trims it; blank clears it).
  *
  * The open version is in the URL (`/settings/rubrics?id=5`, or `?id=new`).
  */
@@ -200,14 +202,16 @@ function RubricEditor({ rubric, latest, onSaved }: EditorProps) {
   const queryClient = useQueryClient();
   const start = () => (rubric ? (rubric.rules as Partial<Rule>[]).map(toDraft) : [toDraft({})]);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState(rubric?.description ?? "");
   const [drafts, setDrafts] = useState<Draft[]>(start);
 
   const save = useMutation({
     mutationFn: () => {
       const rules = drafts.map(toRule);
+      // Sent as typed: the API trims it, and a blank one clears it.
       return rubric
-        ? api.post<Rubric>(`/api/rubrics/${rubric.id}`, { rules })
-        : api.post<Rubric>("/api/rubrics", { name: name.trim(), rules });
+        ? api.post<Rubric>(`/api/rubrics/${rubric.id}`, { rules, description })
+        : api.post<Rubric>("/api/rubrics", { name: name.trim(), rules, description });
     },
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["rubrics"] });
@@ -256,6 +260,21 @@ function RubricEditor({ rubric, latest, onSaved }: EditorProps) {
           </label>
         )}
         <p className="font-mono text-xs text-faint">up to {maxPoints} points · capped at 100</p>
+      </div>
+      <div>
+        <label className="block">
+          <span className="eyebrow mb-1 block text-[10px]">Who it suits</span>
+          <input
+            className="input"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={300}
+            placeholder="e.g. For selling websites: favours businesses with no website or an old one."
+          />
+        </label>
+        <p className="mt-1 text-xs text-faint">
+          Shown beside every score, so a reviewer knows why a rule earns points.
+        </p>
       </div>
 
       <div className="overflow-x-auto">
