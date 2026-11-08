@@ -1,15 +1,16 @@
 """The human in the loop: `GET /api/approvals/queue` and `POST /api/run-items/{id}/decision`.
 
-The queue lists run items paused at the approval gate, oldest first, each with the lead
-card, the flags and the score breakdown. A decision goes through PLAN §6's approval
-transaction (`app.services.approvals.decide`: row lock, status check, approval + audit
-row + `resume_item` job, one commit). If the item isn't waiting any more (someone else
-decided first, or it isn't at the gate yet) the answer is 409; the worker then resumes
-the thread with the decision.
+The queue lists run items paused at the approval gate, newest first unless `sort` says
+otherwise (`created_at`: oldest first; `-score`: best first, unscored last), each with the
+lead card, the flags, the score breakdown and the rubric that scored it. A decision goes
+through PLAN §6's approval transaction (`app.services.approvals.decide`: row lock, status
+check, approval + audit row + `resume_item` job, one commit). If the item isn't waiting
+any more (someone else decided first, or it isn't at the gate yet) the answer is 409; the
+worker then resumes the thread with the decision.
 """
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import Select, select
@@ -25,6 +26,14 @@ from app.services.approvals import LeadOptedOut, NotAwaitingDecision, decide
 
 router = APIRouter(tags=["approvals"], responses=error_docs(401, 403))
 
+QueueSort = Literal["-created_at", "created_at", "-score"]
+# Each ends with the id, so items with the same time or score keep a stable order.
+QUEUE_SORTS = {
+    "-created_at": (RunItem.created_at.desc(), RunItem.id.desc()),
+    "created_at": (RunItem.created_at.asc(), RunItem.id.asc()),
+    "-score": (RunItem.score.desc().nulls_last(), RunItem.created_at.desc(), RunItem.id.desc()),
+}
+
 
 @router.get("/approvals/queue")
 def approval_queue(
@@ -32,9 +41,10 @@ def approval_queue(
     db: DbSession,
     paging: Paging,
     campaign_id: Annotated[int | None, Query(description="only this campaign's items")] = None,
+    sort: QueueSort = "-created_at",
 ) -> Page[QueueItem]:
-    """Run items waiting for a decision, oldest first."""
-    rows, total = paginate(db, queue_query(campaign_id), paging)
+    """Run items waiting for a decision, newest first unless `sort` says otherwise."""
+    rows, total = paginate(db, queue_query(campaign_id, sort), paging)
     reviews = reviews_for(db, [item.id for item, *_ in rows])
     items = [
         QueueItem(
@@ -55,7 +65,9 @@ def approval_queue(
     return Page(items=items, total=total, page=paging.page, page_size=paging.page_size)
 
 
-def queue_query(campaign_id: int | None = None) -> Select[tuple[RunItem, Lead, int, str]]:
+def queue_query(
+    campaign_id: int | None = None, sort: QueueSort = "-created_at"
+) -> Select[tuple[RunItem, Lead, int, str]]:
     """The approval queue's query (also measured by `scripts/sql_explain.py`)."""
     stmt = (
         select(RunItem, Lead, Run.campaign_id, Campaign.name)
@@ -63,7 +75,7 @@ def queue_query(campaign_id: int | None = None) -> Select[tuple[RunItem, Lead, i
         .join(Run, Run.id == RunItem.run_id)
         .join(Campaign, Campaign.id == Run.campaign_id)
         .where(RunItem.status == RunItemStatus.AWAITING_APPROVAL)
-        .order_by(RunItem.created_at, RunItem.id)
+        .order_by(*QUEUE_SORTS[sort])
     )
     if campaign_id is not None:
         stmt = stmt.where(Run.campaign_id == campaign_id)

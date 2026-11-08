@@ -36,6 +36,7 @@ were measured and **left out** are here too, with the reason.
 | query | index | without | with | kept? |
 |---|---|---|---|---|
 | approval queue, page 1 | `ix_run_items_awaiting_approval` (partial) | 2.17 ms | 0.18 ms | yes (Phase 2) |
+| approval queue, best score first (2026-11-08) | same | 2.64 ms | 0.52 ms | yes |
 | approval queue, total | same | 1.99 ms | 0.31 ms | yes |
 | worker claim | `ix_jobs_queued_run_after` (partial) | 4.62 ms | 0.002 ms | yes (Phase 2) |
 | run's items | `ix_run_items_run_id` | 0.030 ms | 0.033 ms | **no** |
@@ -70,6 +71,12 @@ with    (0.18 ms):  Index Scan using ix_run_items_awaiting_approval on run_items
 ```
 
 The queue stays small while the table grows with every run, so the gap only widens.
+
+Re-measured on 2026-11-08, when the queue got a sort (newest first by default, oldest first,
+or best score first). The index serves all three: newest first reads it backwards (2.67 ms
+→ 0.19 ms), oldest first forwards (2.73 → 0.28 ms). Best score first reads the waiting rows
+from it and sorts them by score (2.64 → 0.52 ms). It needs no index of its own, because only
+the waiting rows are ever sorted.
 
 ### `ix_jobs_queued_run_after` (partial, Phase 2): the worker's claim
 
