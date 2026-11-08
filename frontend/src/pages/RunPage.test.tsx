@@ -1,10 +1,11 @@
 /** A run that found nothing says why: a skipped source shows its reason. An admin can
- * delete a run that has stopped moving. */
+ * delete a run that has stopped moving. The page keeps checking a waiting run. */
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunDetail } from "../api/types";
 import { ADMIN, fakeApi, page, renderApp, reply } from "../test/render";
+import { refreshEvery } from "./RunPage";
 
 const RUN: RunDetail = {
   id: 810,
@@ -68,5 +69,13 @@ describe("RunPage", () => {
 
     expect(await screen.findByText("derms")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+  });
+
+  it("keeps checking a run that waits for decisions, less often", () => {
+    expect(refreshEvery("running")).toBe(3000);
+    expect(refreshEvery(undefined)).toBe(3000); // still loading
+    expect(refreshEvery("waiting_approval")).toBe(15000);
+    expect(refreshEvery("completed")).toBe(false);
+    expect(refreshEvery("failed")).toBe(false);
   });
 });
