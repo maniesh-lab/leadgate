@@ -10,8 +10,8 @@ skips it (`app.services.ingestion`) and the crawler never visits it again
 The old contact data also sits in two other places, and goes from both: the audit rows
 about the lead are blanked (`redact_audit()`), and the saved LangGraph state of its
 finished items is deleted (`purge_checkpoints()`). An item still waiting at the gate, or
-still being worked on, keeps its state until it finishes: the worker then deletes it
-(`app.worker.handlers.finish_item`).
+still being worked on, keeps its state until it finishes: the worker then deletes it and
+blanks the audit rows its nodes wrote in the meantime (`app.worker.handlers.finish_item`).
 
 Called by `python -m app.cli opt-out --lead <id>` and `DELETE /api/leads/{id}/data` (which
 also writes a `lead.opted_out` audit row and rejects the lead's items waiting for approval).

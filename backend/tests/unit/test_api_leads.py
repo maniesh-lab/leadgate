@@ -211,7 +211,7 @@ def test_opt_out_wipes_the_lead_and_rejects_its_waiting_items(
 
 
 def test_opt_out_blanks_the_contact_data_in_the_audit_log(
-    client: TestClient, world: World, started, as_reviewer
+    client: TestClient, world: World, worker, clock, started, as_reviewer
 ) -> None:
     lead_id = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"][0]["lead"][
         "id"
@@ -221,9 +221,11 @@ def test_opt_out_blanks_the_contact_data_in_the_audit_log(
     assert phone in json.dumps([row.details for row in world.db.scalars(about)])
 
     client.delete(f"/api/leads/{lead_id}/data", headers=started["as_admin"])
+    run_jobs(worker, clock)  # the rejected item resumes and writes more rows, then finishes
 
     world.db.expire_all()
     rows = world.db.scalars(about).all()
+    assert any(row.action == "lead.decided" for row in rows)
     assert phone not in json.dumps([row.details for row in rows])
     assert {row.details.get("redacted") for row in rows if row.action != "lead.opted_out"} == {
         "lead opted out"
