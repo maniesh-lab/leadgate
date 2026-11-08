@@ -3,7 +3,9 @@
 Two steps:
 1. Nominatim turns the campaign's location ("Austin, TX") into an OSM place. The answer
    is cached in `campaign.source_options["osm_area"]`, so each city is looked up once
-   (Nominatim's policy asks clients to cache; the caller commits the campaign).
+   (Nominatim's policy asks clients to cache; the caller commits the campaign). Names
+   come back in English: by default Nominatim uses the local script ("नेपाल"), and
+   the LLM copied that as the country.
 2. Overpass returns the named businesses with the niche's tags (e.g. `amenity=dentist`)
    inside that place's boundary, or within `radius_km` of its centre.
 
@@ -329,7 +331,13 @@ class OsmSource(LeadSource):
         return area
 
     def geocode(self, location: str) -> dict[str, Any]:
-        params = {"q": location, "format": "jsonv2", "limit": 1, "addressdetails": 1}
+        params = {
+            "q": location,
+            "format": "jsonv2",
+            "limit": 1,
+            "addressdetails": 1,
+            "accept-language": "en",
+        }
         response = send(self.client, "Nominatim", "GET", NOMINATIM_URL, params=params)
         check_ok(response, "Nominatim")
         results = response.json()
