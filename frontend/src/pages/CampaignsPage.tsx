@@ -1,8 +1,8 @@
 /**
  * The campaign list: what each campaign looks for, where, with which sources and rubric.
- * Admins can start a run from here (it opens the new run's page) and export a campaign's
- * approved leads as a CSV. `?archived=true`
- * lists the archived campaigns instead.
+ * Admins can start a run from here (it opens the new run's page), export a campaign's
+ * approved leads as a CSV, or delete a campaign. `?archived=true` lists the archived
+ * campaigns instead.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router";
@@ -10,6 +10,7 @@ import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
 import type { Campaign, Page, Run } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
+import { DeleteButton } from "../components/DeleteButton";
 import { ExportButton } from "../components/ExportButton";
 import { PlayIcon } from "../components/icons";
 import { EmptyState, PageHeader } from "../components/Page";
@@ -123,6 +124,10 @@ export function CampaignsPage() {
                           <ExportButton
                             target={{ campaign_id: campaign.id }}
                             filename={`leadgate-campaign-${campaign.id}-approved.csv`}
+                          />
+                          <DeleteButton
+                            path={`/api/campaigns/${campaign.id}`}
+                            question={`Delete "${campaign.name}" with all its runs? This can't be undone. Leads no other campaign found go too, and so does its uploaded CSV if no other campaign uses it. The audit log keeps its rows with those leads' names and contact details blanked. Leads already sent to Airtable or Discord stay there.`}
                           />
                         </div>
                       )}

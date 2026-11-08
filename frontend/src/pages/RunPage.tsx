@@ -1,14 +1,16 @@
 /**
  * One run: its status, what collecting found, how many leads are in each state, and
  * the list of leads (run items). While the run is still moving, the page asks the API
- * again every few seconds, so a freshly started run fills in on its own.
+ * again every few seconds, so a freshly started run fills in on its own. Admins can
+ * delete a run that has stopped moving.
  */
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api/client";
 import type { RunDetail, RunStatus } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { FlagBadge, ScoreMeter, StatusBadge } from "../components/Badge";
+import { DeleteButton } from "../components/DeleteButton";
 import { ExportButton } from "../components/ExportButton";
 import { EmptyState, Fact, PageHeader, Stat } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -32,6 +34,7 @@ const STAT_LABELS: [key: string, label: string][] = [
 export function RunPage() {
   const { runId } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const run = useQuery({
     queryKey: ["runs", Number(runId)],
     queryFn: () => api.get<RunDetail>(`/api/runs/${runId}`),
@@ -72,10 +75,19 @@ export function RunPage() {
               Audit trail
             </Link>
             {user?.role === "admin" && (
-              <ExportButton
-                target={{ run_id: data.id }}
-                filename={`leadgate-run-${data.id}-approved.csv`}
-              />
+              <>
+                <ExportButton
+                  target={{ run_id: data.id }}
+                  filename={`leadgate-run-${data.id}-approved.csv`}
+                />
+                {!moving && (
+                  <DeleteButton
+                    path={`/api/runs/${data.id}`}
+                    question={`Delete run #${data.id}? This can't be undone. Its leads go too, unless another run also found them. The audit log keeps its rows with those leads' names and contact details blanked. Leads already sent to Airtable or Discord stay there.`}
+                    onDeleted={() => navigate(`/runs?campaign_id=${data.campaign_id}`)}
+                  />
+                )}
+              </>
             )}
           </>
         }

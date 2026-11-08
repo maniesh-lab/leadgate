@@ -2,14 +2,15 @@
  * Everything about one lead: its cleaned fields, what the website visit found (emails,
  * phones, social links, site signals, pages fetched), the latest score breakdown, and
  * every run it was in with the human's decision. Admins can opt the lead out here
- * (wipes its contact data; the API also rejects its waiting items).
+ * (wipes its contact data; the API also rejects its waiting items), or delete it.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { api, describeError } from "../api/client";
 import type { LeadDetail } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { Badge, FlagBadge, StatusBadge } from "../components/Badge";
+import { DeleteButton } from "../components/DeleteButton";
 import { type Enrichment, EnrichmentCard } from "../components/Enrichment";
 import { GoogleCredit } from "../components/GoogleCredit";
 import { ExternalIcon } from "../components/icons";
@@ -20,6 +21,8 @@ import { formatDateTime } from "../lib/format";
 
 export function LeadPage() {
   const { leadId } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const lead = useQuery({
     queryKey: ["leads", Number(leadId)],
     queryFn: () => api.get<LeadDetail>(`/api/leads/${leadId}`),
@@ -42,6 +45,13 @@ export function LeadPage() {
             <StatusBadge status={data.status} />
             {data.opt_out && <Badge tone="red">opted out</Badge>}
             <OptOutButton lead={data} />
+            {user?.role === "admin" && (
+              <DeleteButton
+                path={`/api/leads/${data.id}`}
+                question={`Delete ${data.name} and its history? This can't be undone. The audit log keeps its rows with the name and contact details blanked. A later run may find it again: to keep it out for good, use Opt out instead.`}
+                onDeleted={() => navigate("/leads")}
+              />
+            )}
           </>
         }
       />

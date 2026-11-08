@@ -1,4 +1,5 @@
-/** The campaign list's admin buttons: the CSV export downloads a file; reviewers see none. */
+/** The campaign list's admin buttons: the CSV export downloads a file, delete asks first;
+ * reviewers see none. */
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -64,6 +65,33 @@ describe("CampaignsPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("campaign 7 not found");
   });
 
+  it("asks before deleting a campaign, and shows the API's refusal", async () => {
+    const { calls } = fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/rubrics": () => page([]),
+      "GET /api/campaigns": () => page([CAMPAIGN]),
+      "DELETE /api/campaigns/7": () =>
+        reply(409, {
+          error: {
+            code: "conflict",
+            message: "run 9 is still collecting leads; try again shortly",
+          },
+        }),
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
+    renderApp("/campaigns", { user: ADMIN });
+    const deletes = () => calls.filter((call) => call.method === "DELETE");
+
+    const remove = await screen.findByRole("button", { name: "Delete" });
+    await userEvent.click(remove); // "Cancel" in the dialog
+    expect(deletes()).toEqual([]);
+
+    await userEvent.click(remove);
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining('Delete "Austin dentists"'));
+    expect(await screen.findByRole("alert")).toHaveTextContent("run 9 is still collecting leads");
+    expect(deletes()).toHaveLength(1);
+  });
+
   it("shows reviewers no admin buttons", async () => {
     fakeApi({
       "GET /api/auth/me": () => REVIEWER,
@@ -75,5 +103,6 @@ describe("CampaignsPage", () => {
     expect(await screen.findByText("Austin dentists")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Export approved" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Start run" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
   });
 });
