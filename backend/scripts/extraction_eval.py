@@ -59,8 +59,9 @@ HOW_TO_CHECK = (
     "For each case compare expected with the lead's data (OSM tags + its website text in "
     "extraction_leads.json), fix what is wrong, then set checked to true. Services: every "
     "treatment or service group the site lists, in the site's words, with no limit; no "
-    "payment, insurance or marketing wording; no duplicates. A founding year must be stated "
-    'as one ("since 1998"), not a copyright or staff year.'
+    "payment, insurance or marketing wording. A list inside services holds other wordings of "
+    "one service (they count once). Any exact field may be a list of answers that all count. A "
+    'founding year must be stated as one ("since 1998"), not a copyright or staff year.'
 )
 
 
@@ -82,7 +83,7 @@ def extract(llm: LLM, place: dict[str, Any], lead: dict[str, Any]) -> dict[str, 
         geo=place["geo"],
         year=datetime.now(UTC).year,
     )
-    fields = {name: result["extracted"][name] for name in (*EXACT_FIELDS, "services")}
+    fields = {field: result["extracted"][field] for field in (*EXACT_FIELDS, "services")}
     return fields | {"extraction_ok": result["extraction_ok"]}
 
 
@@ -175,13 +176,21 @@ def draft(llm: LLM, args: argparse.Namespace) -> int:
 
 
 def same(found: object, wanted: object) -> bool:
+    """Exact match ignoring case; `wanted` may be a list of answers that all count."""
+    if isinstance(wanted, list):
+        return any(same(found, answer) for answer in wanted)
     if isinstance(found, str) and isinstance(wanted, str):
         return found.casefold() == wanted.casefold()
     return found == wanted
 
 
-def service_names(services: list[str]) -> set[str]:
-    return {" ".join(service.casefold().split()) for service in services}
+def name(service: str) -> str:
+    return " ".join(service.casefold().split())
+
+
+def service_groups(expected: list[str | list[str]]) -> list[set[str]]:
+    """One set per real service: a list in the answers holds several wordings of one."""
+    return [{name(s) for s in ([entry] if isinstance(entry, str) else entry)} for entry in expected]
 
 
 def run(llm: LLM, args: argparse.Namespace) -> int:
@@ -201,25 +210,26 @@ def run(llm: LLM, args: argparse.Namespace) -> int:
         expected = case["expected"]
         ok_count += answer["extraction_ok"]
         wrong = []
-        for name in EXACT_FIELDS:
-            if same(answer[name], expected[name]):
-                right[name] += 1
+        for field in EXACT_FIELDS:
+            if same(answer[field], expected[field]):
+                right[field] += 1
             else:
-                wrong.append(f"{name}: got {answer[name]!r}, want {expected[name]!r}")
-        got = service_names(answer["services"])
-        want = service_names(expected["services"])
+                wrong.append(f"{field}: got {answer[field]!r}, want {expected[field]!r}")
+        got = {name(service) for service in answer["services"]}
+        groups = service_groups(expected["services"])
+        real = got & set().union(*groups)
         services_listed += len(got)
-        services_real += len(got & want)
-        services_found += len(got & want)  # the LLM names at most MAX_SERVICES
-        services_possible += min(len(want), MAX_SERVICES)
-        if extra := sorted(got - want):
+        services_real += len(real)
+        services_found += sum(bool(got & group) for group in groups)
+        services_possible += min(len(groups), MAX_SERVICES)
+        if extra := sorted(got - real):
             wrong.append(f"services not on the list: {extra}")
         flag = "" if case.get("checked") else " (not checked yet)"
         print(f"{case['source_key']} {case['name']}{flag}: {'; '.join(wrong) or 'all right'}")
 
     print(f"\n{cases_run} leads, extraction_ok on {ok_count}")
-    for name, count in right.items():
-        print(f"  {name:<17} {count}/{cases_run}")
+    for field, count in right.items():
+        print(f"  {field:<17} {count}/{cases_run}")
     precision = services_real / services_listed if services_listed else 1.0
     recall = services_found / services_possible if services_possible else 1.0
     print(f"  services          precision {precision:.0%}, recall {recall:.0%}")
