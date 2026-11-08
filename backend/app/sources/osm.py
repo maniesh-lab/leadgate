@@ -5,7 +5,7 @@ Two steps:
    is cached in `campaign.source_options["osm_area"]`, so each city is looked up once
    (Nominatim's policy asks clients to cache; the caller commits the campaign). Names
    come back in English: by default Nominatim uses the local script ("नेपाल"), and
-   the LLM copied that as the country.
+   the LLM copied that as the country (a place cached before 2026-11-08 keeps its name).
 2. Overpass returns the named businesses with the niche's tags (e.g. `amenity=dentist`)
    inside that place's boundary, or within `radius_km` of its centre.
 
