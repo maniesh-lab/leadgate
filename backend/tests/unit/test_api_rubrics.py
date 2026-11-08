@@ -1,12 +1,15 @@
 """Tests for `/api/rubrics`: list, read, create (v1) and edit (a new version), and the
 rubrics' plain-words descriptions."""
 
+import importlib.util
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import ScoringRubric
 from app.db.seed import RUBRIC_DESCRIPTIONS, WEB_AGENCY_RULES, seed
+from tests.migrations import BACKEND_DIR
 
 RULES = [
     {"label": "has email", "field": "email", "op": "exists", "points": 40},
@@ -63,6 +66,15 @@ def test_seeding_gives_both_rubrics_a_description(db: Session) -> None:
     seed(db, "admin@example.com", "a-long-enough-password")
     rubrics = db.scalars(select(ScoringRubric)).all()
     assert {r.name: r.description for r in rubrics} == RUBRIC_DESCRIPTIONS
+
+
+def test_the_migration_writes_the_seeded_descriptions() -> None:
+    # The migration keeps its own copy, so it never changes; the two must start out equal.
+    [path] = (BACKEND_DIR / "alembic" / "versions").glob("*_rubric_descriptions.py")
+    spec = importlib.util.spec_from_file_location("rubric_descriptions", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    assert migration.DESCRIPTIONS == RUBRIC_DESCRIPTIONS
 
 
 def test_seeded_rules_are_valid_rules(client: TestClient, as_admin) -> None:

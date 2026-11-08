@@ -26,7 +26,7 @@ export function ScoreReview({ review, score }: { review: Review; score: number |
       </div>
       {review.rubric && (
         <p className="text-sm text-muted">
-          Scored with{" "}
+          {rules.length > 0 ? "Scored with" : "Will be scored with"}{" "}
           <span className="font-mono text-xs text-fg">
             {review.rubric.name} v{review.rubric.version}
           </span>

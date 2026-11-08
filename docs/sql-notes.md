@@ -35,7 +35,7 @@ were measured and **left out** are here too, with the reason.
 
 | query | index | without | with | kept? |
 |---|---|---|---|---|
-| approval queue, page 1 | `ix_run_items_awaiting_approval` (partial) | 2.17 ms | 0.18 ms | yes (Phase 2) |
+| approval queue, page 1 (oldest first, as measured in Phase 2) | `ix_run_items_awaiting_approval` (partial) | 2.17 ms | 0.18 ms | yes (Phase 2) |
 | approval queue, best score first (2026-11-08) | same | 2.64 ms | 0.52 ms | yes |
 | approval queue, total | same | 1.99 ms | 0.31 ms | yes |
 | worker claim | `ix_jobs_queued_run_after` (partial) | 4.62 ms | 0.002 ms | yes (Phase 2) |
@@ -62,7 +62,7 @@ were measured and **left out** are here too, with the reason.
 
 ### `ix_run_items_awaiting_approval` (partial, Phase 2): the approval queue
 
-`GET /api/approvals/queue`: `WHERE run_items.status = 'awaiting_approval' ORDER BY created_at, id LIMIT 50`.
+`GET /api/approvals/queue` (oldest first, as measured in Phase 2; see the re-measure below): `WHERE run_items.status = 'awaiting_approval' ORDER BY created_at, id LIMIT 50`.
 Only 84 of 50,000 items are waiting, so a partial index holds just those rows.
 
 ```
@@ -108,6 +108,8 @@ backs the `?campaign_id=` filter (below).
 
 `GET /api/run-items/{id}`: `WHERE run_item_id = :id ORDER BY started_at, id`, and the score
 breakdown look-up (`reviews_for()`, `run_item_id IN (...)`) on every approval queue page.
+Since 2026-11-08 `reviews_for()` also reads each item's rubric (`run_items` → `runs` →
+`scoring_rubrics`, all by primary key for one page of items; not benchmarked).
 
 ```
 without (7.22 ms):  Parallel Seq Scan on run_steps  Filter: run_item_id = 25041  Rows Removed by Filter: 106826 (x3 workers)

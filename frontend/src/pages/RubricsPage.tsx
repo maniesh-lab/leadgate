@@ -4,6 +4,8 @@
  * (`POST /api/rubrics/{id}`), so campaigns and past scores keep the rules they used;
  * pick the new version on a campaign to use it. "New rubric" starts version 1
  * (`POST /api/rubrics`). The API checks every rule and its 422 is shown as is.
+ * "Who it suits" is the rubric's description, shown beside every score: it starts with
+ * the open version's text and is sent as typed (the API trims it; blank clears it).
  *
  * The open version is in the URL (`/settings/rubrics?id=5`, or `?id=new`).
  */
