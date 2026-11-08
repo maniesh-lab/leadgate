@@ -60,7 +60,8 @@ MAX_RETRIES = 4
 # tokens; medium 90% / 93% at 34.6k, and one reply was still cut off at 4,096 and retried.
 MAX_TOKENS = {"low": 2048, "medium": 4096, "high": 8192}
 # Tokens per minute when LLM_TOKENS_PER_MINUTE is empty: Groq's free tier for gpt-oss-20b
-# (checked 2026-11-08). No budget on openai unless the setting is set.
+# (checked 2026-11-08), used whatever LLM_MODEL is; set the setting for a model or plan with
+# another limit. No budget on openai unless the setting is set.
 TOKENS_PER_MINUTE = {"groq": 8000}
 # A call's size is only known afterwards, so the budget guesses it beforehand: about 4
 # characters per token for the prompt, plus room for the answer (thinking + JSON).
@@ -281,6 +282,7 @@ def make_llm(settings: Settings, tracer: Tracer | None = None) -> LLM:
     """The LLM for LLM_MODE. Raises ValueError when the mode's API key is missing.
 
     `tracer` (the worker's) puts each real call in Langfuse; FakeLLM calls aren't traced.
+    A real LLM gets a `TokenBudget` from LLM_TOKENS_PER_MINUTE (empty = 8,000 on groq).
 
     LLM_MODE=openai also needs the optional openai SDK (`pip install -e ".[openai]"`); the
     Docker image is built without it, so there it raises ImportError.
