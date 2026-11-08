@@ -1,11 +1,13 @@
 /**
- * The approval queue: every lead the agents finished, waiting for a human, oldest first.
- * Clicking one opens the decision dialog; after a decision the next lead opens, so a
- * reviewer can work down the list with A and R. The campaign filter and the page live
- * in the URL (`/queue?campaign_id=3`), like the other lists.
+ * The approval queue: every lead the agents finished, waiting for a human, newest first
+ * (or oldest first, or best score first). Clicking one opens the decision dialog; after a
+ * decision the next lead opens, so a reviewer can work down the list with A and R. At the
+ * end of the page the dialog waits for the reloaded list and opens the first lead that
+ * moved up from the next page. The campaign filter, the sort and the page live in the URL
+ * (`/queue?campaign_id=3&sort=-score`), like the other lists.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api } from "../api/client";
 import type { Page, QueueItem } from "../api/types";
@@ -19,36 +21,60 @@ import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
 
 const PAGE_SIZE = 50;
+const DEFAULT_SORT = "-created_at";
+const SORTS: { value: string; label: string }[] = [
+  { value: "-created_at", label: "Newest first" },
+  { value: "created_at", label: "Oldest first" },
+  { value: "-score", label: "Highest score first" },
+];
 
 export function QueuePage() {
   const [params, setParams] = useSearchParams();
   const page = Number(params.get("page") ?? 1);
   const campaignId = params.get("campaign_id") ?? "";
+  const sort = params.get("sort") ?? "";
   const [openId, setOpenId] = useState<number | null>(null);
+  // At the end of the page: the ids that were on it, until the reloaded list arrives.
+  const [seenIds, setSeenIds] = useState<Set<number> | null>(null);
   const queryClient = useQueryClient();
 
   const queue = useQuery({
-    queryKey: ["approvals", "queue", { page, campaignId }],
+    queryKey: ["approvals", "queue", { page, campaignId, sort }],
     queryFn: () =>
       api.get<Page<QueueItem>>("/api/approvals/queue", {
         page,
         page_size: PAGE_SIZE,
         campaign_id: campaignId,
+        sort,
       }),
   });
 
   const items = queue.data?.items ?? [];
   const open = items.find((item) => item.run_item_id === openId);
 
-  /** After a decision: the item below the decided one, or close at the end of the page. */
+  /** After a decision: the item below the decided one. At the end of the page, wait for
+   * the reload the decision started (see the effect below). */
   function openNext() {
     const index = items.findIndex((item) => item.run_item_id === openId);
-    setOpenId(items[index + 1]?.run_item_id ?? null);
+    const next = items[index + 1];
+    if (next) setOpenId(next.run_item_id);
+    else setSeenIds(new Set(items.map((item) => item.run_item_id)));
   }
+
+  // The reloaded page no longer has the decided item: open the first item that wasn't on
+  // the page before (one that moved up from the next page), or close if there's none.
+  useEffect(() => {
+    if (!seenIds || !queue.data) return;
+    const reloaded = queue.data.items;
+    if (reloaded.some((item) => item.run_item_id === openId)) return; // not reloaded yet
+    setSeenIds(null);
+    setOpenId(reloaded.find((item) => !seenIds.has(item.run_item_id))?.run_item_id ?? null);
+  }, [seenIds, queue.data, openId]);
 
   /** Closing reloads the list: after a 409 the item may be gone (someone else decided). */
   function close() {
     setOpenId(null);
+    setSeenIds(null);
     queryClient.invalidateQueries({ queryKey: ["approvals"] });
   }
 
@@ -85,8 +111,20 @@ export function QueuePage() {
         }
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
         <CampaignSelect value={campaignId} onChange={(value) => update("campaign_id", value)} />
+        <select
+          aria-label="Sort"
+          value={sort || DEFAULT_SORT}
+          onChange={(e) => update("sort", e.target.value === DEFAULT_SORT ? "" : e.target.value)}
+          className="input"
+        >
+          {SORTS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <p className="font-mono text-xs text-faint">
           Open a lead, then <kbd>A</kbd> approve · <kbd>R</kbd> reject · <kbd>Esc</kbd> close
         </p>
