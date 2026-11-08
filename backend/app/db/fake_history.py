@@ -55,7 +55,7 @@ from app.db.models import (
     User,
     UserRole,
 )
-from app.db.seed import GENERAL_B2B_RULES
+from app.db.seed import GENERAL_B2B_RULES, RUBRIC_DESCRIPTIONS
 
 # How many runs are inserted (and committed) together.
 RUNS_PER_BATCH = 50
@@ -226,7 +226,12 @@ def fake_rubric(session: Session) -> int:
         .limit(1)
     )
     if rubric_id is None:
-        rubric = ScoringRubric(name="general-b2b", version=1, rules=GENERAL_B2B_RULES)
+        rubric = ScoringRubric(
+            name="general-b2b",
+            version=1,
+            rules=GENERAL_B2B_RULES,
+            description=RUBRIC_DESCRIPTIONS["general-b2b"],
+        )
         session.add(rubric)
         session.flush()
         rubric_id = rubric.id

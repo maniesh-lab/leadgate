@@ -132,7 +132,11 @@ class User(Base):
 
 
 class ScoringRubric(Base):
-    """A versioned list of scoring rules. Editing a rubric adds a new version."""
+    """A versioned list of scoring rules. Editing a rubric adds a new version.
+
+    `description` says in plain words who the rules suit; the decision dialog shows it
+    beside a lead's score, so a reviewer can tell why, say, "no website" earned points.
+    """
 
     __tablename__ = "scoring_rubrics"
     __table_args__ = (UniqueConstraint("name", "version"),)
@@ -142,6 +146,7 @@ class ScoringRubric(Base):
     version: Mapped[int]
     # [{"label", "field", "op", "value", "points", "required"?}, ...]
     rules: Mapped[list[dict[str, Any]]] = mapped_column(JSONType)
+    description: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 

@@ -143,6 +143,23 @@ def test_queue_filters_by_campaign(
     assert other.json()["total"] == 0
 
 
+def test_the_queue_shows_which_rubric_scored_each_lead(
+    client: TestClient, world: World, started, as_reviewer
+) -> None:
+    rubric = world.rubrics["general-b2b"]
+    rubric.description = "For general sales outreach."
+    world.db.commit()
+
+    item = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"][0]
+
+    assert item["review"]["rubric"] == {
+        "id": rubric.id,
+        "name": "general-b2b",
+        "version": 1,
+        "description": "For general sales outreach.",
+    }
+
+
 def test_queue_sorts(client: TestClient, started, as_reviewer) -> None:
     def names(sort: str | None = None) -> list[str]:
         params = {"sort": sort} if sort else {}

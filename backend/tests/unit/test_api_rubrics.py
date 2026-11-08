@@ -1,10 +1,12 @@
-"""Tests for `/api/rubrics`: list, read, create (v1) and edit (a new version)."""
+"""Tests for `/api/rubrics`: list, read, create (v1) and edit (a new version), and the
+rubrics' plain-words descriptions."""
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import ScoringRubric
-from app.db.seed import WEB_AGENCY_RULES
+from app.db.seed import RUBRIC_DESCRIPTIONS, WEB_AGENCY_RULES, seed
 
 RULES = [
     {"label": "has email", "field": "email", "op": "exists", "points": 40},
@@ -37,6 +39,30 @@ def test_admin_creates_then_edits_a_rubric(client: TestClient, db: Session, as_a
     assert again.json()["version"] == 3
     # v1 is untouched.
     assert len(db.get(ScoringRubric, v1["id"]).rules) == 2
+
+
+def test_a_description_carries_over_to_the_next_version(client: TestClient, as_admin) -> None:
+    body = {"name": "my-rules", "rules": RULES, "description": "  For finding new clinics.  "}
+    v1 = client.post("/api/rubrics", json=body, headers=as_admin).json()
+    assert v1["description"] == "For finding new clinics."
+
+    def edit(**extra) -> str | None:
+        response = client.post(
+            f"/api/rubrics/{v1['id']}", json={"rules": RULES, **extra}, headers=as_admin
+        )
+        return response.json()["description"]
+
+    assert edit() == "For finding new clinics."  # kept
+    assert edit(description="For dentists.") == "For dentists."
+    assert edit(description=" ") is None  # blank clears it
+    too_long = {"name": "long", "rules": RULES, "description": "x" * 301}
+    assert client.post("/api/rubrics", json=too_long, headers=as_admin).status_code == 422
+
+
+def test_seeding_gives_both_rubrics_a_description(db: Session) -> None:
+    seed(db, "admin@example.com", "a-long-enough-password")
+    rubrics = db.scalars(select(ScoringRubric)).all()
+    assert {r.name: r.description for r in rubrics} == RUBRIC_DESCRIPTIONS
 
 
 def test_seeded_rules_are_valid_rules(client: TestClient, as_admin) -> None:

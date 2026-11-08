@@ -123,7 +123,9 @@ def test_lead_detail(client: TestClient, world: World, as_reviewer) -> None:
     ]
     assert detail["history"][0]["campaign_name"] == "Austin dentists"
     assert detail["history"][0]["decision"] is None
+    rubric = world.rubrics["general-b2b"]
     assert detail["review"] == {
+        "rubric": {"id": rubric.id, "name": "general-b2b", "version": 1, "description": None},
         "score_breakdown": [],
         "score_explanation": None,
         "extraction_issues": [],

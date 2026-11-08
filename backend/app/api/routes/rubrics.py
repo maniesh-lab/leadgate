@@ -2,7 +2,8 @@
 
 Rubrics are never changed in place. Editing one (`POST /api/rubrics/{id}`) saves the
 rules as the next version under the same name, so a campaign or run that points to the
-old version still scores the same way.
+old version still scores the same way. A rubric's `description` (who it suits) carries
+over to the next version unless the edit sends a new one; a blank one clears it.
 """
 
 from typing import Annotated
@@ -55,7 +56,7 @@ def create_rubric(body: RubricCreate, admin: AdminUser, db: DbSession) -> Rubric
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"rubric {body.name!r} exists; edit it for a new version"
         )
-    return save_version(db, admin, body.name, 1, body.rules)
+    return save_version(db, admin, body.name, 1, body.rules, clean(body.description))
 
 
 @router.post(
@@ -67,12 +68,24 @@ def edit_rubric(rubric_id: int, body: RubricEdit, admin: AdminUser, db: DbSessio
     latest = db.scalar(
         select(func.max(ScoringRubric.version)).where(ScoringRubric.name == rubric.name)
     )
-    return save_version(db, admin, rubric.name, latest + 1, body.rules)
+    description = rubric.description if body.description is None else clean(body.description)
+    return save_version(db, admin, rubric.name, latest + 1, body.rules, description)
 
 
-def save_version(db: Session, admin: User, name: str, version: int, rules: list[Rule]) -> RubricOut:
+def clean(description: str | None) -> str | None:
+    """Trimmed; blank means none."""
+    return (description or "").strip() or None
+
+
+def save_version(
+    db: Session, admin: User, name: str, version: int, rules: list[Rule], description: str | None
+) -> RubricOut:
     rubric = ScoringRubric(
-        name=name, version=version, rules=[rule.model_dump() for rule in rules], created_by=admin.id
+        name=name,
+        version=version,
+        rules=[rule.model_dump() for rule in rules],
+        description=description,
+        created_by=admin.id,
     )
     db.add(rubric)
     try:

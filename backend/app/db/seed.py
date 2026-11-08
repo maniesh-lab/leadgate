@@ -49,6 +49,19 @@ WEB_AGENCY_RULES = [
 
 RUBRICS = {"general-b2b": GENERAL_B2B_RULES, "web-agency": WEB_AGENCY_RULES}
 
+# Who each rubric suits, in plain words (shown beside a lead's score). The
+# `rubric_descriptions` migration writes the same text into databases seeded before.
+RUBRIC_DESCRIPTIONS = {
+    "general-b2b": (
+        "For general sales outreach: favours businesses you can reach (phone, email, "
+        "website) that look well run (good rating, many reviews, open)."
+    ),
+    "web-agency": (
+        "For selling websites: favours well-reviewed businesses with no website or an "
+        "old one. A lead outside the campaign's business type scores 0."
+    ),
+}
+
 
 @dataclass
 class SeedResult:
@@ -72,7 +85,15 @@ def seed(session: Session, admin_email: str, admin_password: str) -> SeedResult:
             select(ScoringRubric).where(ScoringRubric.name == name, ScoringRubric.version == 1)
         ).one_or_none()
         if exists is None:
-            session.add(ScoringRubric(name=name, version=1, rules=rules, created_by=admin.id))
+            session.add(
+                ScoringRubric(
+                    name=name,
+                    version=1,
+                    rules=rules,
+                    description=RUBRIC_DESCRIPTIONS[name],
+                    created_by=admin.id,
+                )
+            )
             rubrics_created.append(f"{name} v1")
 
     session.commit()
