@@ -152,6 +152,7 @@ def test_the_queue_shows_which_rubric_scored_each_lead(
 
     item = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"][0]
 
+    assert item["review"]["category_checked"] is True  # a dentist campaign: on the list
     assert item["review"]["rubric"] == {
         "id": rubric.id,
         "name": "general-b2b",

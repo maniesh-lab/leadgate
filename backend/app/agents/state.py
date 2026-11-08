@@ -49,6 +49,9 @@ class LeadState(TypedDict, total=False):
     # check
     flags: list[str]  # "possible_duplicate:<lead_id>", "category_mismatch", "closed", ...
     category_matches_niche: bool
+    # False when there was nothing to compare: a niche off the list, or a failed extraction
+    # (then category_matches_niche is True, so the rubric doesn't punish the lead)
+    category_checked: bool
     # score
     score: int  # 0–100
     score_breakdown: list[dict[str, Any]]  # [{"rule", "field", "points", "hit", "required"}]
