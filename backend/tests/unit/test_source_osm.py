@@ -108,6 +108,14 @@ def test_geocode_is_cached_on_the_campaign() -> None:
     assert (area["query"], area["osm_id"], area["country_code"]) == ("Austin, TX", 113314, "us")
 
 
+def test_geocode_asks_for_english_names() -> None:
+    fake = FakeOsm()
+    list(make_source(fake).collect(campaign()))
+
+    lookup = next(r for r in fake.requests if r.url.host == "nominatim.openstreetmap.org")
+    assert lookup.url.params["accept-language"] == "en"
+
+
 def test_new_location_is_geocoded_again() -> None:
     fake = FakeOsm()
     target = campaign()

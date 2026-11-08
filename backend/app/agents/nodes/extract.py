@@ -16,6 +16,9 @@ The traceability validators (`trace_validators`) make sure the LLM invents nothi
 - the category must be in CATEGORIES
 - each service must appear in the website text, and the founding year right after a
   founding word there ("since 1998"; a "© 2011" copyright line doesn't count)
+The prompt also keeps sales wording out of services ("Payment Plans", "Insurance
+Accepted", "Free Consultation"): on the 7 Austin eval leads that list services this
+lifted precision from 74% to 79% at the same token cost (2026-11-08).
 A failed check goes back to the model with the problem; after 3 tries the node gives
 up: `extraction_ok=False`, the issues are listed, and the fields fall back to the
 rule-based `baseline_fields()` (which is also the answer in LLM_MODE=fake). The graph
@@ -48,6 +51,9 @@ MAX_SERVICES = 10
 # Prompt sizes, kept small for Groq's free tier (8,000 tokens per minute).
 PROMPT_TEXT_CHARS = 6000
 PROMPT_SOURCE_CHARS = 3000
+# Cloudflare's stand-in for a hidden email (we leave those hidden). Left in, the model
+# picks it as the email, the check refuses it, and that costs a retry.
+HIDDEN_EMAIL = re.compile(r"\[email\s+protected\]", re.IGNORECASE)
 FIRST_YEAR = 1800
 # A founding year must follow one of these words closely ("since 1998", "opened in 1991").
 # A bare "© 2011" is only the copyright year: the live eval caught the LLM taking that.
@@ -87,7 +93,9 @@ PROMPT_RULES = "\n".join(
         " as written in SOURCE DATA or CAMPAIGN PLACE. When SOURCE DATA has no city or"
         " country, copy them from CAMPAIGN PLACE. null if not there.",
         f"- services: up to {MAX_SERVICES} short phrases copied word for word from WEBSITE"
-        ' TEXT (e.g. "teeth whitening"). [] if there is no website text.',
+        ' TEXT (e.g. "teeth whitening"). [] if there is no website text. Only treatments'
+        " and services the business offers: never payment, financing, insurance, free"
+        " consultations, offers, awards or page names.",
         "- established_year: the year the business started, only if WEBSITE TEXT says it"
         ' (e.g. "since 1998"). A copyright year is not a founding year. null otherwise.',
     ]
@@ -194,7 +202,7 @@ def baseline_fields(cleaned: dict, raw: dict) -> LLMFields:
 
 def build_prompt(niche: str, raw: dict, geo: dict, cleaned: dict, website_text: str) -> str:
     emails = ", ".join(cleaned["emails"]) or "(none)"
-    text = website_text[:PROMPT_TEXT_CHARS] or "(no website text)"
+    text = HIDDEN_EMAIL.sub("", website_text)[:PROMPT_TEXT_CHARS] or "(no website text)"
     return f"""{PROMPT_RULES}
 - category: exactly one of: {", ".join(CATEGORIES)}.
 

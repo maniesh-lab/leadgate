@@ -26,6 +26,7 @@ x-backend-env: &backend-env
   # The agents' LLM (empty = fake mode, no network).
   LLM_MODE: ${LLM_MODE:-}
   LLM_MODEL: ${LLM_MODEL:-}
+  LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-}
   GROQ_API_KEY: ${GROQ_API_KEY:-}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   # true = the api runs the worker loop too (then stop the worker service).
