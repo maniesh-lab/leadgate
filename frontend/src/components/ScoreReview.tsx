@@ -1,6 +1,7 @@
 /**
- * Why a lead scored what it did: the score in big type, each rubric rule with whether it
- * matched and its points, then the LLM's short explanation (written from this breakdown
+ * Why a lead scored what it did: the score in big type, the rubric that scored it and who
+ * it suits (so "no website +30" makes sense), each rubric rule with whether it matched
+ * and its points, then the LLM's short explanation (written from this breakdown
  * only) and anything extraction couldn't prove. Used on the run item and lead pages
  * and in the approval queue's decision dialog.
  */
@@ -23,6 +24,15 @@ export function ScoreReview({ review, score }: { review: Review; score: number |
           <span className="ml-1 text-sm text-faint">/ 100</span>
         </span>
       </div>
+      {review.rubric && (
+        <p className="text-sm text-muted">
+          Scored with{" "}
+          <span className="font-mono text-xs text-fg">
+            {review.rubric.name} v{review.rubric.version}
+          </span>
+          {review.rubric.description && <>: {review.rubric.description}</>}
+        </p>
+      )}
       {rules.length === 0 ? (
         <p className="text-sm text-muted">Not scored yet.</p>
       ) : (
