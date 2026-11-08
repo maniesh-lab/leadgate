@@ -6,11 +6,13 @@ Flags are short strings a reviewer sees on the lead card:
   or a very similar name in the same area / city (stdlib `difflib`)
 - `category_mismatch`: the extracted category isn't the campaign's niche or close to it
   (only for niches on the list in `app.agents.categories`)
+- `closed`: the source says the business is closed
 
 It also says whether the category was checked at all (`category_checked`): a niche off the
-list, or a failed extraction, leaves nothing to compare. Such a lead counts as matching,
-so the rubric doesn't punish it, and the score card says "not checked" instead of a tick.
-- `closed`: the source says the business is closed
+list, or a failed extraction that fell back to "other" (no hint from the source), leaves
+nothing to compare. Such a lead counts as matching, so the rubric doesn't punish it, and
+the score card says "not checked" instead of a tick. A failed extraction that kept the
+source's category hint is compared as usual.
 
 "Possible": a chain's branches share a website and a name, so a human decides.
 Only leads already processed have a clean phone and city in the DB, so a duplicate is

@@ -36,7 +36,8 @@ class Review(BaseModel):
 
     rubric: RubricRef | None = None
     # From the `check` step: False when there was nothing to compare the category with (a
-    # niche off the list, or a failed extraction); None before the check ran.
+    # niche off the list, or a failed extraction that fell back to "other"); None before the
+    # check ran.
     category_checked: bool | None = None
     score_breakdown: list[dict[str, Any]] = []
     score_explanation: str | None = None

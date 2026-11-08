@@ -1,9 +1,10 @@
 /**
  * Why a lead scored what it did: the score in big type, the rubric that scored it and who
  * it suits (so "no website +30" makes sense), each rubric rule with whether it matched
- * and its points (the category rule says "not checked" when there was nothing to compare:
- * a niche off the business list, or a failed extraction; it still gave its points), then the LLM's short explanation (written from this breakdown
- * only) and anything extraction couldn't prove. Used on the run item and lead pages
+ * and its points (the category rule says "not checked" when there was nothing to compare,
+ * a niche off the business list or a failed extraction with no category; it counted as
+ * matching), then the LLM's short explanation (written from this breakdown only) and
+ * anything extraction couldn't prove. Used on the run item and lead pages
  * and in the approval queue's decision dialog.
  */
 import type { Review } from "../api/types";
@@ -58,7 +59,7 @@ export function ScoreReview({ review, score }: { review: Review; score: number |
                   {unchecked && (
                     <span
                       className="eyebrow ml-2 text-[9px]"
-                      title="The campaign's niche isn't on the business list, or extraction failed, so there was nothing to compare. The rule still gave its points."
+                      title="The campaign's niche isn't on the business list, or extraction failed and found no category, so there was nothing to compare. It counted as matching."
                     >
                       not checked
                     </span>
