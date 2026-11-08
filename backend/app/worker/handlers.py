@@ -12,6 +12,10 @@ simply run again. The nodes never set run item statuses (PLAN §5): these handle
 them from the graph's result, apart from `pending` (new items, `collect_run()`) and
 `resuming` (a decision, `app.services.approvals.decide()`).
 
+When an item of an opted-out lead finishes, `finish_item()` deletes its checkpoints and
+blanks its audit rows, as the opt-out did for the items already finished
+(`app.services.privacy`).
+
 `give_up()` runs when a job has failed `max_attempts` times: the item (or the run, for
 `start_run`) is marked failed with the error. A callback that gives up leaves the run as
 it is and only writes a `run.callback_failed` audit row.
@@ -47,6 +51,7 @@ from app.db.models import Approval, Job, JobType, Lead, Route, Run, RunItem, Run
 from app.enrichment.crawler import Crawler
 from app.observability.tracing import Tracer
 from app.services.crm import CRMClient
+from app.services.deletion import purge_checkpoints, redact_audit
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
 from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
@@ -178,6 +183,11 @@ def save_item(deps: Deps, session: Session, item: RunItem) -> None:
 
 def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStatus) -> None:
     item.status = status
+    if status != RunItemStatus.AWAITING_APPROVAL and get(session, Lead, item.lead_id).opt_out:
+        # The thread is over. Its saved state, and the audit rows its nodes wrote after the
+        # opt-out, still hold the old contact data.
+        purge_checkpoints(session, [item.thread_id])
+        redact_audit(session, [item.lead_id], [item.id], "lead opted out")
     refresh_run_status(session, get(session, Run, item.run_id), deps.now())
     session.commit()
     log.info("item_saved", run_item_id=item.id, status=status, score=item.score)

@@ -1,21 +1,25 @@
-"""Leads: `GET /api/leads` (filter, sort, search, pages), `GET /api/leads/{id}`, and the
-opt-out `DELETE /api/leads/{id}/data` (admins).
+"""Leads: `GET /api/leads` (filter, sort, search, pages), `GET /api/leads/{id}`, the
+opt-out `DELETE /api/leads/{id}/data` and `DELETE /api/leads/{id}` (admins).
 
 Filters (all optional, combined with AND): `status`, `campaign_id` (the lead was in one
 of the campaign's runs), `area`, `min_score` / `max_score`, `has_email`, `flag` (a
 run item of the lead carries that flag, e.g. `possible_duplicate`) and `q` (part of the
 name). Flags live on run items, not leads, so `campaign_id` and `flag` look there.
 
-The opt-out wipes the lead's contact data (`app.services.privacy`), writes an audit row,
-and rejects the lead's items still waiting at the approval gate: their checkpoints hold
-the old contact data, so they must never be approved (see `app.services.approvals`).
+The opt-out wipes the lead's contact data (`app.services.privacy`, which also blanks it in
+the audit log and deletes finished items' checkpoints), writes an audit row, and rejects
+the lead's items still waiting at the approval gate: their checkpoints hold the old
+contact data, so they must never be approved (see `app.services.approvals`).
+
+`DELETE /api/leads/{id}` removes the lead and its history and blanks it in the audit log
+(`app.services.deletion`); unlike an opt-out, a later run may find the business again.
 """
 
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import ColumnElement, Select, Text, cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -37,6 +41,7 @@ from app.schemas.common import Page, Review
 from app.schemas.leads import LeadDetail, LeadRow, LeadRunItem
 from app.services.approvals import NotAwaitingDecision, decide
 from app.services.audit import record
+from app.services.deletion import StillWorking, delete_lead
 from app.services.privacy import opt_out_lead
 
 router = APIRouter(prefix="/leads", tags=["leads"], responses=error_docs(401))
@@ -168,8 +173,9 @@ def get_lead(lead_id: int, _user: CurrentUser, db: DbSession) -> LeadDetail:
     "/{lead_id}/data", status_code=status.HTTP_204_NO_CONTENT, responses=error_docs(403, 404)
 )
 def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
-    """Opt the lead out: wipe its contact data and website findings, never collect or crawl
-    it again, and reject its items waiting for approval. Safe to repeat."""
+    """Opt the lead out: wipe its contact data and website findings (also in its audit rows
+    and finished items' checkpoints), never collect or crawl it again, and reject its items
+    waiting for approval. Safe to repeat."""
     lead = get_or_404(db, Lead, lead_id, "lead")
     opt_out_lead(db, lead)
     record(
@@ -190,6 +196,31 @@ def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
         # A reviewer may have decided it a moment ago; the opt-out still stands.
         with suppress(NotAwaitingDecision):
             decide(db, item_id, admin, "rejected", OPT_OUT_REASON, datetime.now(UTC))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    "/{lead_id}", status_code=status.HTTP_204_NO_CONTENT, responses=error_docs(403, 404, 409)
+)
+def delete_one_lead(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
+    """Delete the lead, its run items and their steps and decisions, and blank its name and
+    contact data in the audit log. 409 while the worker is still on one of its items."""
+    lead = get_or_404(db, Lead, lead_id, "lead")
+    try:
+        deleted = delete_lead(db, lead, datetime.now(UTC))
+    except StillWorking as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, f"{exc}; try again shortly") from exc
+    record(
+        db,
+        actor_type=ActorType.USER,
+        actor=admin.email,
+        action="lead.deleted",
+        entity_type="lead",
+        entity_id=lead_id,
+        details=deleted.details(),
+    )
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

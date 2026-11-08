@@ -20,15 +20,17 @@ from pathlib import Path
 import httpx2
 import pytest
 from alembic import command
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.agents.checkpoint import open_checkpointer
 from app.agents.graph import build_graph
 from app.config import Settings
 from app.db.models import (
+    AuditLog,
     Job,
     JobStatus,
+    Lead,
     Run,
     RunItem,
     RunItemStatus,
@@ -40,6 +42,8 @@ from app.db.models import (
 )
 from app.db.session import make_engine, make_session_factory
 from app.services.approvals import decide
+from app.services.deletion import delete_campaign
+from app.services.privacy import opt_out_lead
 from app.services.runs import create_run
 from app.worker.handlers import Deps
 from app.worker.main import Worker
@@ -218,3 +222,40 @@ def test_the_checkpoint_tables_live_beside_the_alembic_schema(pg) -> None:
     # `alembic check` (through env.py's include_object) sees no drift: it leaves LangGraph's
     # tables and their indexes alone instead of planning to drop them.
     command.check(alembic_config(url))
+
+
+def saved_threads(db: Session) -> set[str]:
+    return set(db.scalars(text("SELECT DISTINCT thread_id FROM checkpoints")))
+
+
+def test_opt_out_and_delete_clear_the_checkpoints_and_blank_the_audit_log(pg) -> None:
+    url, db, world = pg
+    clock = Clock()
+    run = create_run(db, world.campaign, clock())
+    with ExitStack() as process:
+        worker = start_worker(process, url, world, clock, "host-a-1")
+        worker.run_until_idle()
+    smile, barton, lone_star = items(db, run)
+    assert saved_threads(db) == {smile.thread_id, barton.thread_id, lone_star.thread_id}
+
+    # An opt-out rejects the waiting item; once the worker has finished it, its saved state
+    # (still holding the old phone number) is gone.
+    opt_out_lead(db, db.get(Lead, smile.lead_id))
+    db.commit()
+    reviewer = db.scalars(select(User)).one()
+    decide(db, smile.id, reviewer, "rejected", "the lead opted out", clock())
+    with ExitStack() as process:
+        start_worker(process, url, world, clock, "host-a-1").run_until_idle()
+    assert saved_threads(db) == {barton.thread_id, lone_star.thread_id}
+
+    # Deleting the campaign takes the rest; the audit rows stay, blanked (the trigger lets
+    # a details-only change through).
+    audit_rows = db.scalar(select(func.count()).select_from(AuditLog))
+    delete_campaign(db, world.campaign)
+    db.commit()
+    assert saved_threads(db) == set()
+    assert db.scalars(select(Lead.id)).all() == []
+    assert db.scalar(select(func.count()).select_from(AuditLog)) == audit_rows
+    lead_rows = db.scalars(select(AuditLog).where(AuditLog.entity_type == "lead")).all()
+    assert lead_rows and all("redacted" in row.details for row in lead_rows)
+    assert "Barton Creek" not in str([row.details for row in lead_rows])

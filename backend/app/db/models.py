@@ -350,7 +350,8 @@ class Approval(Base):
 
 
 class AuditLog(Base):
-    """Append-only record of everything that happened. On Postgres a trigger blocks edits.
+    """Append-only record of everything that happened. On Postgres a trigger blocks edits,
+    except a delete or opt-out blanking `details` (`app.services.deletion.redact_audit`).
 
     `run_id` / `run_item_id` / `entity_id` are plain numbers, not foreign keys, so the
     audit trail never blocks (or depends on) changes to the rows it describes.

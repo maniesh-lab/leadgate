@@ -6,17 +6,21 @@ file is never held in memory or spooled to disk first. The file is stored in the
 database (`csv_uploads`); a campaign then uses it with `source_options.csv_upload_id`.
 Nobody sends a file path: the API never reads a file from the server's disk. Uploading
 answers 403 on the public demo (PUBLIC_DEMO).
+
+`DELETE /api/uploads/csv/{id}` removes a file no campaign uses (409 otherwise); deleting
+a campaign already removes its file when no other campaign uses it.
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
-from app.api.deps import AdminUser, AppSettings, DbSession, not_on_public_demo
+from app.api.deps import AdminUser, AppSettings, DbSession, get_or_404, not_on_public_demo
 from app.api.errors import error_docs
 from app.db.models import ActorType, CsvUpload
 from app.schemas.uploads import CsvUploadOut
 from app.services.audit import record
+from app.services.deletion import InUse, delete_upload
 from app.services.uploads import BadUpload, parse_csv_upload
 
 router = APIRouter(prefix="/uploads", tags=["uploads"], responses=error_docs(401, 403))
@@ -91,3 +95,27 @@ def upload_csv(
     )
     db.commit()
     return CsvUploadOut.model_validate(upload)
+
+
+@router.delete(
+    "/csv/{upload_id}", status_code=status.HTTP_204_NO_CONTENT, responses=error_docs(404, 409)
+)
+def delete_csv(upload_id: int, admin: AdminUser, db: DbSession) -> Response:
+    """Delete an uploaded CSV. 409 while a campaign (archived ones too) still uses it."""
+    upload = get_or_404(db, CsvUpload, upload_id, "CSV upload")
+    filename = upload.filename
+    try:
+        deleted = delete_upload(db, upload)
+    except InUse as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    record(
+        db,
+        actor_type=ActorType.USER,
+        actor=admin.email,
+        action="csv.deleted",
+        entity_type="csv_upload",
+        entity_id=upload_id,
+        details={"filename": filename, **deleted.details()},
+    )
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
