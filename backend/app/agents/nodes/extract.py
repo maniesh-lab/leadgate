@@ -13,7 +13,8 @@ The traceability validators (`trace_validators`) make sure the LLM invents nothi
   letter short counts, and the source's spelling is what gets stored)
 - a country that isn't there is left blank without failing the lead: the model has written
   "Nepal" as "Nepa" and even "N", and the country doesn't affect the score or the CRM
-- the category must be in CATEGORIES
+- the category must be in CATEGORIES (the prompt offers only the campaign's sector, the
+  source's hint and "other": `app.agents.categories.prompt_categories`)
 - each service must appear in the website text, and the founding year right after a
   founding word there ("since 1998"; a "© 2011" copyright line doesn't count)
 The prompt also keeps sales wording out of services ("Payment Plans", "Insurance
@@ -31,7 +32,7 @@ import structlog
 from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
-from app.agents.categories import CATEGORIES, OTHER
+from app.agents.categories import CATEGORIES, OTHER, campaign_category, prompt_categories
 from app.agents.cleaning.lead import (
     campaign_geo,
     clean_lead,
@@ -203,8 +204,9 @@ def baseline_fields(cleaned: dict, raw: dict) -> LLMFields:
 def build_prompt(niche: str, raw: dict, geo: dict, cleaned: dict, website_text: str) -> str:
     emails = ", ".join(cleaned["emails"]) or "(none)"
     text = HIDDEN_EMAIL.sub("", website_text)[:PROMPT_TEXT_CHARS] or "(no website text)"
+    categories = prompt_categories(campaign_category(niche), cleaned["category_guess"])
     return f"""{PROMPT_RULES}
-- category: exactly one of: {", ".join(CATEGORIES)}.
+- category: exactly one of: {", ".join(categories)}.
 
 CAMPAIGN: looking for "{niche}" in "{geo["location"]}"
 CAMPAIGN PLACE: {geo["place"] or "(unknown)"}

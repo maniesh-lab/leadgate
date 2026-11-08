@@ -4,7 +4,15 @@ The whole `extract` node is covered by tests/unit/test_graph.py; these check the
 rules one by one.
 """
 
-from app.agents.categories import campaign_category, category_matches, niche_category
+from app.agents.categories import (
+    CATEGORIES,
+    NEIGHBOURS,
+    SECTORS,
+    campaign_category,
+    category_matches,
+    niche_category,
+    prompt_categories,
+)
 from app.agents.cleaning.lead import (
     campaign_geo,
     clean_lead,
@@ -238,6 +246,33 @@ def test_specialists_and_general_doctors_match_but_specialists_differ() -> None:
     assert not category_matches("dermatologist", "beauty salon")
     assert not category_matches("dentist", "doctor")
     assert category_matches("other", "beauty salon")
+
+
+def test_close_neighbours_match_but_other_businesses_dont() -> None:
+    assert category_matches("hotel", "guest house")
+    assert category_matches("guest house", "hotel")
+    assert category_matches("restaurant", "cafe")
+    assert category_matches("hair salon", "beauty salon")
+    assert category_matches("beauty salon", "spa")
+    assert not category_matches("hair salon", "spa")  # neighbours of a neighbour don't count
+    assert not category_matches("restaurant", "bar")
+    assert not category_matches("dermatologist", "beauty salon")  # still a reviewer's call
+
+
+def test_every_category_is_in_exactly_one_sector() -> None:
+    words = [word for sector in SECTORS for word in sector]
+    assert sorted(words) == sorted(NICHE_TAGS)
+    assert set().union(*NEIGHBOURS) <= set(NICHE_TAGS)
+
+
+def test_the_prompt_offers_the_campaigns_sector_and_the_sources_hint() -> None:
+    dentist = prompt_categories("dentist", None)
+    assert {"dentist", "doctor", "cardiologist", "pharmacy", "other"} <= set(dentist)
+    assert "plumber" not in dentist and "beauty salon" not in dentist
+    assert "beauty salon" in prompt_categories("dermatologist", "beauty salon")
+    assert prompt_categories("other", None) == CATEGORIES  # a niche off the list: all of them
+    prompt = build_prompt("dentist", RAW, GEO, cleaned(), ENRICHMENT["text"])
+    assert "plumber" not in prompt
 
 
 def test_a_copyright_year_is_not_a_founding_year() -> None:
