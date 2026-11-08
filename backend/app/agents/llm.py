@@ -18,6 +18,12 @@ provider that replays canned replies, so no request ever leaves the machine.
 Steadfast is async only and the agents are sync (like the DB layer), so `SteadfastLLM`
 keeps one event loop (`asyncio.Runner`) and runs each call on it.
 
+Steadfast limits calls per minute, but Groq's free tier also limits tokens per minute
+(8,000 for gpt-oss-20b), and an extraction can use 2,000-3,000. Past that Groq answers 429
+and Steadfast waits and retries (6 and 20 retries in two 20-lead evals). So a
+`TokenBudget` (LLM_TOKENS_PER_MINUTE) counts the tokens used in the last minute and waits
+before a call that would go over, instead of letting it fail.
+
 With Langfuse on, each `SteadfastLLM` call is a generation (prompt, answer, model,
 tokens) under the node's span (`app.observability.tracing`). It's opened here, outside
 the event loop, so it lands under the node that asked.
@@ -25,15 +31,20 @@ the event loop, so it lands under the node that asked.
 
 import asyncio
 import contextvars
+import time
 from abc import ABC, abstractmethod
+from collections import deque
 from collections.abc import Callable, Sequence
 from typing import Any
 
+import structlog
 from pydantic import BaseModel
 from steadfast import SteadfastClient, SteadfastError, ValidationRetryExceeded
 
 from app.config import Settings
 from app.observability.tracing import Tracer
+
+log = structlog.get_logger(__name__)
 
 DEFAULT_MODELS = {"groq": "openai/gpt-oss-20b", "openai": "gpt-4o-mini"}
 # Calls per minute: Groq's free tier allows 30 for the gpt-oss models (checked 2026-10-28).
@@ -48,6 +59,13 @@ MAX_RETRIES = 4
 # Austin eval, 7 leads with services (2026-11-08): low 79% precision / 79% recall at 18.7k
 # tokens; medium 90% / 93% at 34.6k, and one reply was still cut off at 4,096 and retried.
 MAX_TOKENS = {"low": 2048, "medium": 4096, "high": 8192}
+# Tokens per minute when LLM_TOKENS_PER_MINUTE is empty: Groq's free tier for gpt-oss-20b
+# (checked 2026-11-08). No budget on openai unless the setting is set.
+TOKENS_PER_MINUTE = {"groq": 8000}
+# A call's size is only known afterwards, so the budget guesses it beforehand: about 4
+# characters per token for the prompt, plus room for the answer (thinking + JSON).
+CHARS_PER_TOKEN = 4
+ANSWER_TOKENS_GUESS = 400
 
 # A check on a parsed answer: returns None when fine, or a sentence saying what's wrong
 # (that sentence is sent back to the model).
@@ -86,6 +104,53 @@ class LLM(ABC):
         return None  # nothing to free unless a subclass holds something
 
 
+class TokenBudget:
+    """Keeps the tokens used in any 60 seconds under `per_minute` by waiting before a call.
+
+    `wait_for(guess)` before a call, `spend(used)` after it with what it really used
+    (validation retries included). One per process: the worker runs one job at a time.
+    """
+
+    WINDOW_SECONDS = 60.0
+
+    def __init__(
+        self,
+        per_minute: int,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.per_minute = per_minute
+        # Tests pass a fake clock and sleep.
+        self.clock = clock
+        self.sleep = sleep
+        self.spent: deque[tuple[float, int]] = deque()  # (when, tokens), oldest first
+
+    def used(self) -> int:
+        """Tokens spent in the last minute."""
+        cutoff = self.clock() - self.WINDOW_SECONDS
+        while self.spent and self.spent[0][0] <= cutoff:
+            self.spent.popleft()
+        return sum(tokens for _, tokens in self.spent)
+
+    def wait_for(self, tokens: int) -> None:
+        """Wait until `tokens` more fit in the last minute (a call bigger than the whole
+        budget waits for an empty minute)."""
+        needed = min(tokens, self.per_minute)
+        while (used := self.used()) + needed > self.per_minute:
+            wait = self.spent[0][0] + self.WINDOW_SECONDS - self.clock()
+            log.info("llm_token_budget_wait", used=used, needed=needed, wait_seconds=round(wait, 1))
+            self.sleep(max(wait, 0.0))
+
+    def spend(self, tokens: int) -> None:
+        if tokens > 0:
+            self.spent.append((self.clock(), tokens))
+
+
+def guess_tokens(system: str, prompt: str) -> int:
+    """What a call will roughly use, before it's sent (the budget corrects it afterwards)."""
+    return (len(system) + len(prompt)) // CHARS_PER_TOKEN + ANSWER_TOKENS_GUESS
+
+
 class FakeLLM(LLM):
     """No model at all: returns the caller's rule-based answer, checked like a real one."""
 
@@ -119,12 +184,15 @@ class SteadfastLLM(LLM):
         *,
         model: str | None = None,
         tracer: Tracer | None = None,
+        budget: TokenBudget | None = None,
         **params: Any,
     ) -> None:
         self.client = client
         self.provider = provider
         self.model = model  # only for the trace
         self.tracer = tracer or Tracer()
+        # None = no tokens-per-minute limit (Steadfast still limits calls per minute).
+        self.budget = budget
         # Sent with every request, e.g. max_tokens and temperature.
         self.params = params
         self._runner = asyncio.Runner()
@@ -148,6 +216,8 @@ class SteadfastLLM(LLM):
             **self.params,
         )
         trace_input = {"system": system, "prompt": prompt}
+        if self.budget:
+            self.budget.wait_for(guess_tokens(system, prompt))
         with self.tracer.generation(schema.__name__, model=self.model, input=trace_input) as span:
             used_before = self.tokens_used()
             try:
@@ -161,9 +231,14 @@ class SteadfastLLM(LLM):
             except SteadfastError as exc:
                 span.error(str(exc))
                 raise LLMError(f"the LLM call failed: {exc}", [str(exc)]) from exc
-            used = [
-                now - before for now, before in zip(self.tokens_used(), used_before, strict=True)
-            ]
+            finally:
+                # Failed tries used tokens too (each wrong answer that was sent back).
+                used = [
+                    now - before
+                    for now, before in zip(self.tokens_used(), used_before, strict=True)
+                ]
+                if self.budget:
+                    self.budget.spend(sum(used))
             span.output(answer.model_dump(), usage={"input": used[0], "output": used[1]})
             return answer
 
@@ -235,4 +310,6 @@ def make_llm(settings: Settings, tracer: Tracer | None = None) -> LLM:
     # Only these models take the setting; others may refuse a request that has it.
     if settings.llm_mode == "groq" and "gpt-oss" in model:
         params["reasoning_effort"] = effort
-    return SteadfastLLM(client, provider.name, model=model, tracer=tracer, **params)
+    per_minute = settings.llm_tokens_per_minute or TOKENS_PER_MINUTE.get(settings.llm_mode)
+    budget = TokenBudget(per_minute) if per_minute else None
+    return SteadfastLLM(client, provider.name, model=model, tracer=tracer, budget=budget, **params)

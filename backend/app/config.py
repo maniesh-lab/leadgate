@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     # other models only the limit changes). "low" fits the free tier; "medium" finds
     # services better but uses about twice the tokens (app/agents/llm.py).
     llm_reasoning_effort: Literal["low", "medium", "high"] = "low"
+    # Tokens the agents may use per minute; a call that would go over waits instead of
+    # getting a 429. Empty = 8,000 on groq (the free tier's limit), no limit on openai.
+    llm_tokens_per_minute: int | None = Field(default=None, ge=1)
     groq_api_key: str | None = Field(default=None, repr=False)
     openai_api_key: str | None = Field(default=None, repr=False)
 

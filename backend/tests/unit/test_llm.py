@@ -7,7 +7,15 @@ import pytest
 import structlog
 from pydantic import BaseModel
 
-from app.agents.llm import FakeLLM, LLMError, SteadfastLLM, make_llm, scripted_llm
+from app.agents.llm import (
+    FakeLLM,
+    LLMError,
+    SteadfastLLM,
+    TokenBudget,
+    guess_tokens,
+    make_llm,
+    scripted_llm,
+)
 from app.config import Settings
 
 
@@ -129,4 +137,117 @@ def test_make_llm_sends_the_reasoning_effort_only_to_gpt_oss(settings: Settings)
     )
     assert isinstance(llm, SteadfastLLM)
     assert llm.params == {"max_tokens": 2048, "temperature": 0}
+    llm.close()
+
+
+class FakeClock:
+    """A clock that only moves when the budget sleeps (or a test moves it)."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.sleeps: list[float] = []
+
+    def __call__(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def budget(per_minute: int = 1000) -> tuple[TokenBudget, FakeClock]:
+    clock = FakeClock()
+    return TokenBudget(per_minute, clock=clock, sleep=clock.sleep), clock
+
+
+def test_budget_lets_a_call_through_while_it_fits() -> None:
+    tokens, clock = budget()
+    tokens.spend(600)
+    tokens.wait_for(400)
+    assert clock.sleeps == []
+
+
+def test_budget_waits_until_old_spending_leaves_the_minute() -> None:
+    tokens, clock = budget()
+    tokens.spend(600)
+    clock.now += 20
+    tokens.spend(300)
+
+    tokens.wait_for(500)
+
+    # 600 + 300 + 500 is over 1,000: wait the 40s until the 600 is a minute old.
+    assert clock.sleeps == [40]
+    assert tokens.used() == 300
+
+
+def test_budget_forgets_spending_older_than_a_minute() -> None:
+    tokens, clock = budget()
+    tokens.spend(900)
+    clock.now += 60
+    assert tokens.used() == 0
+
+
+def test_a_call_bigger_than_the_budget_waits_for_an_empty_minute() -> None:
+    tokens, clock = budget()
+    tokens.spend(100)
+    tokens.wait_for(5000)
+    assert clock.sleeps == [60]
+
+
+def test_budget_ignores_calls_that_used_nothing() -> None:
+    tokens, _ = budget()
+    tokens.spend(0)
+    assert not tokens.spent
+
+
+def test_guess_tokens_counts_the_prompt_and_room_for_the_answer() -> None:
+    assert guess_tokens("a" * 400, "b" * 800) == 300 + 400
+
+
+def with_usage(llm: SteadfastLLM, per_call: int) -> SteadfastLLM:
+    """Make `tokens_used()` grow by `per_call` input tokens on each call (the scripted
+    provider reports none)."""
+    calls = iter(range(1000))
+    llm.tokens_used = lambda: ((next(calls) + 1) // 2 * per_call, 0)
+    return llm
+
+
+def test_steadfast_llm_waits_for_the_budget_and_spends_what_was_used() -> None:
+    llm, _ = scripted_llm(['{"name": "Rex", "legs": 4}'])
+    llm.budget, clock = budget()
+    with_usage(llm, 700)
+    llm.budget.spend(800)
+
+    ask(llm)
+
+    assert clock.sleeps == [60]  # 800 + the guess (~410) didn't fit
+    assert [tokens for _, tokens in llm.budget.spent] == [700]
+
+
+def test_steadfast_llm_spends_the_tokens_of_a_failed_call_too() -> None:
+    llm, _ = scripted_llm(["not json", '{"name": "Rex"}', '{"name": "Rex", "legs": 5}'])
+    llm.budget, _ = budget()
+    with_usage(llm, 250)
+
+    with pytest.raises(LLMError):
+        ask(llm)
+
+    assert [tokens for _, tokens in llm.budget.spent] == [250]
+
+
+def test_make_llm_groq_has_the_free_tier_budget(settings: Settings) -> None:
+    llm = make_llm(settings.model_copy(update={"llm_mode": "groq", "groq_api_key": "test-key"}))
+    assert isinstance(llm, SteadfastLLM)
+    assert llm.budget is not None and llm.budget.per_minute == 8000
+    llm.close()
+
+
+def test_make_llm_takes_the_budget_from_settings(settings: Settings) -> None:
+    llm = make_llm(
+        settings.model_copy(
+            update={"llm_mode": "groq", "groq_api_key": "test-key", "llm_tokens_per_minute": 30000}
+        )
+    )
+    assert isinstance(llm, SteadfastLLM)
+    assert llm.budget is not None and llm.budget.per_minute == 30000
     llm.close()
