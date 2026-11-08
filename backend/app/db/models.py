@@ -285,7 +285,7 @@ class RunItem(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "lead_id"),
         CheckConstraint("score IS NULL OR score BETWEEN 0 AND 100", name="score_range"),
-        # The approval queue: items waiting for a human, oldest first.
+        # The approval queue: items waiting for a human, by time (read either way) or score.
         Index(
             "ix_run_items_awaiting_approval",
             "created_at",
