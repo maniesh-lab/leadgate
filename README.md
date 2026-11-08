@@ -17,7 +17,7 @@ Each lead goes through these steps:
 
 | Step | What it does | LLM? |
 |---|---|---|
-| `enrich` | Reads up to 4 pages of the lead's own website (robots.txt respected, public addresses only): emails, phones, social links, and site signals like https, a mobile layout and the copyright year | no |
+| `enrich` | Reads up to 4 pages (by default) of the lead's own website (robots.txt respected, public addresses only): emails, phones, social links, and site signals like https, a mobile layout and the copyright year | no |
 | `extract` | Cleans the data by rule (phones to international format), then the LLM fills the fields that need reading. A check sends back any value that isn't in the source data or on the website, so it can't invent an email | yes |
 | `check` | Flags possible duplicates, a category that doesn't match the campaign (close neighbours like hotel and guest house count as a match; a niche off the 119-type list shows "not checked"), and closed businesses | no |
 | `score` | Adds up the campaign's rubric (rules stored as data). The LLM only writes a one-sentence explanation; it never changes the score | explanation only |
@@ -73,7 +73,7 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 
 [leadgate-ocu8.onrender.com](https://leadgate-ocu8.onrender.com) runs the real code on free hosting (Render for the API and the dashboard, Neon for Postgres). It logs you in as a reviewer, so you can work the approval queue, open any lead's step timeline, read the audit log and the dashboard's reports. The [admin tools](#admin-tools) need the admin login, which isn't public.
 
-To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin dentists, 7 of them with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
+To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin businesses (11 dentists and a pharmacy), 7 of them with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
 
 ## Quick start (Docker)
 
@@ -210,7 +210,7 @@ TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate
 ruff check . && ruff format --check .
 cd ../frontend
 npm run lint && npm run typecheck && npm test && npm run build
-npm run check:api                        # src/api/schema.d.ts still matches the API (npm run gen:api remakes it)
+npm run check:api                        # schema.d.ts still matches the API (needs the backend installed, not running; gen:api remakes it)
 npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Docker stack
 ```
 
@@ -268,7 +268,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 
 - **Google's terms don't allow what this app does with Places data.** Google's Maps Platform terms forbid storing Places content outside the service (they name copying and saving business names and addresses), and only the place ID, plus latitude and longitude for 30 days, may be kept. The `google_places` source saves those fields on the lead and an approved lead's fields go to the CRM, and its 30-day wipe doesn't fix that. It stays off without a key: OpenStreetMap or your own CSV are the sources to use for a real lead list. The dashboard shows the required "Google Maps" credit next to Google leads.
 - **No ratings from OpenStreetMap.** OSM has no reviews, so on the `web-agency` rubric most OSM leads score 0–20. Google Places data scores higher, but its API needs a billing card even for the free tier.
-- **The public Overpass server is often busy** (HTTP 502) or slow. A collect waits and tries again twice, and with `OVERPASS_BACKUP_URL` set it asks a second server straight away; with both busy, it may still need a second try later.
+- **The public Overpass server is often busy** (HTTP 502), slow, or can't be reached. A collect waits and tries again twice, and with `OVERPASS_BACKUP_URL` set it asks a second server straight away; with both busy, it may still need a second try later.
 - **Fewer emails than you'd hope:** many sites hide their email behind Cloudflare's obfuscation, and leadgate leaves it hidden. Sites built only with JavaScript show the crawler little text (no headless browser, on purpose).
 - **The LLM is a small free model on a free tier.** Groq allows 8,000 tokens a minute, and leadgate waits for room instead of hitting the limit (`LLM_TOKENS_PER_MINUTE`). It also allows 200,000 tokens a day, which several evals and runs can use up. When the daily limit is reached, or an answer is still invalid after three tries, the lead is marked "extraction not ok" and escalated rather than guessed.
 - **Two tiny crash windows remain:** a kill in the instant between two back-to-back commits could record a step twice or post a Discord message twice. Closing them would need an idempotency key at the provider, and Discord webhooks have none.
@@ -286,7 +286,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 ## Legal and ethics
 
 - **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Google's terms are stricter than this app's storage, so read the known limit above before using a Google key.
-- **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages, and there are no login walls, CAPTCHA solving or proxies.
+- **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages by default, and there are no login walls, CAPTCHA solving or proxies.
 - **Public business data only:** a business's own listing and public website. Any lead can be opted out: its contact data is wiped and it's never collected or crawled again.
 - **Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)** (ODbL 1.0), also credited in the dashboard's footer. The ODbL covers OpenStreetMap's data, not leadgate's code; the few saved Overpass answers in the tests are small extracts.
 
