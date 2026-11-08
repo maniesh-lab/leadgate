@@ -73,7 +73,7 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 
 [leadgate-ocu8.onrender.com](https://leadgate-ocu8.onrender.com) runs the real code on free hosting (Render for the API and the dashboard, Neon for Postgres). It logs you in as a reviewer, so you can work the approval queue, open any lead's step timeline, read the audit log and the dashboard's reports. The [admin tools](#admin-tools) need the admin login, which isn't public.
 
-To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin dentists with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
+To keep it free and safe, the demo can't make **outside calls**, for any login, the admin's included: with `PUBLIC_DEMO=true` the API and worker refuse new or edited campaigns, uploads, runs and the n8n webhook, every outbound request is refused too, and the server won't start with a Google, Airtable, Discord or Langfuse key set. Real searches run on your own machine (see the quick start). On the demo, the LLM runs in fake mode (rule-based answers, the same checks), the leads are 12 made-up Austin dentists, 7 of them with `.example` websites, and approved leads go to an in-memory CRM instead of Airtable. The queue refills itself when it runs low. The dashboard's history is 1,000 fake leads.
 
 ## Quick start (Docker)
 
@@ -148,7 +148,7 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| `POST` | `/auth/login` | anyone | Email + password → a login token (60 min) |
+| `POST` | `/auth/login` | anyone | OAuth2 form (`username` is your email, plus `password`) → a login token (60 min) |
 | `GET` | `/auth/me` | logged in | Who you are |
 | `POST` | `/auth/password` | logged in | Change your password; ends every older token |
 | `GET`, `POST` | `/users` | admin | List users, add a reviewer |
@@ -246,7 +246,7 @@ render.yaml                        the live demo's hosting
 
 ## Settings
 
-All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. Every outside service is off when its keys are empty.
+All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq` or `openai`), `LLM_REASONING_EFFORT` (how long gpt-oss thinks: `low` by default, `medium` finds services better for about twice the tokens), `LLM_TOKENS_PER_MINUTE` (empty = 8,000 on Groq, its free tier's limit), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `OVERPASS_BACKUP_URL` (a second Overpass server for when the public one is busy; `NOMINATIM_URL` and `OVERPASS_URL` change the main ones), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. The optional services are off when their keys are empty. OpenStreetMap and website visits need no keys, so they stay on.
 
 ## Design decisions
 
@@ -267,9 +267,9 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 
 - **Google's terms don't allow what this app does with Places data.** Google's Maps Platform terms forbid storing Places content outside the service (they name copying and saving business names and addresses), and only the place ID, plus latitude and longitude for 30 days, may be kept. The `google_places` source saves those fields on the lead and an approved lead's fields go to the CRM, and its 30-day wipe doesn't fix that. It stays off without a key: OpenStreetMap or your own CSV are the sources to use for a real lead list. The dashboard shows the required "Google Maps" credit next to Google leads.
 - **No ratings from OpenStreetMap.** OSM has no reviews, so on the `web-agency` rubric most OSM leads score 0–20. Google Places data scores higher, but its API needs a billing card even for the free tier.
-- **The public Overpass server is often busy** (HTTP 502) or slow; a collect may need a second try.
+- **The public Overpass server is often busy** (HTTP 502) or slow. A collect waits and tries again twice, and with `OVERPASS_BACKUP_URL` set it asks a second server straight away; with both busy, it may still need a second try later.
 - **Fewer emails than you'd hope:** many sites hide their email behind Cloudflare's obfuscation, and leadgate leaves it hidden. Sites built only with JavaScript show the crawler little text (no headless browser, on purpose).
-- **The LLM is a small free model.** It sometimes cuts an answer off or gets rate-limited; the lead is then marked "extraction not ok" and escalated rather than guessed.
+- **The LLM is a small free model on a free tier.** Groq allows 8,000 tokens a minute, and leadgate waits for room instead of hitting the limit (`LLM_TOKENS_PER_MINUTE`). It also allows 200,000 tokens a day, which several evals and runs can use up. When the daily limit is reached, or an answer is still invalid after three tries, the lead is marked "extraction not ok" and escalated rather than guessed.
 - **Two tiny crash windows remain:** a kill in the instant between two back-to-back commits could record a step twice or post a Discord message twice. Closing them would need an idempotency key at the provider, and Discord webhooks have none.
 - **Login tokens can't be cut off one by one** before they expire (no refresh tokens or deny list); a password change or deactivating the user ends them.
 - **The login limit can be used to lock someone out** for 15 minutes by typing their email wrong 5 times, and an admin can't unlock it early. No two-factor login.
