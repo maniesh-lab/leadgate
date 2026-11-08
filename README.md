@@ -65,7 +65,7 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 - A run started from n8n went through the same queue, and when the last lead was decided, its summary was posted back to n8n.
 - The audit log showed every step of every lead exactly once, from `lead.collected` to `crm.written` and `run.completed`.
 
-**Extraction** (`backend/scripts/extraction_eval.py`, 20 real OpenStreetMap leads, `openai/gpt-oss-20b` on Groq's free tier): email, area, city, country, category and founding year right on 20/20; services 86% precision, 93% recall. Treat this as a smoke test, not proof: 12 of the 20 leads have no website, which makes most cases easy, and it's one run of one model.
+**Extraction** (`backend/scripts/extraction_eval.py`, `openai/gpt-oss-20b` on Groq's free tier, 2026-11-08): on 20 real OpenStreetMap leads, email, area, city, country, category and founding year were right on 20/20; services 77% precision, 89% recall. Treat this as a smoke test, not proof: 12 of those 20 have no website, which makes most cases easy, and it's one run of one model. The eval has since grown to 30 leads, 18 of them with websites, including harder ones (a software firm tagged as a dentist, a wrong website, a placeholder email), and its services answers now list every service on each site. The leads and their saved site text are in the repo, so the eval runs without a database.
 
 **SQL:** every index was measured with `EXPLAIN ANALYZE` on 50k leads and ~1M rows of history, with and without it. 14 were kept because they helped (e.g. one run's audit trail: 27 ms → 0.03 ms; the worker's job claim: 4.6 ms → 0.002 ms), and 2 were left out because they didn't. Details: [docs/sql-notes.md](docs/sql-notes.md).
 
@@ -205,17 +205,18 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 489 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 545 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
 npm run lint && npm run typecheck && npm test && npm run build
+npm run check:api                        # src/api/schema.d.ts still matches the API (npm run gen:api remakes it)
 npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Docker stack
 ```
 
-The 20 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
+The 27 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
-CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 50 Vitest tests, build), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
+CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 70 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
 ## Project structure
 
@@ -234,8 +235,8 @@ backend/
     observability/                 JSON logs, correlation ids, Langfuse
   alembic/                         migrations
   tests/unit/  tests/integration/  SQLite tests, Postgres tests
-  scripts/                         live checks, the extraction eval, the SQL index bench
-  eval/                            the extraction eval's checked answers
+  scripts/                         live checks, the extraction eval, the SQL index bench, the OpenAPI export
+  eval/                            the extraction eval's leads (with their saved site text) and checked answers
 frontend/                          React + TypeScript + Vite + Tailwind; e2e/ = Playwright
 docs/ARCHITECTURE.md               how it fits together (diagrams)
 docs/sql-notes.md                  indexes and reports, with measurements
