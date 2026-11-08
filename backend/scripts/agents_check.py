@@ -6,7 +6,7 @@ Phase 3's `collect` filled the DB (the defaults are three Austin dentists from i
     python scripts/agents_check.py --campaign 1 --leads 16 11 14
     python scripts/agents_check.py --campaign 1 --leads 16 --decision rejected
 
-Each lead runs to the approval gate (website visit, Groq extraction, checks, score),
+Each lead runs to the approval gate (website visit, LLM extraction, checks, score),
 the card a reviewer would see is printed, then the script answers with --decision
 (default: approved) and the graph routes and acts. The CRM and the notifier are the
 fakes, so nothing is sent anywhere; the messages they would get are printed.
@@ -41,7 +41,7 @@ def main() -> int:
     parser.add_argument("--campaign", type=int, default=1, help="campaign id (default 1)")
     parser.add_argument("--leads", type=int, nargs="+", default=[16, 11, 14], help="lead ids")
     parser.add_argument("--decision", choices=["approved", "rejected"], default="approved")
-    parser.add_argument("--llm", choices=["fake", "groq", "openai"], default="groq")
+    parser.add_argument("--llm", choices=["fake", "groq", "openai", "anthropic"], default="groq")
     args = parser.parse_args()
 
     settings = get_settings().model_copy(update={"llm_mode": args.llm})

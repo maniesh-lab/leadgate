@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     # (tests, CI, offline demos); "groq", "openai" and "anthropic" (Claude) call the real
     # APIs through Steadfast.
     llm_mode: Literal["fake", "groq", "openai", "anthropic"] = "fake"
-    # The model for groq/openai; empty = the default in app/agents/llm.py.
+    # The model for groq/openai/anthropic; empty = the default in app/agents/llm.py.
     llm_model: str | None = None
     # How long the model thinks before answering: gpt-oss on groq (the token limit grows
     # with it), Claude's effort level on anthropic; on other models only the limit changes.
@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     llm_reasoning_effort: Literal["low", "medium", "high"] = "low"
     # Tokens the agents may use per minute; a call that would go over waits instead of
     # getting a 429. Empty = 8,000 on groq (the free tier's limit for gpt-oss-20b, used for
-    # any groq model), no limit on openai.
+    # any groq model), no limit on openai or anthropic.
     llm_tokens_per_minute: int | None = Field(default=None, ge=1)
     groq_api_key: str | None = Field(default=None, repr=False)
     openai_api_key: str | None = Field(default=None, repr=False)

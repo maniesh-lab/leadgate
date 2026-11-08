@@ -1,6 +1,6 @@
 """Manual eval: how often does extraction get each field right? Needs the real LLM (internet).
 
-Not a test: it calls Groq. Two files in `backend/eval/`, both kept in git:
+Not a test: it calls the real LLM (Groq by default). Two files in `backend/eval/`, both kept in git:
 - `extraction_leads.json`: what extraction sees for each lead (its source data, its website
   findings with the page text cut to what the prompt uses) and the campaign's place. So
   `run` needs no database, and cleaning up a database can't break it.
@@ -243,7 +243,7 @@ def main() -> int:
     parser.add_argument("--key", nargs="*", help="save: these leads (source keys)")
     parser.add_argument("--source", default="osm", help="save: which source's leads")
     parser.add_argument("--limit", type=int, default=10, help="save: how many new leads")
-    parser.add_argument("--llm", choices=["fake", "groq", "openai"], default="groq")
+    parser.add_argument("--llm", choices=["fake", "groq", "openai", "anthropic"], default="groq")
     args = parser.parse_args()
 
     if args.mode == "save":
