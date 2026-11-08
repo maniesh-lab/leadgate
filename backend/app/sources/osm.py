@@ -12,8 +12,13 @@ Two steps:
 Usage policies (checked 2026-10-28): Nominatim allows at most 1 request/second and wants
 a User-Agent naming the app; Overpass allows ~10,000 requests/day and answers
 429/502/503/504 when busy, so we wait and retry twice. One collect = at most
-1 Nominatim + 3 Overpass requests. OSM data is "© OpenStreetMap contributors" (shown
-in the UI footer, `frontend/src/components/Footer.tsx`).
+1 Nominatim + 3 Overpass requests per Overpass server. OSM data is "© OpenStreetMap
+contributors" (shown in the UI footer, `frontend/src/components/Footer.tsx`).
+
+Both servers can be changed (NOMINATIM_URL, OVERPASS_URL), and OVERPASS_BACKUP_URL names a
+second Overpass server: when the first is busy or can't be reached, the backup is asked at
+once, and only when both are busy do we wait and try both again. Empty = the public servers
+below and no backup.
 
 OSM has no ratings, review counts or opening status, and many places lack a phone or
 website; the enrichment phase fills in what it can from the business's own site.
@@ -297,11 +302,24 @@ NICHE_ALIASES = {
 class OsmSource(LeadSource):
     name = "osm"
 
-    def __init__(self, client: httpx2.Client, sleep: Callable[[float], None] = time.sleep) -> None:
+    def __init__(
+        self,
+        client: httpx2.Client,
+        sleep: Callable[[float], None] = time.sleep,
+        *,
+        nominatim_url: str | None = None,
+        overpass_url: str | None = None,
+        overpass_backup_url: str | None = None,
+    ) -> None:
         super().__init__()
         self.client = client
         # Tests pass a fake sleep so the retry waits take no time.
         self.sleep = sleep
+        self.nominatim_url = nominatim_url or NOMINATIM_URL
+        # Asked in this order; the backup only when the one before it is busy.
+        self.overpass_urls = [overpass_url or OVERPASS_URL]
+        if overpass_backup_url:
+            self.overpass_urls.append(overpass_backup_url)
 
     def collect(self, campaign: Campaign) -> Iterator[RawLead]:
         self.skipped = 0
@@ -338,7 +356,7 @@ class OsmSource(LeadSource):
             "addressdetails": 1,
             "accept-language": "en",
         }
-        response = send(self.client, "Nominatim", "GET", NOMINATIM_URL, params=params)
+        response = send(self.client, "Nominatim", "GET", self.nominatim_url, params=params)
         check_ok(response, "Nominatim")
         results = response.json()
         if not results:
@@ -356,15 +374,31 @@ class OsmSource(LeadSource):
         }
 
     def overpass(self, query: str) -> dict[str, Any]:
-        response = send(self.client, "Overpass", "POST", OVERPASS_URL, data={"data": query})
-        for wait in RETRY_WAITS_SECONDS:
-            if response.status_code not in BUSY_STATUSES:
-                break
-            log.warning("overpass_busy", status=response.status_code, retry_in_seconds=wait)
-            self.sleep(wait)
-            response = send(self.client, "Overpass", "POST", OVERPASS_URL, data={"data": query})
-        check_ok(response, "Overpass")
-        return response.json()
+        """Ask each Overpass server in turn; when all are busy, wait and go round again.
+
+        A network error (timeout, no route, ...) counts as busy. Any other error status
+        (e.g. 400 for a bad query) is raised at once: another server wouldn't help.
+        """
+        failure: SourceError | None = None
+        for wait in (0, *RETRY_WAITS_SECONDS):
+            if wait:
+                log.warning("overpass_all_busy", retry_in_seconds=wait)
+                self.sleep(wait)
+            for url in self.overpass_urls:
+                try:
+                    response = send(self.client, "Overpass", "POST", url, data={"data": query})
+                except SourceError as exc:
+                    failure = exc
+                else:
+                    if response.status_code not in BUSY_STATUSES:
+                        check_ok(response, "Overpass")
+                        return response.json()
+                    failure = SourceError(
+                        f"Overpass answered HTTP {response.status_code}: {response.text[:200]}"
+                    )
+                log.warning("overpass_busy", server=url, error=str(failure))
+        assert failure is not None  # every try above failed
+        raise failure
 
     def element_to_lead(self, element: dict[str, Any], niche: str) -> RawLead | None:
         tags = element.get("tags", {})

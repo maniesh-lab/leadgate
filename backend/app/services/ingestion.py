@@ -129,7 +129,12 @@ def make_source(
 ) -> LeadSource | None:
     """Build the source called `name`, or None for google_places without a key."""
     if name == "osm":
-        return OsmSource(client)
+        return OsmSource(
+            client,
+            nominatim_url=settings.nominatim_url,
+            overpass_url=settings.overpass_url,
+            overpass_backup_url=settings.overpass_backup_url,
+        )
     if name == "google_places":
         key = settings.google_places_api_key
         return GooglePlacesSource(client, key) if key else None
