@@ -151,6 +151,13 @@ def test_a_category_outside_the_list_is_refused() -> None:
     assert "not in the list" in problems(category="orthodontist")[0]
 
 
+def test_a_category_the_prompt_didnt_offer_is_refused() -> None:
+    dental = prompt_categories("dentist", None)
+    checks = trace_validators(cleaned(), source_text(RAW, GEO), ENRICHMENT["text"], YEAR, dental)
+    answer = LLMFields(category="plumber")  # a real category, but not one offered
+    assert any("not in the list" in (check(answer) or "") for check in checks)
+
+
 def test_invented_services_and_too_many_services_are_refused() -> None:
     assert "'teeth cleaning'" in problems(services=["teeth cleaning"])[0]
     assert "at most 10" in problems(services=["teeth whitening"] * 11)[0]

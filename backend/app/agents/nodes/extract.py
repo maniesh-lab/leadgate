@@ -13,8 +13,9 @@ The traceability validators (`trace_validators`) make sure the LLM invents nothi
   letter short counts, and the source's spelling is what gets stored)
 - a country that isn't there is left blank without failing the lead: the model has written
   "Nepal" as "Nepa" and even "N", and the country doesn't affect the score or the CRM
-- the category must be in CATEGORIES (the prompt offers only the campaign's sector, the
-  source's hint and "other": `app.agents.categories.prompt_categories`)
+- the category must be one the prompt offered: the campaign's sector, the source's hint
+  and "other" (`app.agents.categories.prompt_categories`; all of CATEGORIES for a niche
+  off the list)
 - each service must appear in the website text, and the founding year right after a
   founding word there ("since 1998"; a "© 2011" copyright line doesn't count)
 The prompt also keeps sales wording out of services ("Payment Plans", "Insurance
@@ -139,7 +140,9 @@ def extract_lead(
             prompt=build_prompt(niche, raw, geo, cleaned, website_text),
             schema=LLMFields,
             fake_answer=lambda: baseline_fields(cleaned, raw),
-            validators=trace_validators(cleaned, sources, website_text, year),
+            validators=trace_validators(
+                cleaned, sources, website_text, year, offered_categories(niche, cleaned)
+            ),
         )
         fields = with_source_spelling(fields, sources)
         ok, issues = True, []
@@ -204,7 +207,7 @@ def baseline_fields(cleaned: dict, raw: dict) -> LLMFields:
 def build_prompt(niche: str, raw: dict, geo: dict, cleaned: dict, website_text: str) -> str:
     emails = ", ".join(cleaned["emails"]) or "(none)"
     text = HIDDEN_EMAIL.sub("", website_text)[:PROMPT_TEXT_CHARS] or "(no website text)"
-    categories = prompt_categories(campaign_category(niche), cleaned["category_guess"])
+    categories = offered_categories(niche, cleaned)
     return f"""{PROMPT_RULES}
 - category: exactly one of: {", ".join(categories)}.
 
@@ -218,8 +221,21 @@ WEBSITE TEXT:
 {text}"""
 
 
-def trace_validators(cleaned: dict, sources: str, website_text: str, year: int) -> list[Validator]:
-    """The checks that keep the LLM from inventing data (see the module docstring)."""
+def offered_categories(niche: str, cleaned: dict) -> list[str]:
+    """The category words the prompt offers, and the only ones the answer may use."""
+    return prompt_categories(campaign_category(niche), cleaned["category_guess"])
+
+
+def trace_validators(
+    cleaned: dict,
+    sources: str,
+    website_text: str,
+    year: int,
+    categories: list[str] = CATEGORIES,
+) -> list[Validator]:
+    """The checks that keep the LLM from inventing data (see the module docstring).
+    `categories` are the words the prompt offered (every category when not given)."""
+    offered = set(categories)
     candidates = set(cleaned["emails"])
 
     def email_is_a_candidate(fields: LLMFields) -> str | None:
@@ -241,7 +257,7 @@ def trace_validators(cleaned: dict, sources: str, website_text: str, year: int) 
         )
 
     def category_in_list(fields: LLMFields) -> str | None:
-        if fields.category in CATEGORIES:
+        if fields.category in offered:
             return None
         return f"category {fields.category!r} is not in the list; use one of the listed words"
 
