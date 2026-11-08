@@ -5,7 +5,7 @@ Skipped unless `TEST_POSTGRES_URL` is set (see `conftest.py` in this folder).
 
 import pytest
 from alembic import command
-from sqlalchemy import text
+from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
 
 from app.db.base import Base
@@ -49,4 +49,53 @@ def test_audit_log_is_append_only(postgres_url: str, statement: str) -> None:
 
     with engine.connect() as conn:
         assert conn.scalar(text("SELECT actor FROM audit_log")) == "test"
+    engine.dispose()
+
+
+REDACT = "SELECT set_config('leadgate.audit_redaction', 'on', true)"
+
+
+def audit_engine_with_one_row(postgres_url: str) -> Engine:
+    command.upgrade(alembic_config(postgres_url), "head")
+    engine = make_engine(postgres_url)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO audit_log (actor_type, actor, action, entity_type, details) "
+                """VALUES ('agent', 'extract', 'lead.extracted', 'lead', '{"name": "Smile"}')"""
+            )
+        )
+    return engine
+
+
+def test_a_redaction_may_blank_the_details(postgres_url: str) -> None:
+    engine = audit_engine_with_one_row(postgres_url)
+    with engine.begin() as conn:
+        conn.execute(text(REDACT))
+        conn.execute(text("""UPDATE audit_log SET details = '{"redacted": true}'"""))
+
+    with engine.connect() as conn:
+        assert conn.scalar(text("SELECT details FROM audit_log")) == {"redacted": True}
+        # The setting ended with the transaction: a plain update is blocked again.
+        with pytest.raises(DBAPIError, match="append-only"):
+            conn.execute(text("UPDATE audit_log SET details = '{}'"))
+    engine.dispose()
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_log SET actor = 'someone else'",
+        """UPDATE audit_log SET details = '{}', action = 'lead.scored'""",
+        "DELETE FROM audit_log",
+    ],
+)
+def test_a_redaction_changes_nothing_but_the_details(postgres_url: str, statement: str) -> None:
+    engine = audit_engine_with_one_row(postgres_url)
+    with pytest.raises(DBAPIError, match="append-only"), engine.begin() as conn:
+        conn.execute(text(REDACT))
+        conn.execute(text(statement))
+
+    with engine.connect() as conn:
+        assert conn.scalar(text("SELECT details FROM audit_log")) == {"name": "Smile"}
     engine.dispose()
