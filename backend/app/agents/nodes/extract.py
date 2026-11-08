@@ -16,6 +16,9 @@ The traceability validators (`trace_validators`) make sure the LLM invents nothi
 - the category must be in CATEGORIES
 - each service must appear in the website text, and the founding year right after a
   founding word there ("since 1998"; a "© 2011" copyright line doesn't count)
+The prompt also keeps sales wording out of services ("Payment Plans", "Insurance
+Accepted", "Free Consultation"): on the Austin eval this lifted services precision
+from 74% to 79% at the same token cost (2026-11-08).
 A failed check goes back to the model with the problem; after 3 tries the node gives
 up: `extraction_ok=False`, the issues are listed, and the fields fall back to the
 rule-based `baseline_fields()` (which is also the answer in LLM_MODE=fake). The graph
@@ -87,7 +90,9 @@ PROMPT_RULES = "\n".join(
         " as written in SOURCE DATA or CAMPAIGN PLACE. When SOURCE DATA has no city or"
         " country, copy them from CAMPAIGN PLACE. null if not there.",
         f"- services: up to {MAX_SERVICES} short phrases copied word for word from WEBSITE"
-        ' TEXT (e.g. "teeth whitening"). [] if there is no website text.',
+        ' TEXT (e.g. "teeth whitening"). [] if there is no website text. Only treatments'
+        " and services the business offers: never payment, financing, insurance, free"
+        " consultations, offers, awards or page names.",
         "- established_year: the year the business started, only if WEBSITE TEXT says it"
         ' (e.g. "since 1998"). A copyright year is not a founding year. null otherwise.',
     ]

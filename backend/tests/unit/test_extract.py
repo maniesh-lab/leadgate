@@ -171,6 +171,11 @@ def test_prompt_lists_the_candidates_and_the_categories() -> None:
     assert "Teeth whitening" in prompt
 
 
+def test_prompt_keeps_sales_wording_out_of_services() -> None:
+    prompt = build_prompt("dentist", RAW, GEO, cleaned(), ENRICHMENT["text"])
+    assert "never payment, financing, insurance" in prompt
+
+
 def test_prompt_without_website_text() -> None:
     assert "(no website text)" in build_prompt("dentist", RAW, GEO, cleaned(), "")
 
