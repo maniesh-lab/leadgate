@@ -129,9 +129,9 @@ class User(Base):
     # In every login token; bumping it (a password change) ends the user's older tokens.
     token_version: Mapped[int] = mapped_column(default=0, server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
-    # Two-factor login (app.api.routes.two_factor): the authenticator app's shared secret,
-    # set at setup and kept while `totp_enabled`; the last code's 30-second step, so a code
-    # can't be used twice.
+    # Two-factor login (app.api.routes.auth, checks in app.auth.security): the authenticator
+    # app's shared secret, set at setup and kept while `totp_enabled`; the last code's
+    # 30-second step, so a code can't be used twice.
     totp_secret: Mapped[str | None]
     totp_enabled: Mapped[bool] = mapped_column(default=False, server_default=false())
     totp_last_step: Mapped[int | None] = mapped_column(BigInteger)

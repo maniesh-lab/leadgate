@@ -17,7 +17,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from sqlalchemy import Select, select
 
-from app.api.deps import AppSettings, CurrentUser, DbSession, Paging, paginate
+from app.api.deps import AppSettings, CurrentUser, DbSession, Paging, needs_two_factor, paginate
 from app.api.errors import error_docs
 from app.db.models import AuditLog, UserRole
 from app.schemas.audit import AuditOut
@@ -58,9 +58,7 @@ def list_audit(
     )
     # An admin who must turn on two-factor first (REQUIRE_ADMIN_TWO_FACTOR) sees what a
     # reviewer sees until they do.
-    sees_admin_rows = user.role == UserRole.ADMIN and not (
-        settings.require_admin_two_factor and not user.totp_enabled
-    )
+    sees_admin_rows = user.role == UserRole.ADMIN and not needs_two_factor(user, settings)
     if not sees_admin_rows:
         for prefix in ADMIN_ONLY:
             stmt = stmt.where(AuditLog.action.not_like(f"{prefix}%"))

@@ -42,7 +42,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import AppSettings, CorrelationId, CurrentUser, DbSession, unauthorized
+from app.api.deps import (
+    AppSettings,
+    CorrelationId,
+    CurrentUser,
+    DbSession,
+    needs_two_factor,
+    unauthorized,
+)
 from app.api.errors import error_docs
 from app.auth.security import (
     create_access_token,
@@ -57,7 +64,7 @@ from app.auth.security import (
     verify_password,
 )
 from app.config import Settings
-from app.db.models import ActorType, AuditLog, User, UserRole
+from app.db.models import ActorType, AuditLog, User
 from app.schemas.users import (
     LoginAnswer,
     MeOut,
@@ -75,6 +82,7 @@ from app.services.accounts import (
     LOGIN_WINDOW,
     MAX_FAILS_PER_EMAIL,
     BadResetLink,
+    Busy,
     counted_failures,
     one_attempt_at_a_time,
     use_reset_link,
@@ -108,8 +116,9 @@ def login(
     # the proxies FORWARDED_ALLOW_IPS trusts (see docker-compose.yml and render.yaml).
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
-    one_attempt_at_a_time(db, email)
-    if too_many_failures(db, email, ip, now, lock_email=not is_demo(email, settings)):
+    lock_email = not is_demo(email, settings)
+    serialize(db, email, lock_email)
+    if too_many_failures(db, email, ip, now, lock_email=lock_email):
         log.warning("login_rate_limited", email=email, ip=ip)
         raise too_many()
 
@@ -311,11 +320,19 @@ def me(user: CurrentUser, settings: AppSettings) -> MeOut:
     return answer
 
 
-def needs_two_factor(user: User, settings: Settings) -> bool:
-    """True for an admin without two-factor when REQUIRE_ADMIN_TWO_FACTOR is on."""
-    return (
-        settings.require_admin_two_factor and user.role == UserRole.ADMIN and not user.totp_enabled
-    )
+def serialize(db: Session, email: str, lock_email: bool) -> None:
+    """One password check at a time for an email that can be locked (the demo's can't, so
+    racing it gains nothing). 429 if another check for it takes too long."""
+    if not lock_email:
+        return
+    try:
+        one_attempt_at_a_time(db, email)
+    except Busy as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "another login for this email is being checked; try again",
+            headers={"Retry-After": "3"},
+        ) from exc
 
 
 def too_many() -> HTTPException:
@@ -369,8 +386,9 @@ def check_password(
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
     email = user.email.lower()
-    one_attempt_at_a_time(db, email)
-    if too_many_failures(db, email, ip, now, lock_email=not is_demo(email, settings)):
+    lock_email = not is_demo(email, settings)
+    serialize(db, email, lock_email)
+    if too_many_failures(db, email, ip, now, lock_email=lock_email):
         raise too_many()
     if not verify_password(password, user.password_hash):
         record_failure(db, email, user, ip, now, correlation_id)

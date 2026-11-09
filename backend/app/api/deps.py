@@ -77,6 +77,14 @@ def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def needs_two_factor(user: User, settings: Settings) -> bool:
+    """True for an admin without two-factor when REQUIRE_ADMIN_TWO_FACTOR is on: they get
+    only what a reviewer gets until they turn it on."""
+    return (
+        settings.require_admin_two_factor and user.role == UserRole.ADMIN and not user.totp_enabled
+    )
+
+
 def require_role(*roles: UserRole) -> Callable[..., User]:
     """A dependency that lets only users with one of `roles` through (else 403).
 
@@ -88,8 +96,7 @@ def require_role(*roles: UserRole) -> Callable[..., User]:
         if user.role not in roles:
             allowed = " or ".join(role.value for role in roles)
             raise HTTPException(status.HTTP_403_FORBIDDEN, f"only an {allowed} can do this")
-        needs_two_factor = settings.require_admin_two_factor and user.role == UserRole.ADMIN
-        if needs_two_factor and not user.totp_enabled:
+        if needs_two_factor(user, settings):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, "turn on two-factor login on your Account page first"
             )

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Database backups for the local stack: docker-compose.yml's `backup` service runs this.
 #
-# Every BACKUP_EVERY_SECONDS (default a day) it writes ./backups/leadgate-<UTC time>.dump
+# Once a day it writes ./backups/leadgate-<UTC time>.dump
 # (pg_dump's custom format) and keeps the newest BACKUP_KEEP (default 7). A failed dump
 # is tried again an hour later. `sh /backup.sh once` makes one dump and exits.
 #
@@ -13,7 +13,7 @@ set -eu
 umask 077
 
 KEEP="${BACKUP_KEEP:-7}"
-EVERY="${BACKUP_EVERY_SECONDS:-86400}"
+EVERY=86400  # a day
 DIR=/backups
 
 dump() {

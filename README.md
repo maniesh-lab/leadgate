@@ -106,7 +106,7 @@ The `backup` service writes a database dump a day into `./backups` and keeps the
 docker compose run --rm backup once
 ```
 
-To restore one (this replaces the database's contents):
+To restore one (this replaces the database's contents; use your `POSTGRES_USER` and `POSTGRES_DB` if you changed them):
 
 ```bash
 docker compose stop api worker
@@ -227,7 +227,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 574 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 577 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
@@ -236,7 +236,7 @@ npm run check:api                        # schema.d.ts still matches the API (ne
 npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Docker stack
 ```
 
-The 27 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
+The 28 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
 CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 81 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
@@ -285,7 +285,7 @@ All settings come from `.env`; [.env.example](.env.example) explains each one. T
 
 ## Security
 
-Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your password ends every older one. Every endpoint checks the role. Failed logins are audit rows: 5 for one email or 20 from one address in 15 minutes locks login for 15 minutes, and wrong codes or wrong re-entered passwords count too, so a stolen session can't be used to guess the password. **Two-factor login** (authenticator app codes) is optional for everyone; with `REQUIRE_ADMIN_TWO_FACTOR=true`, admins must turn it on before the admin tools work: set that once leadgate is reachable from the internet. Each code works once. **Reset links** keep only the token's hash, work once for 30 minutes, and put the token after `#` in the URL so it never reaches a server log. The crawler refuses private and internal addresses on every request and redirect. The dashboard is served with a strict Content-Security-Policy, no framing and HSTS. A security review of the whole repo was done before this README (2026-11-01); its leftovers are in the list below.
+Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your password ends every older one. Every endpoint checks the role. Failed logins are audit rows: 5 for one email or 20 from one address in 15 minutes locks login for 15 minutes, and wrong login codes or wrong re-entered passwords (password change, two-factor on or off) count too, so a stolen session can't be used to guess the password. (A wrong code while turning two-factor on isn't counted: the secret is the user's own, just shown to them.) **Two-factor login** (authenticator app codes) is optional for everyone; with `REQUIRE_ADMIN_TWO_FACTOR=true`, admins must turn it on before the admin tools work: set that once leadgate is reachable from the internet. Each code works once. **Reset links** keep only the token's hash, work once for 30 minutes, and put the token after `#` in the URL so it never reaches a server log. The crawler refuses private and internal addresses on every request and redirect. The dashboard is served with a strict Content-Security-Policy, no framing and HSTS. A security review of the whole repo was done before this README (2026-11-01); its leftovers are in the list below.
 
 ## Known limitations
 

@@ -211,8 +211,8 @@ erDiagram
   email and the caller's address, so `GET /api/audit` shows them to admins only. The same
   goes for account rows (`user.*`, users' emails) and the admin tools' upload and export
   rows (`campaign.*`, `csv.*`, `leads.exported`).
-- Wrong authenticator codes and wrong re-entered passwords (password change, two-factor
-  on or off) are failed logins too, so a stolen session can't guess the password. An
+- Wrong login codes (and wrong codes when turning two-factor off) and wrong re-entered
+  passwords (password change, two-factor on or off) are failed logins too, so a stolen session can't guess the password. An
   admin's unlock adds an `auth.unlocked` row; only failures after it count (the log stays
   append-only).
 - Two-factor login (TOTP, `users.totp_*`): the right password answers a 5-minute token of
