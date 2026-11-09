@@ -65,7 +65,7 @@ The API never runs agents itself. Starting a run writes a `runs` row and a job i
 - A run started from n8n went through the same queue, and when the last lead was decided, its summary was posted back to n8n.
 - The audit log showed every step of every lead exactly once, from `lead.collected` to `crm.written` and `run.completed`.
 
-**Extraction** (`backend/scripts/extraction_eval.py`, `openai/gpt-oss-20b` on Groq's free tier, 2026-11-08): on 20 real OpenStreetMap leads, email, area, city, country, category and founding year were right on 20/20; services 77% precision, 89% recall. Treat this as a smoke test, not proof: 12 of those 20 have no website, which makes most cases easy, and it's one run of one model. The eval has since grown to 30 leads, 18 of them with websites, including harder ones (a software firm tagged as a dentist, a wrong website, a placeholder email), and its services answers now list every service on each site. The leads and their saved site text are in the repo, so the eval runs without a database.
+**Extraction** (`backend/scripts/extraction_eval.py`, `openai/gpt-oss-20b` on Groq's free tier, 2026-11-09): 30 real OpenStreetMap dentists, 18 with website text, including harder cases (a software firm tagged as a dentist, a dental office whose listed website is a gift shop, a template's placeholder email, a chain with nine office emails). Email, city, country and founding year were right on 30/30, area and category on 29/30 (the misses: a city repeated as the area, and the software firm still called a dentist). Services: 95% precision, 91% recall, against answers that list every service on each site. Treat it as a smoke test, not proof: one run of one small model. The leads and their saved site text are in the repo, so the eval runs without a database.
 
 **SQL:** every index was measured with `EXPLAIN ANALYZE` on 50k leads and ~1M rows of history, with and without it. 14 were kept because they helped (e.g. one run's audit trail: 27 ms → 0.03 ms; the worker's job claim: 4.6 ms → 0.002 ms), and 2 were left out because they didn't. Details: [docs/sql-notes.md](docs/sql-notes.md).
 
@@ -97,6 +97,22 @@ The first start builds the images, creates the tables, and adds the admin and th
 - **API docs:** http://localhost:8000/docs (log in with the **Authorize** button).
 
 Out of the box the LLM runs in fake mode and approved leads stay in memory, but the lead sources and website visits are real (they need internet). Add keys to `.env` to turn on the rest: `LLM_MODE=groq` + `GROQ_API_KEY` (free at [console.groq.com](https://console.groq.com)), or `LLM_MODE=anthropic` + `ANTHROPIC_API_KEY` for Claude (paid, more reliable; Claude Haiku 5.5 by default), the three `AIRTABLE_*` values, the `DISCORD_*` webhooks, `N8N_WEBHOOK_SECRET`, the `LANGFUSE_*` keys. Each setting is explained in [.env.example](.env.example).
+
+### Backups
+
+The `backup` service writes a database dump a day into `./backups` and keeps the newest 7 (`BACKUP_KEEP`). The files hold real data (every lead's contact details, the users, the audit log): they're readable by you only and kept out of git, so copy them somewhere safe yourself. To make one now:
+
+```bash
+docker compose run --rm backup once
+```
+
+To restore one (this replaces the database's contents):
+
+```bash
+docker compose stop api worker
+docker compose exec -T db pg_restore --clean --if-exists -U leadgate -d leadgate < backups/leadgate-2026-11-09_030000.dump
+docker compose start api worker
+```
 
 ## Run it without Docker (for development)
 
@@ -139,6 +155,7 @@ Admins get a few extra tools in the dashboard. Each one is admin-only, and each 
 - **Upload a CSV** of your own leads on the New campaign page (UTF-8 with a header row, up to 1 MB by default, `CSV_UPLOAD_MAX_BYTES`). The file is stored in Postgres, so every worker reads the same copy; the API never takes a file path on the server.
 - **Export approved leads** as a CSV from a run's page or a campaign's row. Escalated approvals are included, with a `route` column to tell them apart; opted-out leads are left out; a campaign gives one row per lead; a cell that starts like a spreadsheet formula gets a leading `'` so it can't run in Excel.
 - **Users** (Settings → Users): list the accounts, add a reviewer, turn an account off or back on. Turning one off ends its logins at once, and turning it back on doesn't bring the old ones back. You can't turn off yourself or the last active admin.
+- **Account recovery** (also on the Users page): a **reset link** works once, for 30 minutes; you send it to the person yourself and they pick their own password, so nobody else ever knows it. **Unlock** lifts a login lock (after too many wrong passwords or codes). **Turn off 2FA** clears a lost phone's two-factor login. Locked out as the admin? On the server, `python -m app.cli reset-password --email you@example.com` prints a reset link (add `--two-factor-off` for a lost phone).
 - **Delete** a lead, a run or a campaign from its page, and an uploaded CSV with its campaign. A run takes the leads that are in no other run; a campaign takes its runs and its file when no other campaign uses it. A delete is refused while the worker is still on something. The audit log keeps its rows, with names, contact details and free text blanked. Anything already sent to Airtable or Discord stays there, and a later run may find a deleted lead again: to keep a lead out for good, opt it out instead.
 - **Retry a failed lead** from its run item page. It goes through the job queue like everything else and continues from the lead's last checkpoint, so steps that already finished don't run again and the CRM write still happens once. A second click gets a 409.
 
@@ -151,12 +168,17 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 | `POST` | `/auth/login` | anyone | OAuth2 form (`username` is your email, plus `password`) → a login token (60 min) |
 | `GET` | `/auth/me` | logged in | Who you are |
 | `POST` | `/auth/password` | logged in | Change your password; ends every older token |
+| `POST` | `/auth/login/two-factor` | anyone | The second login step: the token `/auth/login` gave, plus the authenticator code |
+| `POST` | `/auth/two-factor/setup`, `/enable`, `/disable` | logged in | Turn your two-factor login on (password, then a code) or off (password and a code) |
+| `POST` | `/auth/reset-password` | the link's token | Set a new password with a one-time reset link |
 | `GET`, `POST` | `/users` | admin | List users, add a reviewer |
 | `PATCH` | `/users/{id}` | admin | `{is_active}`: turn an account off or on |
+| `POST` | `/users/{id}/reset-link`, `/unlock`, `/two-factor/off` | admin | A one-time reset link; lift a login lock; turn off someone's two-factor |
 | `GET`, `POST`, `PATCH` | `/campaigns`, `/campaigns/{id}` | admin to change | Niche, location, sources, rubric |
 | `POST` | `/campaigns/{id}/runs` | admin | Start a run |
 | `POST` | `/uploads/csv` | admin | Upload a CSV of leads (the body is the file); a campaign uses it by id |
 | `GET` | `/runs`, `/runs/{id}`, `/run-items/{id}` | logged in | Runs, their leads, each lead's step timeline |
+| `GET` | `/runs/{id}/events` | logged in | The run as Server-Sent Events, sent whenever it changes (the run page is live) |
 | `GET` | `/approvals/queue` | reviewer | Leads waiting for a decision, newest first (`?sort=` `created_at` for oldest, `-score` for highest) |
 | `POST` | `/run-items/{id}/decision` | reviewer | `{decision, reason}`; 409 if someone already decided |
 | `POST` | `/run-items/{id}/retry` | admin | Queue a failed lead again; 409 if it isn't failed |
@@ -205,7 +227,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 545 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 574 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
@@ -216,7 +238,7 @@ npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Doc
 
 The 27 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
-CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 70 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
+CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 81 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
 ## Project structure
 
@@ -241,13 +263,14 @@ frontend/                          React + TypeScript + Vite + Tailwind; e2e/ = 
 docs/ARCHITECTURE.md               how it fits together (diagrams)
 docs/sql-notes.md                  indexes and reports, with measurements
 n8n/leadgate.json                  the n8n workflow
-docker-compose.yml                 db + migrate + api + worker + frontend
+docker-compose.yml                 db + migrate + api + worker + frontend + backup
+backup/backup.sh                   the daily database dumps
 render.yaml                        the live demo's hosting
 ```
 
 ## Settings
 
-All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq`, `openai` or `anthropic`), `LLM_MODEL` (any model of that provider; e.g. `claude-sonnet-5-5` or `claude-opus-5-5` for a stronger Claude), `LLM_REASONING_EFFORT` (how long the model thinks: `low` by default; on Groq `medium` finds services better for about twice the tokens), `LLM_TOKENS_PER_MINUTE` (empty = 8,000 on Groq, its free tier's limit), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `OVERPASS_BACKUP_URL` (a second Overpass server for when the public one is busy; `NOMINATIM_URL` and `OVERPASS_URL` change the main ones), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. The optional services are off when their keys are empty. OpenStreetMap and website visits need no keys, so they stay on.
+All settings come from `.env`; [.env.example](.env.example) explains each one. The main ones: `LLM_MODE` (`fake`, `groq`, `openai` or `anthropic`), `LLM_MODEL` (any model of that provider; e.g. `claude-sonnet-5-5` or `claude-opus-5-5` for a stronger Claude), `LLM_REASONING_EFFORT` (how long the model thinks: `low` by default; on Groq `medium` finds services better for about twice the tokens), `LLM_TOKENS_PER_MINUTE` (empty = 8,000 on Groq, its free tier's limit), `GOOGLE_PLACES_API_KEY` (empty = OpenStreetMap only), `OVERPASS_BACKUP_URL` (a second Overpass server for when the public one is busy; `NOMINATIM_URL` and `OVERPASS_URL` change the main ones), `ENRICH_CACHE_DAYS` and `ENRICH_MAX_PAGES` (how often and how deep websites are read), `CSV_UPLOAD_MAX_BYTES` (the biggest CSV an admin can upload), `PUBLIC_DEMO` (the live demo's lockdown; leave it off on your machine), `REQUIRE_ADMIN_TWO_FACTOR` (admins must use two-factor login; turn it on once leadgate is reachable from the internet), `RUN_WORKER_IN_API` (one process for free hosting), and the optional Airtable, Discord, n8n and Langfuse keys. The optional services are off when their keys are empty. OpenStreetMap and website visits need no keys, so they stay on.
 
 ## Design decisions
 
@@ -262,7 +285,7 @@ All settings come from `.env`; [.env.example](.env.example) explains each one. T
 
 ## Security
 
-Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your password ends every older one. Every endpoint checks the role. Failed logins are audit rows: 5 for one email or 20 from one address in 15 minutes locks login for 15 minutes. The crawler refuses private and internal addresses on every request and redirect. The dashboard is served with a strict Content-Security-Policy, no framing and HSTS. A security review of the whole repo was done before this README (2026-11-01); its leftovers are in the list below.
+Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your password ends every older one. Every endpoint checks the role. Failed logins are audit rows: 5 for one email or 20 from one address in 15 minutes locks login for 15 minutes, and wrong codes or wrong re-entered passwords count too, so a stolen session can't be used to guess the password. **Two-factor login** (authenticator app codes) is optional for everyone; with `REQUIRE_ADMIN_TWO_FACTOR=true`, admins must turn it on before the admin tools work: set that once leadgate is reachable from the internet. Each code works once. **Reset links** keep only the token's hash, work once for 30 minutes, and put the token after `#` in the URL so it never reaches a server log. The crawler refuses private and internal addresses on every request and redirect. The dashboard is served with a strict Content-Security-Policy, no framing and HSTS. A security review of the whole repo was done before this README (2026-11-01); its leftovers are in the list below.
 
 ## Known limitations
 
@@ -273,7 +296,9 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **The default LLM is a small free model on a free tier** (a paid Claude or OpenAI key avoids these limits). Groq allows 8,000 tokens a minute, and leadgate waits for room instead of hitting the limit (`LLM_TOKENS_PER_MINUTE`). It also allows 200,000 tokens a day, which several evals and runs can use up. When the daily limit is reached, or an answer is still invalid after three tries, the lead is marked "extraction not ok" and escalated rather than guessed.
 - **Two tiny crash windows remain:** a kill in the instant between two back-to-back commits could record a step twice or post a Discord message twice. Closing them would need an idempotency key at the provider, and Discord webhooks have none.
 - **Login tokens can't be cut off one by one** before they expire (no refresh tokens or deny list); a password change or deactivating the user ends them.
-- **The login limit can be used to lock someone out** for 15 minutes by typing their email wrong 5 times, and an admin can't unlock it early. No two-factor login.
+- **The login limit can be used to lock someone out** for 15 minutes by typing their email wrong 5 times; an admin can unlock it early (Users page, or `python -m app.cli unlock`).
+- **Two-factor secrets are stored as they are** in the database (an authenticator app needs the secret itself, so it can't be hashed like a password). Whoever can read the database can make codes; the password is still needed too. No recovery codes: a lost phone needs an admin (or `reset-password --two-factor-off` on the server).
+- **No password reset by email:** an admin makes the link and sends it. That needs no email service.
 - **The crawler's address check has a small DNS gap:** the address is looked up for the check and again to connect, so a DNS server that answers differently the second time could slip through.
 - **The n8n results address isn't address-checked**, because it has to reach n8n on the private network; only someone with the shared secret can set it.
 - **An opted-out lead's old data can stay in a LangGraph checkpoint** when the opt-out comes from the command line while the lead waits for a decision (approving it is blocked). Through the dashboard or the API, the waiting lead is rejected and its checkpoint deleted once it finishes, and its audit rows are blanked.

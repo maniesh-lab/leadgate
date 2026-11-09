@@ -14,6 +14,7 @@ x-backend-env: &backend-env
   # The API's login tokens (the api refuses to start without JWT_SECRET).
   JWT_SECRET: ${JWT_SECRET:-}
   JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-}
+  REQUIRE_ADMIN_TWO_FACTOR: ${REQUIRE_ADMIN_TWO_FACTOR:-}
   # Lead sources + website crawler (empty = the defaults / no Google source).
   OSM_USER_AGENT: ${OSM_USER_AGENT:-}
   NOMINATIM_URL: ${NOMINATIM_URL:-}
