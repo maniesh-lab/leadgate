@@ -51,6 +51,12 @@ describe("streamRun", () => {
 
     vi.stubGlobal(
       "fetch",
+      vi.fn(async () => chunked(["event: busy\ndata: {}\n\n"])),
+    );
+    await expect(streamRun(7, () => {}, new AbortController().signal)).rejects.toThrow("too many");
+
+    vi.stubGlobal(
+      "fetch",
       vi.fn(async () => new Response("no", { status: 401 })),
     );
     await expect(streamRun(7, () => {}, new AbortController().signal)).rejects.toThrow("401");

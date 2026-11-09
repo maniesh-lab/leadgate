@@ -19,7 +19,7 @@ limit isn't affected (it isn't tied to one account).
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
 from app.auth.security import hash_password, hash_reset_token, new_reset_token
@@ -127,9 +127,12 @@ def counted_failures(db: Session, email: str, now: datetime) -> list[datetime]:
     """When this email's failed logins happened, within LOGIN_WINDOW and after its latest
     unlock, oldest first."""
     since = now - LOGIN_WINDOW
+    # Only an unlock inside the window matters; the bound lets the occurred_at index work.
     unlocked = db.scalar(
         select(func.max(AuditLog.occurred_at)).where(
-            AuditLog.action == UNLOCKED, AuditLog.details["email"].as_string() == email
+            AuditLog.action == UNLOCKED,
+            AuditLog.occurred_at > since,
+            AuditLog.details["email"].as_string() == email,
         )
     )
     if unlocked is not None and unlocked > since:
@@ -145,6 +148,14 @@ def counted_failures(db: Session, email: str, now: datetime) -> list[datetime]:
             .order_by(AuditLog.occurred_at)
         )
     )
+
+
+def one_attempt_at_a_time(db: Session, email: str) -> None:
+    """Make password checks for this email wait for each other until the transaction ends
+    (Postgres advisory lock), so parallel guesses can't all pass the lock check before any
+    failure is saved. Elsewhere (SQLite in tests) it does nothing."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:email))"), {"email": email})
 
 
 def locked_until(db: Session, email: str, now: datetime) -> datetime | None:

@@ -41,6 +41,8 @@ export async function streamRun(
       const event = parseEvent(buffer.slice(0, end));
       buffer = buffer.slice(end + 2);
       if (event?.name === "gone") return "gone";
+      // Too many streams open on the server: the caller polls for a while instead.
+      if (event?.name === "busy") throw new Error("the server has too many live pages open");
       if (event?.name === "run") onRun(JSON.parse(event.data) as RunDetail);
       end = buffer.indexOf("\n\n");
     }

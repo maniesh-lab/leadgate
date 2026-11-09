@@ -181,7 +181,15 @@ def test_with_the_rule_on_an_admin_needs_two_factor_for_admin_tools(
         assert blocked.status_code == 403
         assert "two-factor" in blocked.json()["error"]["message"]
 
+        # Nor the admin-only audit rows (logins, accounts): it sees what a reviewer sees.
+        login(client, "nobody@example.com", "wrong-password")
+        rows = client.get("/api/audit", headers=as_admin).json()["items"]
+        assert not [row for row in rows if row["action"].startswith("auth.")]
+
         _, headers = turn_on(client, as_admin)  # the Account page still works
+
+        rows = client.get("/api/audit", headers=headers).json()["items"]
+        assert [row for row in rows if row["action"] == "auth.login_failed"]
 
         assert client.get("/api/users", headers=headers).status_code == 200
         assert client.get("/api/auth/me", headers=headers).json()["two_factor_needed"] is False

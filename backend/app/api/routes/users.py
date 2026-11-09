@@ -123,8 +123,14 @@ def make_reset_link(
     user_id: int, admin: AdminUser, db: DbSession, settings: AppSettings, response: Response
 ) -> ResetLinkOut:
     """A one-time link for this person to set a new password (30 minutes; a new link ends
-    the old one). Send it to them yourself. 409 for an account that's off, or the demo's."""
+    the old one). Send it to them yourself. 409 for your own account (use the Account
+    page; locked out: the `reset-password` command), one that's off, or the demo's."""
     user = get_or_404(db, User, user_id, "user")
+    if user.id == admin.id:
+        # Otherwise a stolen login could set a new password without knowing the current one.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "change your own password on your Account page"
+        )
     try:
         link = create_reset_link(
             db, user, datetime.now(UTC), by=admin, demo_email=settings.demo_reviewer_email

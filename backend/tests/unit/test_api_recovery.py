@@ -155,3 +155,12 @@ def test_the_demo_accounts_password_cant_be_reset(db: Session, reviewer: User) -
         create_reset_link(
             db, reviewer, datetime.now(UTC), by=None, demo_email=" Reviewer@example.com"
         )
+
+
+def test_an_admin_cant_make_a_reset_link_for_themselves(
+    client: TestClient, admin: User, as_admin: dict[str, str]
+) -> None:
+    # A stolen login could otherwise set a new password without the current one.
+    own = client.post(f"/api/users/{admin.id}/reset-link", headers=as_admin)
+    assert own.status_code == 409
+    assert "Account page" in own.json()["error"]["message"]

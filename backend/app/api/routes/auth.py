@@ -76,6 +76,7 @@ from app.services.accounts import (
     MAX_FAILS_PER_EMAIL,
     BadResetLink,
     counted_failures,
+    one_attempt_at_a_time,
     use_reset_link,
 )
 from app.services.audit import record
@@ -107,6 +108,7 @@ def login(
     # the proxies FORWARDED_ALLOW_IPS trusts (see docker-compose.yml and render.yaml).
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
+    one_attempt_at_a_time(db, email)
     if too_many_failures(db, email, ip, now, lock_email=not is_demo(email, settings)):
         log.warning("login_rate_limited", email=email, ip=ip)
         raise too_many()
@@ -367,6 +369,7 @@ def check_password(
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
     email = user.email.lower()
+    one_attempt_at_a_time(db, email)
     if too_many_failures(db, email, ip, now, lock_email=not is_demo(email, settings)):
         raise too_many()
     if not verify_password(password, user.password_hash):

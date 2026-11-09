@@ -65,9 +65,9 @@ def test_a_deleted_run_says_gone(
     calls = {"n": 0}
     real = runs.look_at_run
 
-    def then_gone(factory, wanted, seen):
+    def then_gone(factory, wanted, seen, login):
         calls["n"] += 1
-        return (None, None) if calls["n"] > 1 else real(factory, wanted, seen)
+        return ("gone", None, None) if calls["n"] > 1 else real(factory, wanted, seen, login)
 
     monkeypatch.setattr(runs, "look_at_run", then_gone)
     assert [name for name, _ in events(client, run_id, as_reviewer)] == ["run", "gone"]
@@ -76,3 +76,25 @@ def test_a_deleted_run_says_gone(
 def test_the_stream_needs_a_login_and_a_real_run(client: TestClient, started, as_reviewer) -> None:
     assert client.get(f"/api/runs/{started['run']['id']}/events").status_code == 401
     assert client.get("/api/runs/999/events", headers=as_reviewer).status_code == 404
+
+
+def test_too_many_open_streams_get_busy(
+    client: TestClient, started, as_reviewer, monkeypatch, fast
+) -> None:
+    monkeypatch.setattr(runs, "MAX_STREAMS_PER_USER", 0)
+    assert [name for name, _ in events(client, started["run"]["id"], as_reviewer)] == ["busy"]
+    assert runs._open_streams == {}  # nothing left counted
+
+
+def test_a_stream_ends_when_the_login_stops_working(
+    client: TestClient, started, as_reviewer, db: Session, reviewer
+) -> None:
+    factory = client.app.state.session_factory
+    run_id = started["run"]["id"]
+    assert runs.look_at_run(factory, run_id, None, (reviewer.id, 0))[0] == "ok"
+    reviewer.token_version += 1  # e.g. a password change
+    db.commit()
+    assert runs.look_at_run(factory, run_id, None, (reviewer.id, 0))[0] == "logged_out"
+    reviewer.is_active = False
+    db.commit()
+    assert runs.look_at_run(factory, run_id, None, (reviewer.id, 1))[0] == "logged_out"

@@ -145,7 +145,10 @@ it and who that rubric suits.
 sends the run's detail whenever a cheap fingerprint (status, item count, newest item
 change) moves; the server looks every second (5 s while waiting for decisions) and the
 stream ends when the run finishes or after 10 minutes. The page reads it with `fetch`
-(the token stays in the header) and polls instead if it can't connect.
+(the token stays in the header) and polls instead if it can't connect. The stream holds no
+DB connection between looks, re-checks the login on each (a turned-off user's stream
+ends), and at most 20 are open per API process (3 per user); over that it answers
+`busy` and the page polls.
 
 **Deleting** a lead, run, campaign or uploaded CSV (admins) happens in one transaction:
 the run items go with their steps, approvals, jobs and LangGraph checkpoints, a run takes
