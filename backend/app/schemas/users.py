@@ -26,6 +26,54 @@ class Token(BaseModel):
     token_type: Literal["bearer"] = "bearer"
 
 
+class LoginAnswer(BaseModel):
+    """The login's answer: a token, or (two-factor on) `two_factor_required` and a 5-minute
+    `two_factor_token` to send with the authenticator code to `/api/auth/login/two-factor`."""
+
+    access_token: str | None = None
+    token_type: Literal["bearer"] = "bearer"
+    two_factor_required: bool = False
+    two_factor_token: str | None = None
+
+
+class TwoFactorLogin(BaseModel):
+    two_factor_token: str = Field(max_length=2048)
+    code: str = Field(max_length=16)
+
+
+class TwoFactorSetupStart(BaseModel):
+    password: str = Field(max_length=128)
+
+
+class TwoFactorSetup(BaseModel):
+    """Shown once, to the user turning two-factor on: scan the QR code, or type the secret."""
+
+    secret: str
+    otpauth_uri: str
+    qr_svg: str
+
+
+class TwoFactorCode(BaseModel):
+    code: str = Field(max_length=16)
+
+
+class TwoFactorOff(BaseModel):
+    password: str = Field(max_length=128)
+    code: str = Field(max_length=16)
+
+
+class ResetPassword(BaseModel):
+    token: str = Field(max_length=256)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ResetLinkOut(BaseModel):
+    """Shown once to the admin who made it. The dashboard builds the link from `token`."""
+
+    token: str
+    expires_at: datetime
+
+
 class PasswordChange(BaseModel):
     current_password: str = Field(max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
@@ -37,6 +85,20 @@ class UserOut(FromRow):
     role: UserRole
     is_active: bool
     created_at: datetime
+    two_factor_enabled: bool = False
+
+
+class MeOut(UserOut):
+    """`/api/auth/me`: also whether this admin must turn two-factor on before using the
+    admin tools (REQUIRE_ADMIN_TWO_FACTOR)."""
+
+    two_factor_needed: bool = False
+
+
+class UserRow(UserOut):
+    """A row of the users list: also when a login lock on the account ends."""
+
+    locked_until: datetime | None = None
 
 
 class UserCreate(BaseModel):
