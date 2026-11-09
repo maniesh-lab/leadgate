@@ -8,11 +8,16 @@ import type { components } from "./schema";
 type Schemas = components["schemas"];
 
 export type User = Schemas["UserOut"];
+export type Me = Schemas["MeOut"];
+export type UserRow = Schemas["UserRow"];
 export type UserRole = Schemas["UserRole"];
 export type UserCreate = Schemas["UserCreate"];
 export type UserUpdate = Schemas["UserUpdate"];
 export type Token = Schemas["Token"];
 export type PasswordChange = Schemas["PasswordChange"];
+export type LoginAnswer = Schemas["LoginAnswer"];
+export type TwoFactorSetup = Schemas["TwoFactorSetup"];
+export type ResetLink = Schemas["ResetLinkOut"];
 
 export type Rubric = Schemas["RubricOut"];
 export type Campaign = Schemas["CampaignOut"];

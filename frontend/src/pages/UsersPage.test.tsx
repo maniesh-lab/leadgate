@@ -2,11 +2,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { User } from "../api/types";
+import type { UserRow } from "../api/types";
 import { ADMIN, fakeApi, page, REVIEWER, renderApp, reply } from "../test/render";
 
-const SAM: User = { ...REVIEWER, id: 3, email: "sam@agency.test" };
-const OLD: User = { ...REVIEWER, id: 4, email: "old@agency.test", is_active: false };
+const SAM: UserRow = { ...REVIEWER, id: 3, email: "sam@agency.test" };
+const OLD: UserRow = { ...REVIEWER, id: 4, email: "old@agency.test", is_active: false };
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -95,3 +95,64 @@ describe("UsersPage", () => {
     expect(await screen.findByText(/admins only/i)).toBeInTheDocument();
   });
 });
+
+describe("UsersPage recovery", () => {
+  it("makes a one-time reset link with the token after #", async () => {
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/users": () => page([ADMIN, SAM]),
+      "POST /api/users/3/reset-link": () => ({
+        token: "one-time-token",
+        expires_at: "2026-11-09T10:30:00Z",
+      }),
+    });
+    renderApp("/settings/users", { user: ADMIN });
+
+    await userEvent.click(
+      await within(await findRow(SAM.email)).findByRole("button", { name: "Reset link" }),
+    );
+
+    const link = await screen.findByLabelText(`Reset link for ${SAM.email}`);
+    expect(link).toHaveValue(`${window.location.origin}/reset-password#token=one-time-token`);
+    expect(screen.getByText(/Works once/)).toBeInTheDocument();
+  });
+
+  it("shows a lock and two-factor, and unlocks or turns two-factor off", async () => {
+    const posted: string[] = [];
+    const locked: UserRow = {
+      ...SAM,
+      locked_until: "2026-11-09T10:15:00Z",
+      two_factor_enabled: true,
+    };
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/users": () => page([ADMIN, locked]),
+      "POST /api/users/3/unlock": (url) => {
+        posted.push(url.pathname);
+        return { ...locked, locked_until: null };
+      },
+      "POST /api/users/3/two-factor/off": (url) => {
+        posted.push(url.pathname);
+        return { ...locked, two_factor_enabled: false };
+      },
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderApp("/settings/users", { user: ADMIN });
+
+    const samRow = within(await findRow(SAM.email));
+    expect(samRow.getByText("2FA")).toBeInTheDocument();
+    expect(samRow.getByText(/locked until/)).toBeInTheDocument();
+    await userEvent.click(samRow.getByRole("button", { name: "Unlock" }));
+    await userEvent.click(samRow.getByRole("button", { name: "Turn off 2FA" }));
+
+    await waitFor(() =>
+      expect(posted).toEqual(["/api/users/3/unlock", "/api/users/3/two-factor/off"]),
+    );
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("Turn off two-factor"));
+  });
+});
+
+async function findRow(email: string) {
+  await screen.findByText(email);
+  return row(email);
+}

@@ -16,7 +16,7 @@ import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { vi } from "vitest";
 import { makeQueryClient, routes } from "../App";
-import type { Page, User } from "../api/types";
+import type { Me, Page } from "../api/types";
 import { AuthProvider } from "../auth/AuthProvider";
 import { setToken } from "../auth/token";
 
@@ -51,7 +51,7 @@ function isReply(value: unknown): value is Reply {
   return typeof value === "object" && value !== null && "status" in value && "body" in value;
 }
 
-export function renderApp(path: string, options: { user?: User } = {}) {
+export function renderApp(path: string, options: { user?: Me } = {}) {
   if (options.user) setToken("test-token");
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
@@ -68,12 +68,15 @@ export function page<T>(items: T[]): Page<T> {
   return { items, total: items.length, page: 1, page_size: 50 };
 }
 
-export const ADMIN: User = {
+/** What `/api/auth/me` answers for the test admin (a `Me`, so it works as a `User` too). */
+export const ADMIN: Me = {
   id: 1,
   email: "admin@example.com",
   role: "admin",
   is_active: true,
   created_at: "2026-10-30T09:00:00Z",
+  two_factor_enabled: false,
+  two_factor_needed: false,
 };
 
-export const REVIEWER: User = { ...ADMIN, id: 2, email: "reviewer@example.com", role: "reviewer" };
+export const REVIEWER: Me = { ...ADMIN, id: 2, email: "reviewer@example.com", role: "reviewer" };
