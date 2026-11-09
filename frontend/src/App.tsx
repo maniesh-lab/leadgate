@@ -20,6 +20,7 @@ import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCampaignPage } from "./pages/NewCampaignPage";
 import { QueuePage } from "./pages/QueuePage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { RubricsPage } from "./pages/RubricsPage";
 import { RunItemPage } from "./pages/RunItemPage";
 import { RunPage } from "./pages/RunPage";
@@ -28,6 +29,8 @@ import { UsersPage } from "./pages/UsersPage";
 
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
+  // Public: the one-time link is the credential (the token is after "#").
+  { path: "/reset-password", element: <ResetPasswordPage /> },
   {
     element: <RequireAuth />,
     children: [

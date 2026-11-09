@@ -99,6 +99,15 @@ export function Layout() {
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 pt-10 pb-16">
+        {user?.two_factor_needed && (
+          <p role="alert" className="card mb-6 text-sm">
+            Turn on two-factor login on your{" "}
+            <Link to="/account" className="link">
+              Account page
+            </Link>
+            . The admin tools stay blocked until you do.
+          </p>
+        )}
         <Outlet />
       </main>
       <Footer />

@@ -18,6 +18,8 @@ x-e2e-env: &e2e-env
   GOOGLE_PLACES_API_KEY: ""
   GROQ_API_KEY: ""
   OPENAI_API_KEY: ""
+  # The seeded e2e admin has no authenticator app.
+  REQUIRE_ADMIN_TWO_FACTOR: ""
   ANTHROPIC_API_KEY: ""
   AIRTABLE_TOKEN: ""
   AIRTABLE_BASE_ID: ""
@@ -51,3 +53,7 @@ services:
   frontend:
     ports: !override
       - "127.0.0.1:8081:80"
+
+  # The test stack's data is thrown away: no backups.
+  backup:
+    profiles: ["off"]

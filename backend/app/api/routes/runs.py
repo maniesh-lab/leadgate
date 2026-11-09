@@ -2,6 +2,16 @@
 admin's `POST /api/run-items/{id}/retry` for a failed lead, and `DELETE /api/runs/{id}`
 (admins; `app.services.deletion`).
 
+`GET /api/runs/{id}/events` keeps the run page live: a Server-Sent Events stream that
+sends the run's detail (the same shape as `/api/runs/{id}`) whenever it changes. The
+server checks a cheap fingerprint every POLL_SECONDS (WAITING_POLL_SECONDS while the run
+waits for decisions) and sends only on a change, so many open pages cost little. The
+stream ends when the run finishes, is deleted, or after STREAM_MAX_SECONDS (the browser
+then opens a new one, which checks the login again). The browser reads it with `fetch`,
+so the login token stays in the Authorization header, never in the URL. The stream holds
+no DB connection between looks, each look re-checks the login (a turned-off user's stream
+ends), and at most MAX_STREAMS (MAX_STREAMS_PER_USER per user) are open per process.
+
 A run's detail lists its items and how many are in each status; a run item's detail is
 everything about one lead in one run: the lead card, its step timeline (`run_steps`,
 written by `@tracked_node`), the score breakdown and the human's decision.
@@ -13,15 +23,30 @@ The score breakdown and extraction issues aren't columns: they're read from the 
 `score` and `extract` steps (`reviews_for()`, also used by the approval queue).
 """
 
-from collections.abc import Iterable
+import asyncio
+import threading
+import time
+from collections.abc import AsyncIterator, Iterable
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import Select, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import AdminUser, CurrentUser, DbSession, Paging, get_or_404, paginate
+from app.api.deps import (
+    AdminUser,
+    AppSettings,
+    CurrentUser,
+    DbSession,
+    Paging,
+    get_current_user,
+    get_or_404,
+    oauth2_scheme,
+    paginate,
+)
 from app.api.errors import error_docs
 from app.db.models import (
     ActorType,
@@ -84,7 +109,131 @@ def list_runs(
 @router.get("/runs/{run_id}", responses=error_docs(404))
 def get_run(run_id: int, _user: CurrentUser, db: DbSession) -> RunDetail:
     """The run, its items (in the order they were collected) and the count per status."""
-    run = get_or_404(db, Run, run_id, "run")
+    return run_detail(db, get_or_404(db, Run, run_id, "run"))
+
+
+POLL_SECONDS = 1.0
+WAITING_POLL_SECONDS = 5.0
+HEARTBEAT_SECONDS = 15.0
+STREAM_MAX_SECONDS = 600.0
+# Open streams per API process, in total and per user: each look borrows a DB connection
+# for a moment, and a stream lasts up to 10 minutes, so they're capped (over the cap the
+# stream says `busy` and the page asks every few seconds instead).
+MAX_STREAMS = 20
+MAX_STREAMS_PER_USER = 3
+SETTLED = (RunStatus.COMPLETED, RunStatus.FAILED)
+
+_streams_lock = threading.Lock()
+_open_streams: dict[int, int] = {}  # user id -> open streams
+
+
+@router.get(
+    "/runs/{run_id}/events",
+    response_class=StreamingResponse,
+    responses={
+        **error_docs(401, 404),
+        200: {"content": {"text/event-stream": {}}, "description": "`event: run` lines"},
+    },
+)
+def run_events(
+    run_id: int,
+    request: Request,
+    token: Annotated[str, Depends(oauth2_scheme)],
+    settings: AppSettings,
+) -> StreamingResponse:
+    """The run's detail as Server-Sent Events: `event: run` with the same JSON as
+    `GET /api/runs/{id}` now and on every change, `event: gone` if it's deleted, `event:
+    busy` if too many streams are open. Ends when the run finishes, when the login stops
+    working, or after 10 minutes (open a new one)."""
+    # A short session of its own: the request's session would stay open (holding a pooled
+    # connection) for as long as the stream runs.
+    with request.app.state.session_factory() as db:
+        user = get_current_user(token, db, settings)
+        get_or_404(db, Run, run_id, "run")
+        login = (user.id, user.token_version)
+    stream = run_stream(request, run_id, login)
+    headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}  # no proxy buffering
+    return StreamingResponse(stream, media_type="text/event-stream", headers=headers)
+
+
+async def run_stream(request: Request, run_id: int, login: tuple[int, int]) -> AsyncIterator[str]:
+    user_id = login[0]
+    with _streams_lock:
+        full = (
+            sum(_open_streams.values()) >= MAX_STREAMS
+            or _open_streams.get(user_id, 0) >= MAX_STREAMS_PER_USER
+        )
+        if not full:
+            _open_streams[user_id] = _open_streams.get(user_id, 0) + 1
+    if full:
+        yield "event: busy\ndata: {}\n\n"
+        return
+    try:
+        async for chunk in watch_run(request, run_id, login):
+            yield chunk
+    finally:
+        with _streams_lock:
+            _open_streams[user_id] -= 1
+            if not _open_streams[user_id]:
+                del _open_streams[user_id]
+
+
+async def watch_run(request: Request, run_id: int, login: tuple[int, int]) -> AsyncIterator[str]:
+    factory = request.app.state.session_factory
+    started = last_write = time.monotonic()
+    seen: tuple | None = None
+    while True:
+        if await request.is_disconnected():
+            return
+        # The DB is sync: each look runs in a worker thread with its own short session.
+        state, fingerprint, detail = await run_in_threadpool(
+            look_at_run, factory, run_id, seen, login
+        )
+        if state == "logged_out":
+            return  # the page's next request gets the 401
+        if state == "gone":
+            yield "event: gone\ndata: {}\n\n"
+            return
+        if detail is not None:
+            seen = fingerprint
+            yield f"event: run\ndata: {detail.model_dump_json()}\n\n"
+            last_write = time.monotonic()
+        status_now = fingerprint[0]
+        if status_now in SETTLED or time.monotonic() - started >= STREAM_MAX_SECONDS:
+            return
+        if time.monotonic() - last_write >= HEARTBEAT_SECONDS:
+            yield ": ping\n\n"  # keeps proxies from closing a quiet stream
+            last_write = time.monotonic()
+        waiting = status_now == RunStatus.WAITING_APPROVAL
+        await asyncio.sleep(WAITING_POLL_SECONDS if waiting else POLL_SECONDS)
+
+
+def look_at_run(
+    factory: Any, run_id: int, seen: tuple | None, login: tuple[int, int]
+) -> tuple[str, tuple | None, RunDetail | None]:
+    """(state, fingerprint, detail). state is "ok", "gone" (the run was deleted) or
+    "logged_out" (the user was turned off or their logins ended). detail is set only when
+    the fingerprint changed since `seen`."""
+    user_id, version = login
+    with factory() as db:
+        user = db.get(User, user_id)
+        if user is None or not user.is_active or user.token_version != version:
+            return "logged_out", None, None
+        run = db.get(Run, run_id)
+        if run is None:
+            return "gone", None, None
+        count, newest = db.execute(
+            select(func.count(RunItem.id), func.max(RunItem.updated_at)).where(
+                RunItem.run_id == run_id
+            )
+        ).one()
+        fingerprint = (run.status, run.started_at, run.finished_at, count, newest)
+        if fingerprint == seen:
+            return "ok", fingerprint, None
+        return "ok", fingerprint, run_detail(db, run)
+
+
+def run_detail(db: Session, run: Run) -> RunDetail:
     campaign = db.get(Campaign, run.campaign_id)
     rows = db.execute(run_items_query(run.id)).all()
     items = [item_row(item, name) for item, name in rows]

@@ -1,14 +1,18 @@
 /**
  * Users (admins): who can log in, adding a reviewer (`POST /api/users`), and turning an
  * account off or back on (`PATCH /api/users/{id}`). Turning an account off ends its
- * logins at once. Your own row has no button, and the API refuses to turn off the last
+ * logins at once. Your own row has no buttons, and the API refuses to turn off the last
  * active admin; its message is shown as is.
+ *
+ * Recovery: "Reset link" makes a one-time link (30 minutes) the admin sends to the person
+ * themselves; they pick their own password. "Unlock" lifts a login lock after too many
+ * wrong passwords or codes. "Turn off 2FA" clears a lost phone's two-factor login.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, describeError } from "../api/client";
-import type { Page, User, UserCreate } from "../api/types";
+import type { Page, ResetLink, User, UserCreate, UserRow } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { Badge } from "../components/Badge";
 import { PlusIcon } from "../components/icons";
@@ -28,7 +32,7 @@ export function UsersPage() {
 
   const users = useQuery({
     queryKey: ["users", { page }],
-    queryFn: () => api.get<Page<User>>("/api/users", { page, page_size: PAGE_SIZE }),
+    queryFn: () => api.get<Page<UserRow>>("/api/users", { page, page_size: PAGE_SIZE }),
   });
 
   return (
@@ -60,6 +64,7 @@ export function UsersPage() {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Status</th>
+                  <th>Login</th>
                   <th>Added</th>
                   <th />
                 </tr>
@@ -80,11 +85,19 @@ export function UsersPage() {
                         {user.is_active ? "active" : "off"}
                       </Badge>
                     </td>
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        {user.two_factor_enabled && <Badge tone="cyan">2FA</Badge>}
+                        {user.locked_until && (
+                          <Badge tone="red">locked until {formatTime(user.locked_until)}</Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className="whitespace-nowrap text-muted">
                       {formatDateTime(user.created_at)}
                     </td>
                     <td className="text-right">
-                      {user.id !== me?.id && <ActiveButton user={user} />}
+                      {user.id !== me?.id && <UserActions user={user} />}
                     </td>
                   </tr>
                 ))}
@@ -100,6 +113,127 @@ export function UsersPage() {
         </>
       )}
     </section>
+  );
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** The buttons on someone else's row. */
+function UserActions({ user }: { user: UserRow }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      {user.is_active && <ResetLinkButton user={user} />}
+      {user.locked_until && (
+        <ActionButton user={user} path="unlock" label="Unlock" busyLabel="Unlocking…" />
+      )}
+      {user.two_factor_enabled && (
+        <ActionButton
+          user={user}
+          path="two-factor/off"
+          label="Turn off 2FA"
+          busyLabel="Turning off…"
+          confirm={`Turn off two-factor login for ${user.email}? Their logins end, and they can log in with just their password until they turn it on again.`}
+        />
+      )}
+      <ActiveButton user={user} />
+    </div>
+  );
+}
+
+/** A one-time reset link, shown once with a copy button; the admin sends it themselves. */
+function ResetLinkButton({ user }: { user: UserRow }) {
+  const [copied, setCopied] = useState(false);
+  const make = useMutation({
+    mutationFn: () => api.post<ResetLink>(`/api/users/${user.id}/reset-link`),
+  });
+  // The token goes after "#": browsers never send that part to a server.
+  const link = make.data
+    ? `${window.location.origin}/reset-password#token=${make.data.token}`
+    : null;
+
+  async function copy() {
+    if (!link) return;
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+  }
+
+  if (!link) {
+    return (
+      <div>
+        <button
+          type="button"
+          className="btn px-3 py-1.5 whitespace-nowrap"
+          disabled={make.isPending}
+          onClick={() => make.mutate()}
+        >
+          {make.isPending ? "Making…" : "Reset link"}
+        </button>
+        {make.error && (
+          <p role="alert" className="mt-1 text-xs text-(--red)">
+            {describeError(make.error)}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="w-72 text-left">
+      <input
+        readOnly
+        aria-label={`Reset link for ${user.email}`}
+        value={link}
+        onFocus={(e) => e.target.select()}
+        className="input font-mono text-xs"
+      />
+      <div className="mt-1 flex items-center gap-2 text-xs text-muted">
+        <button type="button" className="btn px-2 py-1" onClick={() => void copy()}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+        <span>
+          Works once, until {formatTime(make.data?.expires_at ?? "")}. Send it to them yourself.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** A POST to `/api/users/{id}/<path>` that refreshes the list (asks first if `confirm`). */
+function ActionButton(props: {
+  user: UserRow;
+  path: string;
+  label: string;
+  busyLabel: string;
+  confirm?: string;
+}) {
+  const queryClient = useQueryClient();
+  const action = useMutation({
+    mutationFn: () => api.post<UserRow>(`/api/users/${props.user.id}/${props.path}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+
+  function run() {
+    if (props.confirm && !window.confirm(props.confirm)) return;
+    action.mutate();
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        className="btn px-3 py-1.5 whitespace-nowrap"
+        disabled={action.isPending}
+        onClick={run}
+      >
+        {action.isPending ? props.busyLabel : props.label}
+      </button>
+      {action.error && (
+        <p role="alert" className="mt-1 text-xs text-(--red)">
+          {describeError(action.error)}
+        </p>
+      )}
+    </div>
   );
 }
 

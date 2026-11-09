@@ -17,7 +17,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from sqlalchemy import Select, select
 
-from app.api.deps import CurrentUser, DbSession, Paging, paginate
+from app.api.deps import AppSettings, CurrentUser, DbSession, Paging, needs_two_factor, paginate
 from app.api.errors import error_docs
 from app.db.models import AuditLog, UserRole
 from app.schemas.audit import AuditOut
@@ -33,6 +33,7 @@ ADMIN_ONLY = ("auth.", "user.", "campaign.", "csv.", "leads.exported")
 def list_audit(
     user: CurrentUser,
     db: DbSession,
+    settings: AppSettings,
     paging: Paging,
     run_id: int | None = None,
     entity_type: Annotated[str | None, Query(description="e.g. lead, run, run_item")] = None,
@@ -55,7 +56,10 @@ def list_audit(
         occurred_from=occurred_from,
         occurred_to=occurred_to,
     )
-    if user.role != UserRole.ADMIN:
+    # An admin who must turn on two-factor first (REQUIRE_ADMIN_TWO_FACTOR) sees what a
+    # reviewer sees until they do.
+    sees_admin_rows = user.role == UserRole.ADMIN and not needs_two_factor(user, settings)
+    if not sees_admin_rows:
         for prefix in ADMIN_ONLY:
             stmt = stmt.where(AuditLog.action.not_like(f"{prefix}%"))
     rows, total = paginate(db, stmt, paging)

@@ -1,0 +1,3 @@
+# Database dumps from the `backup` service (docker-compose.yml): they hold real data.
+*
+!.gitignore

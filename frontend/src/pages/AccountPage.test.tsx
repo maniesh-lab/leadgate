@@ -1,15 +1,16 @@
 /** Changing your password: what's sent, the fresh token kept, and the errors shown. */
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { getToken } from "../auth/token";
 import { fakeApi, REVIEWER, renderApp, reply } from "../test/render";
 
 async function fill(current: string, next: string, repeat = next) {
-  await userEvent.type(await screen.findByLabelText("Current password"), current);
-  await userEvent.type(screen.getByLabelText("New password"), next);
-  await userEvent.type(screen.getByLabelText("Repeat new password"), repeat);
-  await userEvent.click(screen.getByRole("button", { name: "Change password" }));
+  const form = within(await screen.findByRole("form", { name: "Change password" }));
+  await userEvent.type(form.getByLabelText("Current password"), current);
+  await userEvent.type(form.getByLabelText("New password"), next);
+  await userEvent.type(form.getByLabelText("Repeat new password"), repeat);
+  await userEvent.click(form.getByRole("button", { name: "Change password" }));
 }
 
 describe("AccountPage", () => {
@@ -56,5 +57,42 @@ describe("AccountPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("the current password is wrong");
     await waitFor(() => expect(router.state.location.pathname).toBe("/account"));
     expect(getToken()).toBe("test-token");
+  });
+});
+
+describe("two-factor login", () => {
+  it("sets it up: password, then the QR code, then a code from the app", async () => {
+    const bodies: Record<string, unknown> = {};
+    let enabled = false;
+    fakeApi({
+      "GET /api/auth/me": () => ({ ...REVIEWER, two_factor_enabled: enabled }),
+      "POST /api/auth/two-factor/setup": (_url, init) => {
+        bodies.setup = JSON.parse(String(init.body));
+        return {
+          secret: "JBSWY3DPEHPK3PXP",
+          otpauth_uri: "otpauth://totp/leadgate:reviewer@example.com?secret=JBSWY3DPEHPK3PXP",
+          qr_svg: "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C/svg%3E",
+        };
+      },
+      "POST /api/auth/two-factor/enable": (_url, init) => {
+        bodies.enable = JSON.parse(String(init.body));
+        enabled = true;
+        return { access_token: "fresh-token", token_type: "bearer" };
+      },
+    });
+    renderApp("/account", { user: REVIEWER });
+
+    const form = within(await screen.findByRole("form", { name: "Two-factor login" }));
+    await userEvent.type(form.getByLabelText("Current password"), "password-123");
+    await userEvent.click(form.getByRole("button", { name: "Set up two-factor" }));
+    expect(await form.findByRole("img", { name: /QR code/ })).toBeInTheDocument();
+    expect(form.getByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
+    await userEvent.type(form.getByLabelText("Code from the app"), "123456");
+    await userEvent.click(form.getByRole("button", { name: "Turn on" }));
+
+    expect(await form.findByRole("status")).toHaveTextContent("Two-factor login is on");
+    expect(bodies).toEqual({ setup: { password: "password-123" }, enable: { code: "123456" } });
+    expect(getToken()).toBe("fresh-token");
+    expect(await form.findByRole("button", { name: "Turn off two-factor" })).toBeInTheDocument();
   });
 });

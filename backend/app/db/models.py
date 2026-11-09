@@ -129,6 +129,36 @@ class User(Base):
     # In every login token; bumping it (a password change) ends the user's older tokens.
     token_version: Mapped[int] = mapped_column(default=0, server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
+    # Two-factor login (app.api.routes.auth, checks in app.auth.security): the authenticator
+    # app's shared secret, set at setup and kept while `totp_enabled`; the last code's
+    # 30-second step, so a code can't be used twice.
+    totp_secret: Mapped[str | None]
+    totp_enabled: Mapped[bool] = mapped_column(default=False, server_default=false())
+    totp_last_step: Mapped[int | None] = mapped_column(BigInteger)
+
+    @property
+    def two_factor_enabled(self) -> bool:
+        return self.totp_enabled
+
+
+class PasswordResetLink(Base):
+    """A one-time link an admin (or the CLI) made so a user can set a new password.
+
+    Only the token's SHA-256 is stored: the link itself is shown once, to whoever made it.
+    It works once (`used_at`) and only until `expires_at`; making a new one for the same
+    user ends the old ones (app.services.accounts).
+    """
+
+    __tablename__ = "password_reset_links"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(unique=True)
+    # Who made it: a user id, or None for the command line.
+    created_by: Mapped[int | None]
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class ScoringRubric(Base):

@@ -141,6 +141,15 @@ the thread from its last checkpoint, so finished nodes don't run again.
 gives oldest first or best score first. Each lead's score card names the rubric that scored
 it and who that rubric suits.
 
+**The run page is live**: `GET /api/runs/{id}/events` is a Server-Sent Events stream that
+sends the run's detail whenever a cheap fingerprint (status, item count, newest item
+change) moves; the server looks every second (5 s while waiting for decisions) and the
+stream ends when the run finishes or after 10 minutes. The page reads it with `fetch`
+(the token stays in the header) and polls instead if it can't connect. The stream holds no
+DB connection between looks, re-checks the login on each (a turned-off user's stream
+ends), and at most 20 are open per API process (3 per user); over that it answers
+`busy` and the page polls.
+
 **Deleting** a lead, run, campaign or uploaded CSV (admins) happens in one transaction:
 the run items go with their steps, approvals, jobs and LangGraph checkpoints, a run takes
 the leads in no other run, and a campaign its runs and its file when no other campaign uses
@@ -202,6 +211,20 @@ erDiagram
   email and the caller's address, so `GET /api/audit` shows them to admins only. The same
   goes for account rows (`user.*`, users' emails) and the admin tools' upload and export
   rows (`campaign.*`, `csv.*`, `leads.exported`).
+- Wrong login codes (and wrong codes when turning two-factor off) and wrong re-entered
+  passwords (password change, two-factor on or off) are failed logins too, so a stolen session can't guess the password. An
+  admin's unlock adds an `auth.unlocked` row; only failures after it count (the log stays
+  append-only).
+- Two-factor login (TOTP, `users.totp_*`): the right password answers a 5-minute token of
+  its own kind (`typ: 2fa`) that only `/api/auth/login/two-factor` accepts, never as a
+  login. Each code's 30-second step is stored, and the user's row is locked while a code
+  is checked, so a code works once. `REQUIRE_ADMIN_TWO_FACTOR` makes `require_role` refuse
+  an admin without it.
+- Reset links (`password_reset_links`, `app.services.accounts`): 256 random bits, only the
+  SHA-256 stored, one use, 30 minutes, a new link ends the old ones; using one ends the
+  user's older logins and lifts the lock. The dashboard puts the token after `#`, so it
+  never reaches a server log or a Referer header. The `reset-password` command makes one
+  on the server for a locked-out admin.
 - The crawler refuses private and internal addresses on every request and redirect hop.
 - The dashboard is served with a strict Content-Security-Policy (only its own address; on
   the live demo, also the API's),

@@ -31,6 +31,9 @@ dependencies = [
     "openai==3.40.0",
     "anthropic==2.6.0",
     "phonenumbers==9.0.42",
+    # Two-factor login: the authenticator codes and the setup QR code (an SVG).
+    "pyotp==2.10.0",
+    "segno==1.6.6",
     # Tracing (off without keys). Brings the OpenTelemetry SDK + OTLP exporter it's built on.
     "langfuse==5.0.4",
 ]

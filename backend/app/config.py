@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     jwt_secret: str | None = Field(default=None, min_length=32, repr=False)
     # How long a login token is valid. There are no refresh tokens: log in again after.
     jwt_expire_minutes: int = Field(default=60, ge=1)
+    # true = an admin must turn on two-factor login (Account page) before the admin tools
+    # work; turn it on when leadgate is reachable from the internet. Off by default so a
+    # fresh local install and the tests work without an authenticator app.
+    require_admin_two_factor: bool = False
 
     # Sent on every request leadgate makes: OSM's Nominatim and Overpass (their policies ask
     # for a User-Agent that names the app), Google Places, and the website crawler.

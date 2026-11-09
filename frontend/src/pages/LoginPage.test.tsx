@@ -1,9 +1,10 @@
 /** The login page's demo login: shown only when the build sets it, and one click logs in. */
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getToken } from "../auth/token";
 import { demoLogin } from "../lib/demo";
-import { fakeApi, page, REVIEWER, renderApp } from "../test/render";
+import { fakeApi, page, REVIEWER, renderApp, reply } from "../test/render";
 
 describe("demo login", () => {
   afterEach(() => {
@@ -48,5 +49,57 @@ describe("demo login", () => {
         VITE_DEMO_PASSWORD: "pw",
       } as ImportMetaEnv),
     ).toEqual({ email: "demo@example.com", password: "pw" });
+  });
+});
+
+describe("two-factor login", () => {
+  it("asks for the code after the password, then logs in", async () => {
+    const bodies: unknown[] = [];
+    fakeApi({
+      "POST /api/auth/login": () => ({
+        access_token: null,
+        token_type: "bearer",
+        two_factor_required: true,
+        two_factor_token: "step-token",
+      }),
+      "POST /api/auth/login/two-factor": (_url, init) => {
+        bodies.push(JSON.parse(String(init.body)));
+        return { access_token: "real-token", token_type: "bearer" };
+      },
+      "GET /api/auth/me": () => REVIEWER,
+      "GET /api/reports": () => [],
+      "GET /api/approvals/queue": () => page([]),
+    });
+    const router = renderApp("/login");
+
+    await userEvent.type(await screen.findByLabelText("Email"), "reviewer@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "password-123");
+    await userEvent.click(screen.getByRole("button", { name: /Log in/ }));
+    await userEvent.type(await screen.findByLabelText("Code"), "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Log in" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard"));
+    expect(bodies).toEqual([{ two_factor_token: "step-token", code: "123456" }]);
+    expect(getToken()).toBe("real-token");
+  });
+
+  it("shows a wrong code and lets you try again", async () => {
+    fakeApi({
+      "POST /api/auth/login": () => ({ two_factor_required: true, two_factor_token: "step" }),
+      "POST /api/auth/login/two-factor": () =>
+        reply(401, { error: { code: "unauthorized", message: "wrong code" } }),
+    });
+    renderApp("/login");
+
+    await userEvent.type(await screen.findByLabelText("Email"), "reviewer@example.com");
+    await userEvent.type(screen.getByLabelText("Password"), "password-123");
+    await userEvent.click(screen.getByRole("button", { name: /Log in/ }));
+    await userEvent.type(await screen.findByLabelText("Code"), "000000");
+    await userEvent.click(screen.getByRole("button", { name: "Log in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("wrong code");
+    expect(getToken()).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });
 });
