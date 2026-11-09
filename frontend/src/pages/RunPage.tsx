@@ -1,11 +1,13 @@
 /**
  * One run: its status, what collecting found, how many leads are in each state, and
- * the list of leads (run items). While the run is still moving, the page asks the API
- * again every few seconds, so a freshly started run fills in on its own; while it waits
- * for decisions, every 15 seconds, so decisions made elsewhere show up. Admins can delete
- * a run that has stopped moving.
+ * the list of leads (run items). Until the run finishes the page is live: the API's
+ * stream (`lib/runStream.ts`) sends the run whenever it changes, so a freshly started
+ * run fills in as the worker goes and decisions made elsewhere show up within seconds.
+ * If the stream can't connect, the page asks again every few seconds instead (every 15
+ * while it waits for decisions). Admins can delete a run that has stopped moving.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api/client";
 import type { RunDetail, RunStatus } from "../api/types";
@@ -16,6 +18,7 @@ import { ExportButton } from "../components/ExportButton";
 import { EmptyState, Fact, PageHeader, Stat } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
+import { streamRun } from "../lib/runStream";
 
 // A run in these states isn't moving on its own: the worker is done with it for now.
 const SETTLED: RunStatus[] = ["completed", "failed", "waiting_approval"];
@@ -39,10 +42,12 @@ export function RunPage() {
   const { runId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const live = useLiveRun(Number(runId));
   const run = useQuery({
     queryKey: ["runs", Number(runId)],
     queryFn: () => api.get<RunDetail>(`/api/runs/${runId}`),
-    refetchInterval: (query) => refreshEvery(query.state.data?.status),
+    // While the stream is connected it keeps the cache fresh; otherwise ask again.
+    refetchInterval: (query) => (live ? false : refreshEvery(query.state.data?.status)),
   });
 
   if (run.isPending) return <Loading />;
@@ -68,7 +73,11 @@ export function RunPage() {
             <Link to={`/leads?campaign_id=${data.campaign_id}`} className="link">
               {data.campaign_name}
             </Link>
-            {moving && <span className="ml-2 text-faint">· updating every few seconds</span>}
+            {live ? (
+              <span className="ml-2 text-faint">· live</span>
+            ) : (
+              moving && <span className="ml-2 text-faint">· updating every few seconds</span>
+            )}
           </>
         }
         actions={
@@ -195,6 +204,57 @@ export function RunPage() {
       </div>
     </section>
   );
+}
+
+/**
+ * Keeps the run's cached detail up to date from the API's stream until the run finishes.
+ * True while the stream is connected. After the server ends a stream (its time limit)
+ * it opens a new one; after an error it waits 10 seconds (the page polls meanwhile).
+ */
+function useLiveRun(runId: number): boolean {
+  const queryClient = useQueryClient();
+  const [live, setLive] = useState(false);
+  const status = queryClient.getQueryData<RunDetail>(["runs", runId])?.status;
+  // Start after the first load: its answer could otherwise land after (and overwrite) a
+  // newer one from the stream.
+  const loaded = status !== undefined;
+  const finished = status === "completed" || status === "failed";
+
+  useEffect(() => {
+    if (!loaded || finished) return;
+    const controller = new AbortController();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const again = (ms: number) => {
+      if (!controller.signal.aborted) retry = setTimeout(connect, ms);
+    };
+    function connect() {
+      streamRun(
+        runId,
+        (run) => {
+          setLive(true);
+          queryClient.setQueryData(["runs", runId], run);
+        },
+        controller.signal,
+      )
+        .then((end) => {
+          setLive(false);
+          if (end === "gone") void queryClient.invalidateQueries({ queryKey: ["runs", runId] });
+          else again(1000);
+        })
+        .catch(() => {
+          setLive(false);
+          again(10000);
+        });
+    }
+    connect();
+    return () => {
+      controller.abort();
+      clearTimeout(retry);
+      setLive(false);
+    };
+  }, [runId, loaded, finished, queryClient]);
+
+  return live;
 }
 
 /** How often to ask again: often while the run moves, now and then while it waits for

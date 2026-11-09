@@ -37,6 +37,7 @@ export function fakeApi(handlers: Record<string, Handler>) {
     const answer = handler
       ? handler(url, init)
       : reply(404, { error: { code: "not_found", message: `no fake for ${url.pathname}` } });
+    if (answer instanceof Response) return answer; // e.g. a stream (see sseResponse)
     const { status, body } = isReply(answer) ? answer : { status: 200, body: answer };
     return new Response(status === 204 ? null : JSON.stringify(body), {
       status,
@@ -80,3 +81,15 @@ export const ADMIN: Me = {
 };
 
 export const REVIEWER: Me = { ...ADMIN, id: 2, email: "reviewer@example.com", role: "reviewer" };
+
+/** A Server-Sent Events answer, for a handler: each string is one event's block. */
+export function sseResponse(blocks: string[]): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const block of blocks) controller.enqueue(encoder.encode(`${block}\n\n`));
+      controller.close();
+    },
+  });
+  return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}

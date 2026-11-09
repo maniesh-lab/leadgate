@@ -4,7 +4,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RunDetail } from "../api/types";
-import { ADMIN, fakeApi, page, renderApp, reply } from "../test/render";
+import { ADMIN, fakeApi, page, renderApp, reply, sseResponse } from "../test/render";
 import { refreshEvery } from "./RunPage";
 
 const RUN: RunDetail = {
@@ -72,6 +72,24 @@ describe("RunPage", () => {
 
     expect(await screen.findByText("derms")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+  });
+
+  it("updates from the live stream while the run moves", async () => {
+    const done = { ...RUN, status: "completed" as const, stats: { ...RUN.stats, run_items: 3 } };
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/runs/810": () => ({ ...RUN, status: "running" }),
+      "GET /api/runs/810/events": () =>
+        sseResponse([
+          `event: run\ndata: ${JSON.stringify({ ...RUN, status: "running" })}`,
+          ": ping",
+          `event: run\ndata: ${JSON.stringify(done)}`,
+        ]),
+    });
+    renderApp("/runs/810", { user: ADMIN });
+
+    expect(await screen.findByText("completed")).toBeInTheDocument();
+    expect(screen.queryByText(/updating every few seconds/)).toBeNull();
   });
 
   it("keeps checking a run that waits for decisions, less often", () => {

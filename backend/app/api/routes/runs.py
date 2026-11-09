@@ -2,6 +2,14 @@
 admin's `POST /api/run-items/{id}/retry` for a failed lead, and `DELETE /api/runs/{id}`
 (admins; `app.services.deletion`).
 
+`GET /api/runs/{id}/events` keeps the run page live: a Server-Sent Events stream that
+sends the run's detail (the same shape as `/api/runs/{id}`) whenever it changes. The
+server checks a cheap fingerprint every POLL_SECONDS (WAITING_POLL_SECONDS while the run
+waits for decisions) and sends only on a change, so many open pages cost little. The
+stream ends when the run finishes, is deleted, or after STREAM_MAX_SECONDS (the browser
+then opens a new one, which checks the login again). The browser reads it with `fetch`,
+so the login token stays in the Authorization header, never in the URL.
+
 A run's detail lists its items and how many are in each status; a run item's detail is
 everything about one lead in one run: the lead card, its step timeline (`run_steps`,
 written by `@tracked_node`), the score breakdown and the human's decision.
@@ -13,13 +21,17 @@ The score breakdown and extraction issues aren't columns: they're read from the 
 `score` and `extract` steps (`reviews_for()`, also used by the approval queue).
 """
 
-from collections.abc import Iterable
+import asyncio
+import time
+from collections.abc import AsyncIterator, Iterable
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import Select, select
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import AdminUser, CurrentUser, DbSession, Paging, get_or_404, paginate
 from app.api.errors import error_docs
@@ -84,7 +96,79 @@ def list_runs(
 @router.get("/runs/{run_id}", responses=error_docs(404))
 def get_run(run_id: int, _user: CurrentUser, db: DbSession) -> RunDetail:
     """The run, its items (in the order they were collected) and the count per status."""
-    run = get_or_404(db, Run, run_id, "run")
+    return run_detail(db, get_or_404(db, Run, run_id, "run"))
+
+
+POLL_SECONDS = 1.0
+WAITING_POLL_SECONDS = 5.0
+HEARTBEAT_SECONDS = 15.0
+STREAM_MAX_SECONDS = 600.0
+SETTLED = (RunStatus.COMPLETED, RunStatus.FAILED)
+
+
+@router.get(
+    "/runs/{run_id}/events",
+    response_class=StreamingResponse,
+    responses={
+        **error_docs(404),
+        200: {"content": {"text/event-stream": {}}, "description": "`event: run` lines"},
+    },
+)
+def run_events(run_id: int, request: Request, _user: CurrentUser, db: DbSession):
+    """The run's detail as Server-Sent Events: `event: run` with the same JSON as
+    `GET /api/runs/{id}` now and on every change, `event: gone` if it's deleted. Ends when
+    the run finishes, or after 10 minutes (open a new one)."""
+    get_or_404(db, Run, run_id, "run")
+    stream = run_stream(request, run_id)
+    headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}  # no proxy buffering
+    return StreamingResponse(stream, media_type="text/event-stream", headers=headers)
+
+
+async def run_stream(request: Request, run_id: int) -> AsyncIterator[str]:
+    factory = request.app.state.session_factory
+    started = last_write = time.monotonic()
+    seen: tuple | None = None
+    while True:
+        if await request.is_disconnected():
+            return
+        # The DB is sync: each look runs in a worker thread with its own short session.
+        fingerprint, detail = await run_in_threadpool(look_at_run, factory, run_id, seen)
+        if fingerprint is None:
+            yield "event: gone\ndata: {}\n\n"
+            return
+        if detail is not None:
+            seen = fingerprint
+            yield f"event: run\ndata: {detail.model_dump_json()}\n\n"
+            last_write = time.monotonic()
+        status_now = fingerprint[0]
+        if status_now in SETTLED or time.monotonic() - started >= STREAM_MAX_SECONDS:
+            return
+        if time.monotonic() - last_write >= HEARTBEAT_SECONDS:
+            yield ": ping\n\n"  # keeps proxies from closing a quiet stream
+            last_write = time.monotonic()
+        waiting = status_now == RunStatus.WAITING_APPROVAL
+        await asyncio.sleep(WAITING_POLL_SECONDS if waiting else POLL_SECONDS)
+
+
+def look_at_run(factory: Any, run_id: int, seen: tuple | None) -> tuple:
+    """(fingerprint, detail): the run's cheap fingerprint, plus its full detail when that
+    changed since `seen`. (None, None) once the run is gone."""
+    with factory() as db:
+        run = db.get(Run, run_id)
+        if run is None:
+            return None, None
+        count, newest = db.execute(
+            select(func.count(RunItem.id), func.max(RunItem.updated_at)).where(
+                RunItem.run_id == run_id
+            )
+        ).one()
+        fingerprint = (run.status, run.started_at, run.finished_at, count, newest)
+        if fingerprint == seen:
+            return fingerprint, None
+        return fingerprint, run_detail(db, run)
+
+
+def run_detail(db: Session, run: Run) -> RunDetail:
     campaign = db.get(Campaign, run.campaign_id)
     rows = db.execute(run_items_query(run.id)).all()
     items = [item_row(item, name) for item, name in rows]
