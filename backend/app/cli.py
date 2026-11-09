@@ -18,6 +18,11 @@
 - `demo [--history N]`: the public demo's reviewer + campaign, and a new run when its
   queue runs low (`app.db.demo`); `--history N` adds N fake leads with a decided
   history for the dashboard (once: skipped when fake leads exist)
+- `reset-password --email <email> [--base-url URL] [--two-factor-off]`: print a one-time
+  link (30 minutes) for that user to set a new password, e.g. for an admin who is locked
+  out; it also lifts a login lock. `--two-factor-off` clears their two-factor login too
+  (a lost phone). The link is shown here once and stored only as a hash
+- `unlock --email <email>`: lift a login lock (too many wrong passwords or codes)
 
 Each command opens its own DB connection from DATABASE_URL. The real work lives in
 other modules (`app.db.seed`, `app.db.fake_data`, `app.services.*`); this file only
@@ -43,6 +48,12 @@ from app.db.models import Campaign, Lead, Run, RunItem, RunStep, StepStatus, Use
 from app.db.seed import seed
 from app.db.session import make_engine, make_session_factory
 from app.enrichment.crawler import Crawler, make_crawler_client
+from app.services.accounts import (
+    ResetLinkRefused,
+    create_reset_link,
+    turn_off_two_factor,
+    unlock,
+)
 from app.services.approvals import LeadOptedOut, NotAwaitingDecision, decide
 from app.services.enrichment import CACHED, ENRICHED, campaign_leads, enrich_lead, stale_leads
 from app.services.ingestion import collect_campaign, ingest_source
@@ -203,6 +214,59 @@ def cmd_opt_out(settings: Settings, args: argparse.Namespace) -> int:
     finally:
         engine.dispose()
     print(f"lead {lead.id} {lead.name}: contact data and enrichment wiped, opted out")
+    return 0
+
+
+def find_user(session: Session, email: str) -> User | None:
+    return session.scalars(
+        select(User).where(func.lower(User.email) == email.strip().lower())
+    ).first()
+
+
+def cmd_reset_password(settings: Settings, args: argparse.Namespace) -> int:
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            user = find_user(session, args.email)
+            if user is None:
+                print(f"no user with email {args.email}")
+                return 1
+            now = datetime.now(UTC)
+            if args.two_factor_off and user.totp_enabled:
+                turn_off_two_factor(session, user, now, by=None)
+            try:
+                link = create_reset_link(
+                    session, user, now, by=None, demo_email=settings.demo_reviewer_email
+                )
+            except ResetLinkRefused as exc:
+                print(f"error: {exc}")
+                return 1
+            unlock(session, user, now, by=None, reason="reset-password command")
+            session.commit()
+    finally:
+        engine.dispose()
+    base = args.base_url.rstrip("/")
+    # After "#", so the token never reaches a server log or a Referer header.
+    print(f"Open this link to set a new password for {user.email} (works once, 30 minutes):")
+    print(f"{base}/reset-password#token={link.token}")
+    if args.two_factor_off:
+        print("Two-factor login is off for this user; they can turn it on again.")
+    return 0
+
+
+def cmd_unlock(settings: Settings, args: argparse.Namespace) -> int:
+    engine = make_engine(settings.database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            user = find_user(session, args.email)
+            if user is None:
+                print(f"no user with email {args.email}")
+                return 1
+            unlock(session, user, datetime.now(UTC), by=None, reason="unlock command")
+            session.commit()
+    finally:
+        engine.dispose()
+    print(f"{user.email} can log in again")
     return 0
 
 
@@ -395,6 +459,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--history", type=int, metavar="N", help="also add N fake leads with a decided history"
     )
     demo_parser.set_defaults(handler=cmd_demo)
+
+    reset_parser = commands.add_parser(
+        "reset-password", help="print a one-time link for a user to set a new password"
+    )
+    reset_parser.add_argument("--email", required=True, help="the user's email")
+    reset_parser.add_argument(
+        "--base-url",
+        default="http://localhost:8080",
+        help="the dashboard's address (default: the local Docker stack)",
+    )
+    reset_parser.add_argument(
+        "--two-factor-off", action="store_true", help="also turn off their two-factor login"
+    )
+    reset_parser.set_defaults(handler=cmd_reset_password)
+
+    unlock_parser = commands.add_parser("unlock", help="lift a user's login lock")
+    unlock_parser.add_argument("--email", required=True, help="the user's email")
+    unlock_parser.set_defaults(handler=cmd_unlock)
 
     return parser
 
