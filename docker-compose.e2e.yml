@@ -51,3 +51,7 @@ services:
   frontend:
     ports: !override
       - "127.0.0.1:8081:80"
+
+  # The test stack's data is thrown away: no backups.
+  backup:
+    profiles: ["off"]

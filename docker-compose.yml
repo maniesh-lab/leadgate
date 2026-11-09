@@ -131,6 +131,26 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # A database dump a day into ./backups, keeping the newest BACKUP_KEEP (7). The dumps
+  # hold real data: owner-only files, kept out of git. Restore: README, "Backups".
+  # One now: docker compose run --rm backup once
+  backup:
+    image: postgres:18.6
+    entrypoint: ["sh", "/backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-leadgate}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-leadgate}
+      PGDATABASE: ${POSTGRES_DB:-leadgate}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+    volumes:
+      - ./backup/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
 
