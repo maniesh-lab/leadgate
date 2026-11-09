@@ -110,6 +110,8 @@ def test_the_demo_only_starts_without_outside_services() -> None:
     url = "sqlite://"
     with pytest.raises(ValidationError, match="PUBLIC_DEMO needs LLM_MODE=fake"):
         Settings(_env_file=None, database_url=url, public_demo=True, llm_mode="groq")
+    with pytest.raises(ValidationError, match="PUBLIC_DEMO needs LLM_MODE=fake"):
+        Settings(_env_file=None, database_url=url, public_demo=True, llm_mode="anthropic")
     with pytest.raises(ValidationError, match="without these keys: AIRTABLE_TOKEN"):
         Settings(_env_file=None, database_url=url, public_demo=True, airtable_token="x")
     with pytest.raises(ValidationError, match="LANGFUSE_SECRET_KEY"):

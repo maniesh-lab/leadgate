@@ -75,20 +75,23 @@ class Settings(BaseSettings):
     csv_upload_max_bytes: int = Field(default=1_000_000, ge=1)
 
     # Which LLM the agents use (see app/agents/llm.py): "fake" answers without any network
-    # (tests, CI, offline demos), "groq" and "openai" call the real APIs through Steadfast.
-    llm_mode: Literal["fake", "groq", "openai"] = "fake"
-    # The model for groq/openai; empty = the default in app/agents/llm.py.
+    # (tests, CI, offline demos); "groq", "openai" and "anthropic" (Claude) call the real
+    # APIs through Steadfast.
+    llm_mode: Literal["fake", "groq", "openai", "anthropic"] = "fake"
+    # The model for groq/openai/anthropic; empty = the default in app/agents/llm.py.
     llm_model: str | None = None
-    # How long gpt-oss thinks before answering on groq; the token limit grows with it (on
-    # other models only the limit changes). "low" fits the free tier; "medium" finds
-    # services better but uses about twice the tokens (app/agents/llm.py).
+    # How long the model thinks before answering: gpt-oss on groq (the token limit grows
+    # with it), Claude's effort level on anthropic; on other models only the limit changes.
+    # "low" fits Groq's free tier; on groq "medium" finds services better but uses about
+    # twice the tokens (app/agents/llm.py).
     llm_reasoning_effort: Literal["low", "medium", "high"] = "low"
     # Tokens the agents may use per minute; a call that would go over waits instead of
     # getting a 429. Empty = 8,000 on groq (the free tier's limit for gpt-oss-20b, used for
-    # any groq model), no limit on openai.
+    # any groq model), no limit on openai or anthropic.
     llm_tokens_per_minute: int | None = Field(default=None, ge=1)
     groq_api_key: str | None = Field(default=None, repr=False)
     openai_api_key: str | None = Field(default=None, repr=False)
+    anthropic_api_key: str | None = Field(default=None, repr=False)
 
     # Run the job worker inside the API process (a background thread) instead of as its
     # own `python -m app.worker` process: for free hosting with a single process.

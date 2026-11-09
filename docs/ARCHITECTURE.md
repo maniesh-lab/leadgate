@@ -20,7 +20,7 @@ flowchart LR
   W --> G["LangGraph graph (one thread per lead)"]
   G -->|"checkpoint after every node"| DB
   G -->|"robots.txt-aware crawl"| WEB["Business websites"]
-  G -->|"LLM via Steadfast"| LLM["Groq / OpenAI (or fake)"]
+  G -->|"LLM via Steadfast"| LLM["Groq / OpenAI / Claude (or fake)"]
   G --> CRM["Airtable (CRM)"]
   G --> D["Discord"]
   W -->|"results callback"| N8N
@@ -54,7 +54,7 @@ flowchart TD
 | Node | What it does | Uses the LLM? |
 |---|---|---|
 | `enrich` | Reads up to 4 pages (`ENRICH_MAX_PAGES`) of the lead's own website (robots.txt respected, 1 s between requests to a site, public addresses only): emails, phones, social links, site signals (https, mobile viewport, copyright year, contact form). Reuses findings younger than 14 days. | no |
-| `extract` | Cleans the data by rule first (phones to E.164 with `phonenumbers`), then asks the LLM for the fields that need reading (email, area, city, category, services, founding year). A traceability check sends back any value that isn't in the source data or the website text. The prompt offers only the campaign's sector of business types (e.g. health for a dentist). On Groq a token budget (`LLM_TOKENS_PER_MINUTE`, 8,000 by default) waits before a call that would pass the free tier's per-minute limit. | yes |
+| `extract` | Cleans the data by rule first (phones to E.164 with `phonenumbers`), then asks the LLM for the fields that need reading (email, area, city, category, services, founding year). A traceability check sends back any value that isn't in the source data or the website text. The prompt offers only the campaign's sector of business types (e.g. health for a dentist). On Groq a token budget (`LLM_TOKENS_PER_MINUTE`, 8,000 by default) waits before a call that would pass the free tier's per-minute limit. With `LLM_MODE=anthropic` it's Claude (Claude Haiku 5.5 unless `LLM_MODEL` says other): `LLM_REASONING_EFFORT` is its effort level, and no temperature is sent. | yes |
 | `check` | Flags possible duplicates (same phone, domain or source, or a near-identical name nearby), a category that doesn't match the campaign, and closed businesses. Close neighbours (hotel and guest house, hair and beauty salon, ...) count as a match; a niche off the 119-type list, or a lead whose extraction failed, isn't judged and shows "not checked". | no |
 | `score` | Adds up the campaign's rubric (rules stored as data, versioned). The LLM only writes a one-sentence explanation of the points; it never changes the score. | explanation only |
 | `approval_gate` | `interrupt()`: the thread stops and is saved. On resume it stores the decision. No side effects, because LangGraph re-runs this node from its top on resume. | no |

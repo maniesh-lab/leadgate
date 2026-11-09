@@ -27,14 +27,15 @@ dependencies = [
     "langgraph-checkpoint-postgres==3.2.0",
     "psycopg-pool==3.3.3",
     "steadfast-llm[groq]==0.3.0",
+    # LLM_MODE=openai and LLM_MODE=anthropic (Claude); in the Docker image too.
+    "openai==3.40.0",
+    "anthropic==2.6.0",
     "phonenumbers==9.0.42",
     # Tracing (off without keys). Brings the OpenTelemetry SDK + OTLP exporter it's built on.
     "langfuse==5.0.4",
 ]
 
 [project.optional-dependencies]
-# Only for LLM_MODE=openai.
-openai = ["openai==3.40.0"]
 dev = [
     "pytest==9.2.0",
     "pytest-cov==7.1.0",
