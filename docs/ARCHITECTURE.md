@@ -92,7 +92,9 @@ sequenceDiagram
 - **Retries:** a job that raises waits 2 s, then 4 s; after 3 attempts the item (or run) is
   `failed` with the error saved.
 - **Crash safety:** a job left `running` by a dead worker goes back to the queue (at once
-  for the same container, after 5 minutes otherwise). Every handler first asks LangGraph
+  for the same container, after 5 minutes otherwise). A killed attempt counts like a
+  failed one, so a job that kills the worker every time (e.g. out of memory) fails after
+  its third attempt instead of coming back forever. Every handler first asks LangGraph
   where the thread is and only does what's left, so completed nodes never run twice.
   `act` checks `notified_at` and the CRM key, so a message or CRM record happens once.
   This is tested by killing the worker mid-run (`tests/integration/test_worker_postgres.py`)
