@@ -9,6 +9,10 @@
   locked more than 5 min ago, and jobs locked under the starting worker's own id (an
   earlier life of the same worker, e.g. the same container restarted). That's what makes
   "kill the worker, start it again" work
+- `fail_worn_out()` fails such a job instead when it already used its last attempt. A
+  job that kills the worker every time (e.g. out of memory) never raises an exception,
+  so without this it would go back in the queue forever. The claim counts every
+  attempt, so a killed attempt counts like a failed one
 
 The claim is one statement:
 
@@ -29,7 +33,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import Select, or_, select, update
+from sqlalchemy import ColumnElement, Select, and_, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import Job, JobStatus, JobType
@@ -106,8 +110,8 @@ def mark_failed(session: Session, job: Job, error: str, now: datetime) -> bool:
     return retry
 
 
-def recover_stale(session: Session, now: datetime, own_id: str | None = None) -> int:
-    """Put jobs left `running` by a dead worker back in the queue. Returns how many.
+def stale_running(now: datetime, own_id: str | None) -> ColumnElement[bool]:
+    """`running` jobs left by a dead worker.
 
     `own_id`: the worker starting up. Jobs locked under its id belong to an earlier run
     of it that died (it isn't running anything yet), so they don't wait the 5 minutes.
@@ -115,9 +119,42 @@ def recover_stale(session: Session, now: datetime, own_id: str | None = None) ->
     dead = Job.locked_at < now - STALE_AFTER
     if own_id is not None:
         dead = or_(dead, Job.locked_by == own_id)
+    return and_(Job.status == JobStatus.RUNNING, dead)
+
+
+def fail_worn_out(session: Session, now: datetime, own_id: str | None = None) -> list[Job]:
+    """Fail the dead worker's jobs that were on their last attempt, and commit.
+
+    Returns them, so the worker can mark their items (or runs) failed with `give_up()`.
+    """
+    stmt = (
+        select(Job)
+        .where(stale_running(now, own_id), Job.attempts >= Job.max_attempts)
+        .with_for_update(skip_locked=True)
+    )
+    jobs = list(session.scalars(stmt))
+    for job in jobs:
+        job.status = JobStatus.FAILED
+        job.locked_at = None
+        job.locked_by = None
+        job.last_error = (
+            f"the worker stopped during attempt {job.attempts} of {job.max_attempts}"
+            " (killed or out of memory)"
+        )
+    session.commit()
+    if jobs:
+        log.warning("stale_jobs_failed", job_ids=[job.id for job in jobs])
+    return jobs
+
+
+def recover_stale(session: Session, now: datetime, own_id: str | None = None) -> int:
+    """Put a dead worker's jobs that have attempts left back in the queue. Returns how many.
+
+    Jobs on their last attempt are `fail_worn_out()`'s; call it first.
+    """
     stmt = (
         update(Job)
-        .where(Job.status == JobStatus.RUNNING, dead)
+        .where(stale_running(now, own_id), Job.attempts < Job.max_attempts)
         .values(status=JobStatus.QUEUED, locked_at=None, locked_by=None, run_after=now)
         .execution_options(synchronize_session=False)
     )
