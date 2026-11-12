@@ -227,7 +227,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 577 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 579 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
