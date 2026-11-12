@@ -163,6 +163,32 @@ def test_a_killed_worker_is_restarted_and_finished_nodes_do_not_run_again(
     assert len(world.web.requests) == requests_before_restart
 
 
+def test_jobs_that_kill_the_worker_every_time_fail_their_items(world, deps, clock) -> None:
+    run = start(world, clock)
+    Worker(deps, worker_id="container-1").run_once()  # start_run
+    world.llm.structured = crash  # every lead's extract now kills the worker
+
+    for _ in range(100):  # each round: the container restarts, then tries one job
+        restarted = Worker(deps, worker_id="container-1")
+        restarted.stop()  # only the startup recovery, then return
+        restarted.run()
+        try:
+            if not restarted.run_once():
+                break
+        except Crash:
+            pass
+    else:
+        pytest.fail("the jobs kept coming back")
+
+    jobs = world.db.scalars(select(Job).where(Job.type == JobType.PROCESS_ITEM)).all()
+    assert {(job.status, job.attempts) for job in jobs} == {(JobStatus.FAILED, 3)}
+    failed = items(world.db, run)
+    assert {item.status for item in failed} == {RunItemStatus.FAILED}
+    assert failed[0].error == "the worker stopped during attempt 3 of 3 (killed or out of memory)"
+    world.db.refresh(run)
+    assert run.status == RunStatus.COMPLETED  # nothing left to wait for
+
+
 def test_a_crash_in_act_is_finished_on_restart_with_one_crm_record(world, deps, clock):
     run = start(world, clock)
     first = Worker(deps, worker_id="container-1")

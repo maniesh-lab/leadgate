@@ -5,7 +5,14 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.db.models import Job, JobStatus, JobType
-from app.worker.jobs import claim_next, enqueue, mark_done, mark_failed, recover_stale
+from app.worker.jobs import (
+    claim_next,
+    enqueue,
+    fail_worn_out,
+    mark_done,
+    mark_failed,
+    recover_stale,
+)
 
 NOW = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
 
@@ -74,6 +81,26 @@ def test_stale_running_jobs_go_back_to_the_queue(db: Session) -> None:
     assert fresh.status == JobStatus.RUNNING
     again = claim_next(db, "new-worker", NOW)
     assert (again.id, again.attempts) == (stale.id, 2)
+
+
+def test_a_job_whose_worker_dies_every_time_fails_after_its_last_attempt(db: Session) -> None:
+    job = add(db, 1)
+    now = NOW
+    for _ in range(2):
+        claim_next(db, "w", now)
+        now += timedelta(minutes=6)  # the worker died; its lock is now stale
+        assert fail_worn_out(db, now) == []
+        assert recover_stale(db, now) == 1
+    claim_next(db, "w", now)  # the third and last attempt
+    now += timedelta(minutes=6)
+
+    assert recover_stale(db, now) == 0  # no attempts left, so not queued again
+    assert fail_worn_out(db, now) == [job]
+
+    db.refresh(job)
+    assert (job.status, job.attempts, job.locked_by) == (JobStatus.FAILED, 3, None)
+    assert job.last_error == "the worker stopped during attempt 3 of 3 (killed or out of memory)"
+    assert claim_next(db, "w", now + timedelta(hours=1)) is None
 
 
 def test_a_restarted_worker_takes_back_its_own_jobs_at_once(db: Session) -> None:

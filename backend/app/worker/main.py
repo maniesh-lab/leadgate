@@ -3,9 +3,10 @@
 `python -m app.worker` (the compose `worker` service) runs `main()`:
 
 1. on startup, jobs left `running` by a dead worker go back in the queue
-   (`recover_stale()`; checked again every minute, for other workers that died); on the
-   public demo (DEMO_REVIEWER_EMAIL set) the same minute check refills its approval
-   queue (`app.db.demo.refill_queue()`)
+   (`recover_stale()`), or fail for good if that was their last attempt
+   (`fail_worn_out()` + `give_up()`); checked again every minute, for other workers that
+   died; on the public demo (DEMO_REVIEWER_EMAIL set) the same minute check refills its
+   approval queue (`app.db.demo.refill_queue()`)
 2. loop: claim the next due job → run its handler → done, retry later, or give up
 3. when the queue is empty, wait POLL_SECONDS and look again
 4. on SIGTERM / SIGINT (`docker compose stop`, Ctrl+C): finish the current job, then exit
@@ -45,7 +46,7 @@ from app.services.crm import make_crm
 from app.services.notify import make_notifier
 from app.sources.base import make_http_client
 from app.worker.handlers import HANDLERS, Deps, give_up
-from app.worker.jobs import claim_next, mark_done, mark_failed, recover_stale
+from app.worker.jobs import claim_next, fail_worn_out, mark_done, mark_failed, recover_stale
 
 log = structlog.get_logger(__name__)
 
@@ -64,7 +65,7 @@ class Worker:
     def run(self) -> None:
         log.info("worker_started", worker_id=self.id)
         with self.deps.session_factory() as session:
-            recover_stale(session, self.deps.now(), own_id=self.id)
+            self.recover(session, self.deps.now(), own_id=self.id)
         self.last_recover = self.deps.now()
         while not self.stopping.is_set():
             self.recover_now_and_then()
@@ -109,10 +110,16 @@ class Worker:
         if self.last_recover and (now - self.last_recover).total_seconds() < RECOVER_EVERY_SECONDS:
             return
         with self.deps.session_factory() as session:
-            recover_stale(session, now)
+            self.recover(session, now)
             if self.deps.settings.demo_reviewer_email:
                 refill_queue(session, now)
         self.last_recover = now
+
+    def recover(self, session: Session, now: datetime, own_id: str | None = None) -> None:
+        """Clean up after dead workers: their jobs on a last attempt fail, the rest requeue."""
+        for job in fail_worn_out(session, now, own_id):
+            give_up(self.deps, session, job)
+        recover_stale(session, now, own_id)
 
     def stop(self, *_signal_args: object) -> None:
         if not self.stopping.is_set():
