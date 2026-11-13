@@ -62,3 +62,8 @@ def configure_logging(level: str = "INFO") -> None:
     access_logger = logging.getLogger("uvicorn.access")
     access_logger.handlers = []
     access_logger.propagate = False
+
+    # The HTTP clients log each request's full URL at INFO, and a Discord webhook URL holds
+    # its secret token. Keep their request lines out; their warnings still come through.
+    for name in ("httpx2", "httpcore2", "httpx", "httpcore"):
+        logging.getLogger(name).setLevel(max(logging.WARNING, root.level))
