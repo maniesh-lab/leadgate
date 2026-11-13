@@ -248,13 +248,14 @@ def test_opt_out_and_delete_clear_the_checkpoints_and_blank_the_audit_log(pg) ->
         start_worker(process, url, world, clock, "host-a-1").run_until_idle()
     assert saved_threads(db) == {barton.thread_id, lone_star.thread_id}
 
-    # Deleting the campaign takes the rest; the audit rows stay, blanked (the trigger lets
-    # a details-only change through).
+    # Deleting the campaign takes the rest, apart from the opted-out lead's wiped row (it
+    # keeps the business out); the audit rows stay, blanked (the trigger lets a
+    # details-only change through).
     audit_rows = db.scalar(select(func.count()).select_from(AuditLog))
     delete_campaign(db, world.campaign)
     db.commit()
     assert saved_threads(db) == set()
-    assert db.scalars(select(Lead.id)).all() == []
+    assert db.scalars(select(Lead.id)).all() == [smile.lead_id]
     assert db.scalar(select(func.count()).select_from(AuditLog)) == audit_rows
     lead_rows = db.scalars(select(AuditLog).where(AuditLog.entity_type == "lead")).all()
     assert lead_rows and all("redacted" in row.details for row in lead_rows)
