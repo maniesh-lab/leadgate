@@ -1,5 +1,6 @@
 """Tests for the website signals (`app.enrichment.signals`)."""
 
+import time
 from pathlib import Path
 
 import pytest
@@ -75,3 +76,10 @@ def test_copyright_year(text: str, year: int | None) -> None:
 
 def test_copyright_year_is_the_newest_over_all_pages() -> None:
     assert latest_copyright_year(["© 2012", "© 2019", "no notice"], current_year=2026) == 2019
+
+
+def test_a_page_full_of_copyright_signs_is_read_in_linear_time() -> None:
+    started = time.perf_counter()
+    assert latest_copyright_year(["©" * 100_000], 2026) is None
+    assert latest_copyright_year(["© " * 50_000 + "2019"], 2026) == 2019
+    assert time.perf_counter() - started < 2  # minutes before the repeats were bounded

@@ -5,11 +5,13 @@ dentist site (Smile Austin) and a 2000s-style one (Old Town). Their `.test`
 domains are reserved, so they can never be real sites.
 """
 
+import time
 from pathlib import Path
 
 import pytest
 
 from app.enrichment.extract_html import (
+    MAX_PHONES,
     Link,
     ParsedPage,
     find_emails,
@@ -225,3 +227,10 @@ def test_pick_links_matches_the_link_text_too() -> None:
 def test_same_page_ignores_scheme_www_and_trailing_slash() -> None:
     assert same_page("http://smileaustin.test", "https://www.smileaustin.test/")
     assert not same_page(SMILE + "about", SMILE)
+
+
+def test_unique_phones_keeps_at_most_max_phones() -> None:
+    phones = [f"512-555-{n:04d}" for n in range(5000)]
+    started = time.perf_counter()
+    assert unique_phones(phones) == phones[:MAX_PHONES]
+    assert time.perf_counter() - started < 1
