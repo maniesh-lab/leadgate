@@ -192,6 +192,24 @@ describe("QueuePage", () => {
     await waitFor(() => expect(screen.queryByText("Bright Smiles")).not.toBeInTheDocument());
   });
 
+  it("keeps the keyboard focus in the dialog, and gives it back on close", async () => {
+    setup();
+    const review = (await screen.findAllByRole("button", { name: "Review" }))[0];
+    await userEvent.click(review);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveFocus(); // moved in when it opened
+
+    const approve = within(dialog).getByRole("button", { name: /Approve/ });
+    approve.focus(); // the last control
+    await userEvent.tab();
+    expect(within(dialog).getByRole("link", { name: "See every step" })).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(approve).toHaveFocus(); // and back round, never onto the page behind
+
+    await userEvent.keyboard("{Escape}");
+    expect(review).toHaveFocus();
+  });
+
   it("closes with Esc", async () => {
     setup();
     await openFirst();
