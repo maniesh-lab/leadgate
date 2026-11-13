@@ -1,6 +1,6 @@
 /** The approval queue: the sort, the decision dialog, its keyboard shortcuts and errors,
  * and going on past the end of a page. */
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { QueueItem } from "../api/types";
@@ -142,6 +142,19 @@ describe("QueuePage", () => {
     expect(
       await within(screen.getByRole("dialog")).findByRole("heading", { name: "Lake Dental" }),
     ).toBeInTheDocument();
+  });
+
+  it("ignores a held A key's repeats, so the next lead isn't approved unseen", async () => {
+    const { calls } = setup();
+    await openFirst();
+    await userEvent.keyboard("a");
+    await within(screen.getByRole("dialog")).findByRole("heading", { name: "Lake Dental" });
+
+    fireEvent.keyDown(window, { key: "a", repeat: true }); // the key is still held down
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const decided = calls.filter((call) => call.url.pathname.endsWith("/decision"));
+    expect(decided.map((call) => call.url.pathname)).toEqual(["/api/run-items/1/decision"]);
   });
 
   it("won't reject without a reason", async () => {

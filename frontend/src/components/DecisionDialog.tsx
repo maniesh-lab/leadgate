@@ -2,7 +2,7 @@
  * The decision dialog of the approval queue: the lead card (key fields, flags, the
  * rubric that scored it, score breakdown + explanation, website signals) and the two buttons. A rejection needs a
  * reason; an approval may have one. Keys: A approves, R rejects, Esc closes (A and R
- * are ignored while typing the reason).
+ * are ignored while typing the reason, and a held key's repeats are ignored).
  *
  * The decision is `POST /api/run-items/{id}/decision`. A 409 means the item isn't
  * waiting any more (someone else decided first): the dialog stays open and says so,
@@ -89,8 +89,12 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
       const typing = ["TEXTAREA", "INPUT", "SELECT"].includes(target.tagName);
       if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
       const key = event.key.toLowerCase();
-      if (key === "a") submitRef.current("approved");
-      if (key === "r") submitRef.current("rejected");
+      if (key !== "a" && key !== "r") return;
+      event.preventDefault(); // so R doesn't type an "r" into the reason box it focuses
+      // A held key repeats: each repeat would decide the next lead as soon as it opens,
+      // before anyone has read it (and an approval goes to the CRM and Discord).
+      if (event.repeat) return;
+      submitRef.current(key === "a" ? "approved" : "rejected");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
