@@ -213,6 +213,27 @@ def test_opt_out_wipes_the_lead_and_rejects_its_waiting_items(
     assert client.delete("/api/leads/999/data", headers=as_admin).status_code == 404
 
 
+def test_an_opt_out_stays_wiped_after_the_rejected_items_finish(
+    client: TestClient, world: World, worker, clock, started, as_reviewer
+) -> None:
+    waiting = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"]
+    assert any(item["lead"]["phone"] for item in waiting)
+    for item in waiting:
+        lead_id = item["lead"]["id"]
+        assert client.delete(f"/api/leads/{lead_id}/data", headers=started["as_admin"]).status_code
+    run_jobs(worker, clock)  # the rejected items resume from their saved state and finish
+
+    for item in waiting:
+        lead = client.get(f"/api/leads/{item['lead']['id']}", headers=as_reviewer).json()
+        assert lead["status"] == "rejected"
+        assert (lead["opt_out"], lead["phone"], lead["email"], lead["enrichment"]) == (
+            True,
+            None,
+            None,
+            None,
+        )
+
+
 def test_opt_out_blanks_the_contact_data_in_the_audit_log(
     client: TestClient, world: World, worker, clock, started, as_reviewer
 ) -> None:

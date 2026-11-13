@@ -133,12 +133,15 @@ def thread_config(thread_id: str) -> dict[str, Any]:
 def save_result(graph: CompiledStateGraph, context: AgentContext, thread_id: str) -> LeadState:
     """Copy the thread's results onto the lead row and commit. Returns the state."""
     state = current_state(graph, thread_id)
-    lead = context.session.get(Lead, state["lead_id"])
+    # Read the row again, locked until the commit below: an opt-out may have come in while
+    # the thread ran, and this session's copy of the lead wouldn't know.
+    lead = context.session.get(Lead, state["lead_id"], with_for_update=True, populate_existing=True)
     if lead is None:
         raise LookupError(f"lead {state['lead_id']} not found")
 
     extracted = state.get("extracted", {})
-    for name in SAVED_FIELDS:
+    # The thread's state still holds the contact data an opt-out wiped: never copy it back.
+    for name in () if lead.opt_out else SAVED_FIELDS:
         if extracted.get(name) not in (None, "", []):
             setattr(lead, name, extracted[name])
     if "score" in state:

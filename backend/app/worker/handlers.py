@@ -183,7 +183,9 @@ def save_item(deps: Deps, session: Session, item: RunItem) -> None:
 
 def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStatus) -> None:
     item.status = status
-    if status != RunItemStatus.AWAITING_APPROVAL and get(session, Lead, item.lead_id).opt_out:
+    # The row as it is now: this session may have read the lead before an opt-out.
+    lead = session.get(Lead, item.lead_id, populate_existing=True)
+    if status != RunItemStatus.AWAITING_APPROVAL and lead is not None and lead.opt_out:
         # The thread is over. Its saved state, and the audit rows its nodes wrote after the
         # opt-out, still hold the old contact data.
         purge_checkpoints(session, [item.thread_id])

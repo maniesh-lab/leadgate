@@ -31,6 +31,7 @@ from app.db.models import (
 )
 from app.main import create_app
 from app.services.approvals import decide
+from app.services.privacy import opt_out_lead
 from app.services.runs import create_run
 from app.worker import handlers
 from app.worker.jobs import enqueue
@@ -254,6 +255,28 @@ def test_a_lead_that_opted_out_before_processing_is_skipped(world, worker, clock
     assert smile.status == RunItemStatus.DONE
     assert "opted out" in smile.error
     assert completed_steps(world.db, smile) == []
+
+
+def test_an_opt_out_during_the_crawl_is_not_undone(world, worker, clock, deps) -> None:
+    run = start(world, clock)
+    worker.run_once()  # start_run
+    smile = items(world.db, run)[0]
+    crawl = deps.crawler.crawl
+
+    def opt_out_meanwhile(website: str):
+        with deps.session_factory() as other:  # the admin, in another request
+            opt_out_lead(other, other.get(Lead, smile.lead_id))
+            other.commit()
+        return crawl(website)
+
+    deps.crawler.crawl = opt_out_meanwhile
+    worker.run_until_idle()
+
+    world.db.expire_all()
+    lead = world.db.get(Lead, smile.lead_id)
+    assert lead.opt_out is True
+    assert (lead.phone, lead.email, lead.website, lead.enrichment) == (None, None, None, None)
+    assert lead.services == []
 
 
 def test_a_job_for_an_item_already_done_does_nothing(world, worker, clock) -> None:
