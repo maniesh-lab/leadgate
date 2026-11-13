@@ -24,7 +24,8 @@ type AuthValue = {
   user: Me | null;
   /** True while the user behind a saved token is being loaded. */
   loading: boolean;
-  /** Set when the API couldn't be asked who the user is (e.g. it's down). */
+  /** Set when the API couldn't be asked who the user is (e.g. it's down) and nobody is
+   * known yet. */
   error: Error | null;
   /** Logs in, or returns the token for the two-factor step when a code is needed. */
   login: (email: string, password: string) => Promise<{ twoFactorToken: string } | null>;
@@ -113,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthValue = {
     user: token ? (me.data ?? null) : null,
     loading: token !== null && me.isPending,
-    error: token ? me.error : null,
+    // Only without a user: a failed background refetch (the API asleep, a network blip)
+    // mustn't replace the whole app with an error while the user is still known.
+    error: token && !me.data ? me.error : null,
     login,
     completeTwoFactor,
     logout,

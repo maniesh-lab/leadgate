@@ -81,6 +81,26 @@ describe("protected routes", () => {
     expect(router.state.location.pathname).toBe("/login");
   });
 
+  it("keeps the page when a background check of the user fails", async () => {
+    let meCalls = 0;
+    fakeApi({
+      ...campaignsApi(),
+      // The first answer loads the user; a later refetch finds the API asleep.
+      "GET /api/auth/me": () =>
+        ++meCalls === 1 ? ADMIN : reply(502, { error: { code: "error", message: "asleep" } }),
+    });
+    renderApp("/campaigns", { user: ADMIN });
+    expect(await screen.findByText(CAMPAIGN.name)).toBeInTheDocument();
+
+    setToken("test-token"); // the same token again: still a storage event, so a refetch
+    window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY }));
+
+    await waitFor(() => expect(meCalls).toBe(2));
+    await new Promise((resolve) => setTimeout(resolve, 50)); // let the failed answer land
+    expect(screen.queryByText(/Couldn't load your account/)).toBeNull();
+    expect(screen.getByText(CAMPAIGN.name)).toBeInTheDocument();
+  });
+
   it("logs out when the token has expired", async () => {
     fakeApi({
       "GET /api/auth/me": () =>
