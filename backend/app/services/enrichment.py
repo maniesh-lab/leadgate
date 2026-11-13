@@ -82,6 +82,13 @@ def enrich_lead(
         return CACHED
 
     pages = crawler.crawl(lead.website) if lead.website else []
+    # A crawl takes a while, and an opt-out may have come in meanwhile (or before, if this
+    # session read the lead earlier). Ask the row itself, locked until the caller commits.
+    if lead.id is not None and session.scalar(
+        select(Lead.opt_out).where(Lead.id == lead.id).with_for_update()
+    ):
+        session.refresh(lead)
+        return OPTED_OUT
     lead.enrichment = build_enrichment(lead.website, pages, now.year)
     lead.enriched_at = now
     session.flush()

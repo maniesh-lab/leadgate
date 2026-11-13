@@ -17,8 +17,11 @@ from urllib.parse import urlsplit
 from app.enrichment.extract_html import ParsedPage
 
 # "© 2019", "Copyright 2015 - 2024", "(c) 2012–2018": the year we want is the last one.
+# Every repeat is bounded: a page of "©©©©..." would make `[\s©]*` try every length from
+# every start (hours of CPU on a 2 MB page).
 COPYRIGHT_RE = re.compile(
-    r"(?:copyright|©|\(c\))[\s©]*(?:(?:19|20)\d{2}\s*[-–—]\s*)?((?:19|20)\d{2})", re.IGNORECASE
+    r"(?:copyright|©|\(c\))[\s©]{0,10}(?:(?:19|20)\d{2}\s{0,3}[-–—]\s{0,3})?((?:19|20)\d{2})",
+    re.IGNORECASE,
 )
 OLDEST_PLAUSIBLE_YEAR = 1990
 

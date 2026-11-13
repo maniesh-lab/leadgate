@@ -2,11 +2,15 @@
 
 - `enqueue()` adds a job (the caller commits it together with the change that needs it,
   e.g. a new run and its `start_run` job)
-- `claim_next()` takes the oldest due job and locks it for this worker
+- `claim_next()` takes the oldest due job and locks it for this worker; while the job
+  runs, the worker renews the lock every minute (`renew_lock()`), so a slow job (a long
+  collect, a slow LLM) is never taken for a dead worker's
+- `still_ours()`: before finishing a job, check this worker still holds it (it may have
+  lost it if it couldn't renew the lock, say with the database unreachable for minutes)
 - `mark_done()` / `mark_failed()` finish it; a failure is retried after 2, 4, 8 ... s
   (`2 ** attempts`) until `max_attempts` (3), then the job is `failed`
 - `recover_stale()` puts `running` jobs whose worker vanished back in the queue: jobs
-  locked more than 5 min ago, and jobs locked under the starting worker's own id (an
+  whose lock wasn't renewed for 5 min, and jobs locked under the starting worker's own id (an
   earlier life of the same worker, e.g. the same container restarted). That's what makes
   "kill the worker, start it again" work
 - `fail_worn_out()` fails such a job instead when it already used its last attempt. A
@@ -40,7 +44,7 @@ from app.db.models import Job, JobStatus, JobType
 
 log = structlog.get_logger(__name__)
 
-# A `running` job locked longer ago than this belonged to a worker that died.
+# A `running` job whose lock wasn't renewed for this long belonged to a worker that died.
 STALE_AFTER = timedelta(minutes=5)
 # last_error is cut to this many characters.
 MAX_ERROR = 2000
@@ -83,6 +87,30 @@ def next_job_query(now: datetime) -> Select[tuple[int]]:
         .order_by(Job.run_after, Job.id)
         .limit(1)
     )
+
+
+def renew_lock(session: Session, job_id: int, worker_id: str, now: datetime) -> bool:
+    """Move a running job's lock time to `now` if `worker_id` still holds it, and commit."""
+    stmt = (
+        update(Job)
+        .where(Job.id == job_id, Job.status == JobStatus.RUNNING, Job.locked_by == worker_id)
+        .values(locked_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    renewed = session.execute(stmt).rowcount == 1
+    session.commit()
+    return renewed
+
+
+def still_ours(session: Session, job: Job, worker_id: str) -> bool:
+    """True if `worker_id` still holds the running job; its row stays locked (Postgres)
+    until the caller's commit, so it can't be taken in between."""
+    session.refresh(job, with_for_update=True)
+    if job.status == JobStatus.RUNNING and job.locked_by == worker_id:
+        return True
+    session.rollback()
+    log.warning("job_taken_over", job_id=job.id, status=job.status, locked_by=job.locked_by)
+    return False
 
 
 def mark_done(session: Session, job: Job) -> None:

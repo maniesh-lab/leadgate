@@ -3,11 +3,11 @@
  * The tradeoff (any script on the page could read it) is accepted for this project
  * (PROGRESS Decision #11). The API client reads it; the auth provider writes it.
  */
-const KEY = "leadgate.token";
+export const TOKEN_KEY = "leadgate.token";
 
 export function getToken(): string | null {
   try {
-    return localStorage.getItem(KEY);
+    return localStorage.getItem(TOKEN_KEY);
   } catch {
     return null; // storage blocked (e.g. some private windows): act as logged out
   }
@@ -15,8 +15,8 @@ export function getToken(): string | null {
 
 export function setToken(token: string | null): void {
   try {
-    if (token) localStorage.setItem(KEY, token);
-    else localStorage.removeItem(KEY);
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
   } catch {
     // storage blocked: the login only lasts until the page reloads
   }

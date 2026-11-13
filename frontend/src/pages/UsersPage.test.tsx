@@ -152,6 +152,48 @@ describe("UsersPage recovery", () => {
   });
 });
 
+describe("UsersPage, another admin", () => {
+  const ANN: UserRow = { ...ADMIN, id: 5, email: "ann@agency.test", two_factor_enabled: true };
+
+  it("asks for your password and code before their reset link or two-factor off", async () => {
+    const bodies: Record<string, unknown> = {};
+    fakeApi({
+      "GET /api/auth/me": () => ({ ...ADMIN, two_factor_enabled: true }),
+      "GET /api/users": () => page([ADMIN, ANN]),
+      "POST /api/users/5/reset-link": (_url, init) => {
+        bodies.link = JSON.parse(String(init.body));
+        return { token: "t", expires_at: "2026-11-09T10:30:00Z" };
+      },
+      "POST /api/users/5/two-factor/off": (_url, init) => {
+        bodies.off = JSON.parse(String(init.body));
+        return { ...ANN, two_factor_enabled: false };
+      },
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderApp("/settings/users", { user: { ...ADMIN, two_factor_enabled: true } });
+
+    const annRow = within(await findRow(ANN.email));
+    await userEvent.click(annRow.getByRole("button", { name: "Reset link" }));
+    expect(bodies).toEqual({}); // nothing sent before the password
+    await userEvent.type(annRow.getByLabelText("Your password"), "my-password");
+    await userEvent.type(annRow.getByLabelText("Your code"), "123456");
+    await userEvent.click(annRow.getByRole("button", { name: "Make link" }));
+    await screen.findByLabelText(`Reset link for ${ANN.email}`);
+
+    await userEvent.click(annRow.getByRole("button", { name: "Turn off 2FA" }));
+    await userEvent.type(annRow.getByLabelText("Your password"), "my-password");
+    await userEvent.type(annRow.getByLabelText("Your code"), "654321");
+    await userEvent.click(annRow.getByRole("button", { name: "Turn off 2FA" }));
+
+    await waitFor(() =>
+      expect(bodies).toEqual({
+        link: { password: "my-password", code: "123456" },
+        off: { password: "my-password", code: "654321" },
+      }),
+    );
+  });
+});
+
 async function findRow(email: string) {
   await screen.findByText(email);
   return row(email);

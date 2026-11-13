@@ -11,7 +11,8 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -31,9 +32,11 @@ from app.db.models import (
 )
 from app.main import create_app
 from app.services.approvals import decide
+from app.services.privacy import opt_out_lead
 from app.services.runs import create_run
 from app.worker import handlers
-from app.worker.jobs import enqueue
+from app.worker import main as worker_main
+from app.worker.jobs import enqueue, recover_stale
 from app.worker.main import Worker, open_worker
 from tests.agent_world import World
 from tests.unit.conftest import Clock
@@ -256,6 +259,28 @@ def test_a_lead_that_opted_out_before_processing_is_skipped(world, worker, clock
     assert completed_steps(world.db, smile) == []
 
 
+def test_an_opt_out_during_the_crawl_is_not_undone(world, worker, clock, deps) -> None:
+    run = start(world, clock)
+    worker.run_once()  # start_run
+    smile = items(world.db, run)[0]
+    crawl = deps.crawler.crawl
+
+    def opt_out_meanwhile(website: str):
+        with deps.session_factory() as other:  # the admin, in another request
+            opt_out_lead(other, other.get(Lead, smile.lead_id))
+            other.commit()
+        return crawl(website)
+
+    deps.crawler.crawl = opt_out_meanwhile
+    worker.run_until_idle()
+
+    world.db.expire_all()
+    lead = world.db.get(Lead, smile.lead_id)
+    assert lead.opt_out is True
+    assert (lead.phone, lead.email, lead.website, lead.enrichment) == (None, None, None, None)
+    assert lead.services == []
+
+
 def test_a_job_for_an_item_already_done_does_nothing(world, worker, clock) -> None:
     run = start(world, clock)
     worker.run_until_idle()
@@ -303,3 +328,73 @@ def broken_llm(*_args, **_kwargs):
 
 def crash(*_args, **_kwargs):
     raise Crash
+
+
+def test_a_database_error_outside_a_job_does_not_end_the_loop(
+    world, worker, clock, monkeypatch
+) -> None:
+    run = start(world, clock)
+    real_claim = worker_main.claim_next
+    calls = 0
+
+    def flaky_claim(session, worker_id, now):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OperationalError("SELECT", {}, Exception("server closed the connection"))
+        job = real_claim(session, worker_id, now)
+        if job is None:
+            worker.stop()  # the queue is empty: end the test's loop
+        return job
+
+    monkeypatch.setattr(worker_main, "claim_next", flaky_claim)
+    monkeypatch.setattr(worker_main, "ERROR_WAIT_SECONDS", 0)
+
+    worker.run()
+
+    assert {item.status for item in items(world.db, run)} == {RunItemStatus.AWAITING_APPROVAL}
+
+
+def test_a_slow_job_keeps_its_lock_so_no_other_worker_takes_it(
+    world, worker, clock, deps, monkeypatch
+) -> None:
+    start(world, clock)
+    monkeypatch.setattr(worker_main, "HEARTBEAT_SECONDS", 0.01)
+    requeued = []
+
+    def slow_start_run(_deps, session, payload):
+        clock.advance(10 * 60)  # far past STALE_AFTER
+        deadline = time.monotonic() + 5
+        with deps.session_factory() as other:
+            # Wait (in real time) for the heartbeat to renew the lock at the new time.
+            while other.get(Job, job_id(other), populate_existing=True).locked_at < clock():
+                assert time.monotonic() < deadline, "the lock was never renewed"
+                time.sleep(0.01)
+            requeued.append(recover_stale(other, clock()))  # another worker's minute check
+
+    monkeypatch.setitem(handlers.HANDLERS, JobType.START_RUN, slow_start_run)
+    worker.run_once()
+
+    assert requeued == [0]
+    world.db.expire_all()
+    assert world.db.get(Job, job_id(world.db)).status == JobStatus.DONE
+
+
+def test_a_job_another_worker_took_over_is_left_to_it(world, worker, clock, monkeypatch) -> None:
+    start(world, clock)
+
+    def taken_over(_deps, session, payload):
+        # This worker lost its lock (say it couldn't renew it), and another took the job.
+        session.execute(update(Job).values(locked_by="other-worker"))
+        session.commit()
+
+    monkeypatch.setitem(handlers.HANDLERS, JobType.START_RUN, taken_over)
+    worker.run_once()
+
+    world.db.expire_all()
+    job = world.db.get(Job, job_id(world.db))
+    assert (job.status, job.locked_by) == (JobStatus.RUNNING, "other-worker")
+
+
+def job_id(session: Session) -> int:
+    return session.scalars(select(Job.id).where(Job.type == JobType.START_RUN)).one()

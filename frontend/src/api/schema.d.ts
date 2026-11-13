@@ -226,7 +226,8 @@ export interface paths {
         put?: never;
         /**
          * Create User
-         * @description Add a user (a reviewer unless `role` says admin). 409 if the email is taken.
+         * @description Add a user (a reviewer unless `role` says admin). A new admin needs your password
+         *     again in `confirm` (and a code, if your two-factor is on). 409 if the email is taken.
          */
         post: operations["create_user_api_users_post"];
         delete?: never;
@@ -268,8 +269,9 @@ export interface paths {
         /**
          * Make Reset Link
          * @description A one-time link for this person to set a new password (30 minutes; a new link ends
-         *     the old one). Send it to them yourself. 409 for your own account (use the Account
-         *     page; locked out: the `reset-password` command), one that's off, or the demo's.
+         *     the old one). Send it to them yourself. For another admin, send your own password
+         *     again (`AdminConfirm`). 409 for your own account (use the Account page; locked out:
+         *     the `reset-password` command), one that's off, or the demo's.
          */
         post: operations["make_reset_link_api_users__user_id__reset_link_post"];
         delete?: never;
@@ -310,7 +312,8 @@ export interface paths {
         /**
          * Two Factor Off
          * @description Turn off someone else's two-factor login (e.g. they lost their phone); their logins
-         *     end. 409 for your own (use the Account page) or when it's already off.
+         *     end. For another admin, send your own password again (`AdminConfirm`). 409 for your
+         *     own (use the Account page) or when it's already off.
          */
         post: operations["two_factor_off_api_users__user_id__two_factor_off_post"];
         delete?: never;
@@ -408,7 +411,8 @@ export interface paths {
         /**
          * Delete One Campaign
          * @description Delete the campaign, its runs, every lead found only by them (blanked in the audit
-         *     log) and its uploaded CSV if no other campaign uses it. 409 while a run is working.
+         *     log; an opted-out lead stays) and its uploaded CSV if no other campaign uses it. 409
+         *     while a run is working.
          */
         delete: operations["delete_one_campaign_api_campaigns__campaign_id__delete"];
         options?: never;
@@ -497,7 +501,8 @@ export interface paths {
         /**
          * Delete Run
          * @description Delete the run and its items, plus every lead that was in no other run (blanked in
-         *     the audit log). 409 while the run is still collecting or the worker is on an item.
+         *     the audit log; an opted-out lead stays, so it's never collected again). 409 while the
+         *     run is still collecting or the worker is on an item.
          */
         delete: operations["delete_run_api_runs__run_id__delete"];
         options?: never;
@@ -670,9 +675,9 @@ export interface paths {
         post?: never;
         /**
          * Delete Lead Data
-         * @description Opt the lead out: wipe its contact data and website findings (also in its audit rows
-         *     and finished items' checkpoints), never collect or crawl it again, and reject its items
-         *     waiting for approval. Safe to repeat.
+         * @description Opt the lead out: wipe its contact data and website findings (also in its run steps,
+         *     its audit rows and finished items' checkpoints), never collect or crawl it again, and
+         *     reject its items waiting for approval. Safe to repeat.
          */
         delete: operations["delete_lead_data_api_leads__lead_id__data_delete"];
         options?: never;
@@ -810,6 +815,18 @@ export interface components {
          * @enum {string}
          */
         ActorType: "agent" | "user" | "system";
+        /**
+         * AdminConfirm
+         * @description Your own password again (and a code from your app, if your two-factor is on), for a
+         *     change a stolen login mustn't make: a new admin, or another admin's reset link or
+         *     two-factor turned off.
+         */
+        AdminConfirm: {
+            /** Password */
+            password: string;
+            /** Code */
+            code?: string | null;
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /** Id */
@@ -1848,6 +1865,8 @@ export interface components {
             password: string;
             /** @default reviewer */
             role: components["schemas"]["UserRole"];
+            /** @description Needed for `role: admin` (see `AdminConfirm`). */
+            confirm?: components["schemas"]["AdminConfirm"] | null;
         };
         /** UserOut */
         UserOut: {
@@ -2490,6 +2509,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserOut"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -2519,6 +2547,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2608,7 +2645,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AdminConfirm"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -2617,6 +2658,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResetLinkOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description Unauthorized */
@@ -2657,6 +2707,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2733,7 +2792,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AdminConfirm"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -2742,6 +2805,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRow"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description Unauthorized */
@@ -2782,6 +2854,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -95,7 +95,7 @@ export function RunPage() {
                 {!moving && (
                   <DeleteButton
                     path={`/api/runs/${data.id}`}
-                    question={`Delete run #${data.id}? This can't be undone. Its leads go too, unless another run also found them. The audit log keeps its rows with those leads' names and contact details blanked. Leads already sent to Airtable or Discord stay there.`}
+                    question={`Delete run #${data.id}? This can't be undone. Its leads go too, unless another run also found them or they opted out. The audit log keeps its rows with those leads' names and contact details blanked. Leads already sent to Airtable or Discord stay there.`}
                     onDeleted={() => navigate(`/runs?campaign_id=${data.campaign_id}`)}
                   />
                 )}

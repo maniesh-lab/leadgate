@@ -6,6 +6,7 @@ import httpx2
 import pytest
 
 from app.config import Settings
+from app.observability.logging import configure_logging
 from app.services.notify import (
     MAX_LENGTH,
     MAX_WAIT_SECONDS,
@@ -106,3 +107,9 @@ def test_make_notifier(settings: Settings) -> None:
         update={"discord_webhook_url": LEADS_URL, "discord_admin_webhook_url": ADMIN_URL}
     )
     assert make_notifier(both, client).webhook_urls[Channel.ADMIN] == ADMIN_URL
+
+
+def test_the_webhook_token_never_reaches_the_logs(capsys: pytest.CaptureFixture[str]) -> None:
+    configure_logging("INFO")  # what the API and the worker run with
+    make_discord(FakeDiscord()).send(Channel.LEADS, "New approved lead")
+    assert "leads-token" not in capsys.readouterr().out

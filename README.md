@@ -155,8 +155,8 @@ Admins get a few extra tools in the dashboard. Each one is admin-only, and each 
 - **Upload a CSV** of your own leads on the New campaign page (UTF-8 with a header row, up to 1 MB by default, `CSV_UPLOAD_MAX_BYTES`). The file is stored in Postgres, so every worker reads the same copy; the API never takes a file path on the server.
 - **Export approved leads** as a CSV from a run's page or a campaign's row. Escalated approvals are included, with a `route` column to tell them apart; opted-out leads are left out; a campaign gives one row per lead; a cell that starts like a spreadsheet formula gets a leading `'` so it can't run in Excel.
 - **Users** (Settings → Users): list the accounts, add a reviewer, turn an account off or back on. Turning one off ends its logins at once, and turning it back on doesn't bring the old ones back. You can't turn off yourself or the last active admin.
-- **Account recovery** (also on the Users page): a **reset link** works once, for 30 minutes; you send it to the person yourself and they pick their own password, so nobody else ever knows it. **Unlock** lifts a login lock (after too many wrong passwords or codes). **Turn off 2FA** clears a lost phone's two-factor login. Locked out as the admin? On the server, `python -m app.cli reset-password --email you@example.com` prints a reset link (add `--two-factor-off` for a lost phone).
-- **Delete** a lead, a run or a campaign from its page, and an uploaded CSV with its campaign. A run takes the leads that are in no other run; a campaign takes its runs and its file when no other campaign uses it. A delete is refused while the worker is still on something. The audit log keeps its rows, with names, contact details and free text blanked. Anything already sent to Airtable or Discord stays there, and a later run may find a deleted lead again: to keep a lead out for good, opt it out instead.
+- **Account recovery** (also on the Users page): a **reset link** works once, for 30 minutes; you send it to the person yourself and they pick their own password, so nobody else ever knows it. **Unlock** lifts a login lock (after too many wrong passwords or codes). **Turn off 2FA** clears a lost phone's two-factor login. For another admin, the reset link and Turn off 2FA ask for your own password again (and a code, if your two-factor is on). Locked out as the admin? On the server, `python -m app.cli reset-password --email you@example.com` prints a reset link (add `--two-factor-off` for a lost phone).
+- **Delete** a lead, a run or a campaign from its page, and an uploaded CSV with its campaign. A run takes the leads that are in no other run (an opted-out lead stays, so it's never collected again); a campaign takes its runs and its file when no other campaign uses it. A delete is refused while the worker is still on something. The audit log keeps its rows, with names, contact details and free text blanked. Anything already sent to Airtable or Discord stays there, and a later run may find a deleted lead again: to keep a lead out for good, opt it out instead.
 - **Retry a failed lead** from its run item page. It goes through the job queue like everything else and continues from the lead's last checkpoint, so steps that already finished don't run again and the CRM write still happens once. A second click gets a 409.
 
 ## API
@@ -171,9 +171,9 @@ All under `/api`. Any login can read (except the user list and the exports); adm
 | `POST` | `/auth/login/two-factor` | anyone | The second login step: the token `/auth/login` gave, plus the authenticator code |
 | `POST` | `/auth/two-factor/setup`, `/enable`, `/disable` | logged in | Turn your two-factor login on (password, then a code) or off (password and a code) |
 | `POST` | `/auth/reset-password` | the link's token | Set a new password with a one-time reset link |
-| `GET`, `POST` | `/users` | admin | List users, add a reviewer |
+| `GET`, `POST` | `/users` | admin | List users, add a reviewer (an admin needs your password again) |
 | `PATCH` | `/users/{id}` | admin | `{is_active}`: turn an account off or on |
-| `POST` | `/users/{id}/reset-link`, `/unlock`, `/two-factor/off` | admin | A one-time reset link; lift a login lock; turn off someone's two-factor |
+| `POST` | `/users/{id}/reset-link`, `/unlock`, `/two-factor/off` | admin | A one-time reset link; lift a login lock; turn off someone's two-factor (for another admin, your password again) |
 | `GET`, `POST`, `PATCH` | `/campaigns`, `/campaigns/{id}` | admin to change | Niche, location, sources, rubric |
 | `POST` | `/campaigns/{id}/runs` | admin | Start a run |
 | `POST` | `/uploads/csv` | admin | Upload a CSV of leads (the body is the file); a campaign uses it by id |
@@ -227,7 +227,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 ```bash
 cd backend
-pytest                                   # 579 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
+pytest                                   # 597 unit tests on SQLite, fake LLM, no network (the Postgres ones skip)
 TEST_POSTGRES_URL=postgresql+psycopg://leadgate:leadgate@localhost:5432/leadgate pytest tests/integration
 ruff check . && ruff format --check .
 cd ../frontend
@@ -238,7 +238,7 @@ npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Doc
 
 The 28 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
-CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 81 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
+CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 87 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
 ## Project structure
 
@@ -285,7 +285,7 @@ All settings come from `.env`; [.env.example](.env.example) explains each one. T
 
 ## Security
 
-Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your password ends every older one. Every endpoint checks the role. Failed logins are audit rows: 5 for one email or 20 from one address in 15 minutes locks login for 15 minutes, and wrong login codes or wrong re-entered passwords (password change, two-factor on or off) count too, so a stolen session can't be used to guess the password. (A wrong code while turning two-factor on isn't counted: the secret is the user's own, just shown to them.) **Two-factor login** (authenticator app codes) is optional for everyone; with `REQUIRE_ADMIN_TWO_FACTOR=true`, admins must turn it on before the admin tools work: set that once leadgate is reachable from the internet. Each code works once. **Reset links** keep only the token's hash, work once for 30 minutes, and put the token after `#` in the URL so it never reaches a server log. The crawler refuses private and internal addresses on every request and redirect. The dashboard is served with a strict Content-Security-Policy, no framing and HSTS. A security review of the whole repo was done before this README (2026-11-01); its leftovers are in the list below.
+Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your password ends every older one. Every endpoint checks the role. Failed logins are audit rows: 5 for one email or 20 from one address in 15 minutes locks login for 15 minutes, and wrong login codes or wrong re-entered passwords (password change, two-factor on or off) count too, so a stolen session can't be used to guess the password. (A wrong code while turning two-factor on isn't counted: the secret is the user's own, just shown to them.) **Two-factor login** (authenticator app codes) is optional for everyone; with `REQUIRE_ADMIN_TWO_FACTOR=true`, admins must turn it on before the admin tools work: set that once leadgate is reachable from the internet. Each code works once. **A new admin**, and a reset link or two-factor off for another admin, need the admin's own password again (and a code with two-factor on), so a stolen login token alone can't hand out lasting admin access. **Reset links** keep only the token's hash, work once for 30 minutes, and put the token after `#` in the URL so it never reaches a server log. The crawler refuses private and internal addresses on every request and redirect, and gives a site at most 30 s per answer, 2 MB per page and 500 KiB of robots.txt. An **opt-out** wipes the lead's contact data from its row, its run steps, its audit rows and its finished items' saved state, and its row stays (even when its run is deleted) so it's never collected again. The dashboard is served with a strict Content-Security-Policy, no framing and HSTS. A security review of the whole repo was done before this README (2026-11-01); its leftovers are in the list below.
 
 ## Known limitations
 
@@ -301,7 +301,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 - **No password reset by email:** an admin makes the link and sends it. That needs no email service.
 - **The crawler's address check has a small DNS gap:** the address is looked up for the check and again to connect, so a DNS server that answers differently the second time could slip through.
 - **The n8n results address isn't address-checked**, because it has to reach n8n on the private network; only someone with the shared secret can set it.
-- **An opted-out lead's old data can stay in a LangGraph checkpoint** when the opt-out comes from the command line while the lead waits for a decision (approving it is blocked). Through the dashboard or the API, the waiting lead is rejected and its checkpoint deleted once it finishes, and its audit rows are blanked.
+- **An opted-out lead's old data can stay in a LangGraph checkpoint** when the opt-out comes from the command line while the lead waits for a decision (approving it is blocked). Through the dashboard or the API, the waiting lead is rejected and its checkpoint deleted once it finishes, and its run steps and audit rows are blanked.
 - **An uploaded CSV is kept in the database as it was uploaded** until an admin deletes it, so an opt-out doesn't wipe the lead's row in that file.
 - **The demo's admin still sees New campaign and Start run.** On the public demo they answer with a message that real searches run on your own machine, rather than being hidden.
 - **The demo's public reviewer login** can read everything a reviewer can (made-up data; no login, account, campaign, upload or export records), and the live API's docs page is public (every endpoint still needs a login).
@@ -311,7 +311,7 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 ## Legal and ethics
 
 - **Official APIs only:** OpenStreetMap through Overpass and Nominatim within their usage policies (an identifying User-Agent, rate limits, caching), and Google Places through its official API, never by scraping Google Maps. Google's terms are stricter than this app's storage, so read the known limit above before using a Google key.
-- **Websites:** robots.txt is obeyed, every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages by default, and there are no login walls, CAPTCHA solving or proxies.
+- **Websites:** robots.txt is obeyed (a `Crawl-delay` over 10 s means leadgate stays away), every request names leadgate in its User-Agent, a site gets at most one request per second and 4 pages by default, and there are no login walls, CAPTCHA solving or proxies.
 - **Public business data only:** a business's own listing and public website. Any lead can be opted out: its contact data is wiped and it's never collected or crawled again.
 - **Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)** (ODbL 1.0), also credited in the dashboard's footer. The ODbL covers OpenStreetMap's data, not leadgate's code; the few saved Overpass answers in the tests are small extracts.
 

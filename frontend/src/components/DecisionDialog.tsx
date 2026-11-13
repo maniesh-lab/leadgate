@@ -2,7 +2,11 @@
  * The decision dialog of the approval queue: the lead card (key fields, flags, the
  * rubric that scored it, score breakdown + explanation, website signals) and the two buttons. A rejection needs a
  * reason; an approval may have one. Keys: A approves, R rejects, Esc closes (A and R
- * are ignored while typing the reason).
+ * are ignored while typing the reason, and a held key's repeats are ignored).
+ *
+ * Focus moves into the dialog when it opens (and onto each next lead), Tab stays inside
+ * it, and closing puts focus back where it was, so keyboard and screen reader users
+ * aren't left behind the overlay.
  *
  * The decision is `POST /api/run-items/{id}/decision`. A 409 means the item isn't
  * waiting any more (someone else decided first): the dialog stays open and says so,
@@ -28,6 +32,7 @@ type Props = {
 
 export function DecisionDialog({ item, onClose, onDecided }: Props) {
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const [reason, setReason] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -68,13 +73,24 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
     decide.mutate(decision);
   }
 
-  // A fresh item: start with an empty reason and no old error.
+  // A fresh item: start with an empty reason and no old error, and focus on its card.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset when the item changes
   useEffect(() => {
     setReason("");
     setProblem(null);
     decide.reset();
+    dialogRef.current?.focus();
   }, [item.run_item_id]);
+
+  // Closing gives focus back to what had it before the dialog opened (the Review button).
+  // Read on the first render: by the time effects run, the dialog has taken focus.
+  const [opener] = useState(() => document.activeElement);
+  useEffect(
+    () => () => {
+      if (opener instanceof HTMLElement) opener.focus();
+    },
+    [opener],
+  );
 
   // Keyboard shortcuts; `submit` is read fresh each render through the ref.
   const submitRef = useRef(submit);
@@ -85,12 +101,20 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
         onClose();
         return;
       }
+      if (event.key === "Tab" && dialogRef.current) {
+        keepTabInside(event, dialogRef.current);
+        return;
+      }
       const target = event.target as HTMLElement;
       const typing = ["TEXTAREA", "INPUT", "SELECT"].includes(target.tagName);
       if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
       const key = event.key.toLowerCase();
-      if (key === "a") submitRef.current("approved");
-      if (key === "r") submitRef.current("rejected");
+      if (key !== "a" && key !== "r") return;
+      event.preventDefault(); // so R doesn't type an "r" into the reason box it focuses
+      // A held key repeats: each repeat would decide the next lead as soon as it opens,
+      // before anyone has read it (and an approval goes to the CRM and Discord).
+      if (event.repeat) return;
+      submitRef.current(key === "a" ? "approved" : "rejected");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -101,10 +125,12 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
   return (
     <div className="fixed inset-0 z-20 flex items-start justify-center overflow-y-auto bg-bg/70 px-4 py-8 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="card w-full max-w-4xl space-y-5 shadow-2xl"
+        tabIndex={-1}
+        className="card w-full max-w-4xl space-y-5 shadow-2xl outline-none"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -208,6 +234,29 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
       </div>
     </div>
   );
+}
+
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex="0"]';
+
+/** Tab from the last control goes to the first (Shift+Tab the other way), and Tab from
+ * outside the dialog comes back in: the page behind the overlay is out of reach. */
+function keepTabInside(event: KeyboardEvent, dialog: HTMLElement) {
+  const controls = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
+  if (controls.length === 0) return;
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  const active = document.activeElement;
+  const inside = active instanceof Node && dialog.contains(active) && active !== dialog;
+  if (!inside) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 /** A 409 gets a plain explanation; anything else the API's own message. */

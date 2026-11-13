@@ -90,12 +90,17 @@ sequenceDiagram
 - **Claiming** is one statement: `UPDATE jobs ... WHERE id = (SELECT id ... FOR UPDATE SKIP
   LOCKED LIMIT 1) RETURNING *`. Two workers never get the same job.
 - **Retries:** a job that raises waits 2 s, then 4 s; after 3 attempts the item (or run) is
-  `failed` with the error saved.
+  `failed` with the error saved. An error outside a job (the database unreachable, say) is
+  logged and the loop goes on after 10 s, so the worker thread inside the API never dies
+  quietly.
 - **Crash safety:** a job left `running` by a dead worker goes back to the queue (at once
-  for the same container, after 5 minutes otherwise). A killed attempt counts like a
-  failed one, so a job that kills the worker every time (e.g. out of memory) fails after
-  its third attempt instead of coming back forever. Every handler first asks LangGraph
-  where the thread is and only does what's left, so completed nodes never run twice.
+  for the same container, otherwise once its lock goes 5 minutes without being renewed: a
+  running job renews it every minute, so a slow collect or LLM call is never taken for a
+  dead worker's, and a worker finishes a job only if it still holds it). A killed attempt
+  counts like a failed one, so a job that kills the worker every time (e.g. out of
+  memory) fails after its third attempt instead of coming back forever. Every handler
+  first asks LangGraph where the thread is and only does what's left, so completed nodes
+  never run twice.
   `act` checks `notified_at` and the CRM key, so a message or CRM record happens once.
   This is tested by killing the worker mid-run (`tests/integration/test_worker_postgres.py`)
   and was checked by hand with `docker compose kill worker`.
@@ -154,7 +159,7 @@ ends), and at most 20 are open per API process (3 per user); over that it answer
 
 **Deleting** a lead, run, campaign or uploaded CSV (admins) happens in one transaction:
 the run items go with their steps, approvals, jobs and LangGraph checkpoints, a run takes
-the leads in no other run, and a campaign its runs and its file when no other campaign uses
+the leads in no other run (apart from opted-out ones), and a campaign its runs and its file when no other campaign uses
 it. It's refused (409) while the worker may still be on any of it. Audit rows stay: a
 narrow exception in the trigger lets the delete blank their names, contact details and free
 text, and a `lead.deleted` / `run.deleted` / `campaign.deleted` / `csv.deleted` row records
@@ -227,7 +232,12 @@ erDiagram
   user's older logins and lifts the lock. The dashboard puts the token after `#`, so it
   never reaches a server log or a Referer header. The `reset-password` command makes one
   on the server for a locked-out admin.
-- The crawler refuses private and internal addresses on every request and redirect hop.
+- The crawler refuses private and internal addresses on every request and redirect hop. A
+  site gets 30 s per answer, 2 MB per page and 500 KiB of robots.txt (streamed, so a
+  gzip bomb is cut, not unpacked whole), and a `Crawl-delay` over 10 s means stay out.
+- A new admin, and a reset link or two-factor off for another admin, need the acting
+  admin's own password again, plus a code when their two-factor is on
+  (`confirm_yourself()` in `app/api/routes/auth.py`); a wrong one is a failed login.
 - The dashboard is served with a strict Content-Security-Policy (only its own address; on
   the live demo, also the API's),
   no framing, `nosniff`, and HSTS on the live demo.

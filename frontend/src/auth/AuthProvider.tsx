@@ -9,18 +9,23 @@
  * A token is only good for JWT_EXPIRE_MINUTES (no refresh tokens), so when any API call
  * answers 401 the client calls `logout()` and the protected routes send the user to
  * the login page.
+ *
+ * The token is shared by every tab (localStorage), so when another tab logs in, logs out
+ * or swaps in a new token, this one follows (the `storage` event): it never shows one
+ * user while sending another's token, or stays on a page after a logout elsewhere.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { api, setUnauthorizedHandler } from "../api/client";
 import type { LoginAnswer, Me, Token } from "../api/types";
-import { getToken, setToken } from "./token";
+import { getToken, setToken, TOKEN_KEY } from "./token";
 
 type AuthValue = {
   user: Me | null;
   /** True while the user behind a saved token is being loaded. */
   loading: boolean;
-  /** Set when the API couldn't be asked who the user is (e.g. it's down). */
+  /** Set when the API couldn't be asked who the user is (e.g. it's down) and nobody is
+   * known yet. */
   error: Error | null;
   /** Logs in, or returns the token for the two-factor step when a code is needed. */
   login: (email: string, password: string) => Promise<{ twoFactorToken: string } | null>;
@@ -51,6 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   useEffect(() => setUnauthorizedHandler(logout), [logout]);
+
+  useEffect(() => {
+    function followOtherTabs(event: StorageEvent) {
+      if (event.key !== null && event.key !== TOKEN_KEY) return; // null: storage cleared
+      const next = getToken();
+      setTokenState(next);
+      if (next === null) queryClient.clear();
+      else void queryClient.invalidateQueries(); // maybe another user now: ask again
+    }
+    window.addEventListener("storage", followOtherTabs);
+    return () => window.removeEventListener("storage", followOtherTabs);
+  }, [queryClient]);
 
   const applyToken = useCallback((next: string) => {
     setToken(next);
@@ -97,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthValue = {
     user: token ? (me.data ?? null) : null,
     loading: token !== null && me.isPending,
-    error: token ? me.error : null,
+    // Only without a user: a failed background refetch (the API asleep, a network blip)
+    // mustn't replace the whole app with an error while the user is still known.
+    error: token && !me.data ? me.error : null,
     login,
     completeTwoFactor,
     logout,

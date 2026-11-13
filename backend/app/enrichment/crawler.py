@@ -6,12 +6,14 @@ it links to that look like contact / about / team / services pages
 
 The rules (PLAN §4, plus 10c's public-addresses-only):
 - robots.txt is read once per site and obeyed (RFC 9309: a 4xx answer means no
-  rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer.
+  rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer;
+  one over 10 s means stay out.
 - at least 1 s between two requests to the same domain (robots.txt included)
-- a timeout on every request; at most 3 redirects. A page's redirects are followed by
-  hand, so each hop is checked against robots.txt and waits its turn; the robots.txt
-  request itself lets httpx2 follow its (max 3) redirects.
-- only HTML pages are read (a PDF or an image is skipped), and only the first 2 MB
+- a timeout on every request, and 30 s for a whole answer; at most 3 redirects. A page's
+  redirects are followed by hand, so each hop is checked against robots.txt and waits its
+  turn; the robots.txt request itself lets httpx2 follow its (max 3) redirects.
+- only HTML pages are read (a PDF or an image is skipped), and only the first 2 MB (and
+  500 KiB of a robots.txt)
 - no logins, no CAPTCHAs, no proxies
 - only public internet addresses: a request (or a redirect hop) to localhost, a private
   network (10.x, 192.168.x, the compose services) or a cloud metadata address is refused
@@ -41,9 +43,13 @@ log = structlog.get_logger(__name__)
 TIMEOUT_SECONDS = 10
 MAX_REDIRECTS = 3
 MIN_SECONDS_BETWEEN_REQUESTS = 1.0
+# A site whose robots.txt asks for a longer Crawl-delay is left alone.
+MAX_CRAWL_DELAY_SECONDS = 10.0
 MAX_PAGE_BYTES = 2_000_000
 # RFC 9309 asks crawlers to read at least 500 KiB of a robots.txt.
-MAX_ROBOTS_CHARS = 500_000
+MAX_ROBOTS_BYTES = 512_000
+# How long a page (or robots.txt) may take to arrive in full, from the request.
+MAX_FETCH_SECONDS = 30.0
 HTML_TYPES = ("text/html", "application/xhtml+xml")
 
 
@@ -172,11 +178,12 @@ class Crawler:
                 if not self.allowed(current):
                     return self.logged(FetchedPage(url, current, error="blocked by robots.txt"))
                 self.wait_turn(current)
+                deadline = self.clock() + MAX_FETCH_SECONDS
                 with self.client.stream("GET", current) as response:
                     if response.has_redirect_location:
                         current = urljoin(current, response.headers["location"])
                         continue
-                    return self.logged(read_page(url, current, response))
+                    return self.logged(read_page(url, current, response, deadline, self.clock))
             except PrivateAddressError:
                 return self.logged(FetchedPage(url, current, error="not a public address"))
             except httpx2.TimeoutException:
@@ -197,19 +204,33 @@ class Crawler:
         rules = RobotFileParser()
         try:
             self.wait_turn(origin)
-            response = self.client.get(f"{origin}/robots.txt", follow_redirects=True)
+            deadline = self.clock() + MAX_FETCH_SECONDS
+            url = f"{origin}/robots.txt"
+            # Streamed like a page, so a huge (or gzip-bombed) robots.txt is cut, not
+            # loaded whole into memory.
+            with self.client.stream("GET", url, follow_redirects=True) as response:
+                status = response.status_code
+                text = (
+                    read_text(response, MAX_ROBOTS_BYTES, deadline, self.clock)
+                    if status == 200
+                    else ""
+                )
         except PrivateAddressError:
             raise  # the page itself is refused too (`fetch()` says why)
         except httpx2.HTTPError:
             rules.disallow_all = True
             return rules
 
-        if response.status_code == 200:
-            rules.parse(response.text[:MAX_ROBOTS_CHARS].splitlines())
-            crawl_delay = rules.crawl_delay(self.user_agent)
-            if crawl_delay:
-                self.delay[site_host(origin)] = float(crawl_delay)
-        elif 400 <= response.status_code < 500:
+        if status == 200:
+            rules.parse(text.splitlines())
+            crawl_delay = float(rules.crawl_delay(self.user_agent) or 0)
+            if crawl_delay > MAX_CRAWL_DELAY_SECONDS:
+                # Coming faster than asked would be rude, and waiting that long would hold
+                # the worker (one job at a time) up for every other lead: stay out.
+                rules.disallow_all = True
+            elif crawl_delay:
+                self.delay[site_host(origin)] = crawl_delay
+        elif 400 <= status < 500:
             rules.allow_all = True
         else:
             rules.disallow_all = True
@@ -231,7 +252,13 @@ class Crawler:
         return page
 
 
-def read_page(url: str, final_url: str, response: httpx2.Response) -> FetchedPage:
+def read_page(
+    url: str,
+    final_url: str,
+    response: httpx2.Response,
+    deadline: float,
+    clock: Callable[[], float],
+) -> FetchedPage:
     """Turn a (streamed, not yet read) answer into a FetchedPage. Only 200 HTML is read."""
     page = FetchedPage(url, final_url, status=response.status_code)
     if response.status_code != 200:
@@ -241,16 +268,29 @@ def read_page(url: str, final_url: str, response: httpx2.Response) -> FetchedPag
     if content_type not in HTML_TYPES:
         page.error = f"not HTML ({content_type or 'no content type'})"
         return page
-    page.parsed = parse_page(read_text(response), final_url)
+    page.parsed = parse_page(read_text(response, MAX_PAGE_BYTES, deadline, clock), final_url)
     return page
 
 
-def read_text(response: httpx2.Response) -> str:
-    """The body as text, at most MAX_PAGE_BYTES of it."""
+def read_text(
+    response: httpx2.Response, max_bytes: int, deadline: float, clock: Callable[[], float]
+) -> str:
+    """The body as text: at most `max_bytes` of it, all there by `deadline` (the timeout
+    is per read, so a server sending a byte every few seconds could take days)."""
     body = bytearray()
     for chunk in response.iter_bytes():
         body.extend(chunk)
-        if len(body) >= MAX_PAGE_BYTES:
+        if len(body) >= max_bytes:
             break
-    # `encoding` is the Content-Type charset, or utf-8 when it's missing or unknown.
-    return bytes(body[:MAX_PAGE_BYTES]).decode(response.encoding or "utf-8", errors="replace")
+        if clock() > deadline:
+            raise httpx2.ReadTimeout("the answer took too long", request=response.request)
+    return decode(bytes(body[:max_bytes]), response.encoding)
+
+
+def decode(body: bytes, encoding: str | None) -> str:
+    """`encoding` is the Content-Type charset, or utf-8 when it's missing or unknown. A
+    codec Python has that doesn't make text (like `rot13`) counts as unknown."""
+    try:
+        return body.decode(encoding or "utf-8", errors="replace")
+    except LookupError:
+        return body.decode("utf-8", errors="replace")

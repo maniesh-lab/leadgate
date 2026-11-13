@@ -101,10 +101,22 @@ class UserRow(UserOut):
     locked_until: datetime | None = None
 
 
+class AdminConfirm(BaseModel):
+    """Your own password again (and a code from your app, if your two-factor is on), for a
+    change a stolen login mustn't make: a new admin, or another admin's reset link or
+    two-factor turned off."""
+
+    password: str = Field(max_length=128)
+    code: str | None = Field(default=None, max_length=16)
+
+
 class UserCreate(BaseModel):
     email: str = Field(examples=["reviewer@example.com"])
     password: str = Field(min_length=8, max_length=128)
     role: UserRole = UserRole.REVIEWER
+    confirm: AdminConfirm | None = Field(
+        default=None, description="Needed for `role: admin` (see `AdminConfirm`)."
+    )
 
     @field_validator("email")
     @classmethod

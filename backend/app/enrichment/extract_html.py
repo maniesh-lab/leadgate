@@ -38,6 +38,8 @@ PHONE_RE = re.compile(
 )
 PHONE_MIN_DIGITS = 9
 PHONE_MAX_DIGITS = 15
+# A business lists a few numbers; a page with thousands is junk (or an attack).
+MAX_PHONES = 20
 
 # host (without "www." / "m.") -> network name
 SOCIAL_HOSTS = {
@@ -210,7 +212,7 @@ def phone_digit_count_ok(phone: str) -> bool:
 
 
 def unique_phones(phones: list[str]) -> list[str]:
-    """Keep the first spelling of each number.
+    """Keep the first spelling of each number, at most MAX_PHONES numbers.
 
     Two spellings are the same number when their digits match, or when one is the
     other with a country code in front ("+1-512-555-0142" and "(512) 555-0142").
@@ -225,6 +227,8 @@ def unique_phones(phones: list[str]) -> list[str]:
             continue
         seen.append(digits)
         result.append(phone)
+        if len(result) == MAX_PHONES:
+            break  # each new number is checked against all kept ones: keep that list short
     return result
 
 

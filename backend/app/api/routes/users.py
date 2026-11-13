@@ -14,21 +14,41 @@ for that person to pick a new password (the answer holds the token once, `no-sto
 the audit row never does); `POST /api/users/{id}/unlock` lifts a login lock;
 `POST /api/users/{id}/two-factor/off` clears someone else's two-factor login (a lost
 phone) and ends their logins.
+
+A new admin, and a reset link or two-factor off for another admin, need the acting admin's
+own password again, plus a code when their two-factor is on (`confirm_yourself()`): with
+a stolen login token alone, those would hand someone lasting admin access.
 """
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import AdminUser, AppSettings, DbSession, Paging, get_or_404, paginate
+from app.api.deps import (
+    AdminUser,
+    AppSettings,
+    CorrelationId,
+    DbSession,
+    Paging,
+    get_or_404,
+    paginate,
+)
 from app.api.errors import error_docs
+from app.api.routes.auth import confirm_yourself
 from app.auth.security import hash_password
 from app.db.models import ActorType, User, UserRole
 from app.schemas.common import Page
-from app.schemas.users import ResetLinkOut, UserCreate, UserOut, UserRow, UserUpdate
+from app.schemas.users import (
+    AdminConfirm,
+    ResetLinkOut,
+    UserCreate,
+    UserOut,
+    UserRow,
+    UserUpdate,
+)
 from app.services.accounts import (
     ResetLinkRefused,
     create_reset_link,
@@ -53,9 +73,19 @@ def list_users(_admin: AdminUser, db: DbSession, paging: Paging) -> Page[UserRow
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, responses=error_docs(409))
-def create_user(body: UserCreate, admin: AdminUser, db: DbSession) -> UserOut:
-    """Add a user (a reviewer unless `role` says admin). 409 if the email is taken."""
+@router.post("", status_code=status.HTTP_201_CREATED, responses=error_docs(400, 409, 429))
+def create_user(
+    body: UserCreate,
+    admin: AdminUser,
+    db: DbSession,
+    request: Request,
+    settings: AppSettings,
+    correlation_id: CorrelationId,
+) -> UserOut:
+    """Add a user (a reviewer unless `role` says admin). A new admin needs your password
+    again in `confirm` (and a code, if your two-factor is on). 409 if the email is taken."""
+    if body.role == UserRole.ADMIN:
+        confirm_yourself(db, admin, body.confirm, request, settings, correlation_id)
     taken = HTTPException(status.HTTP_409_CONFLICT, f"a user with email {body.email} exists")
     if db.scalar(select(User.id).where(func.lower(User.email) == body.email)) is not None:
         raise taken
@@ -118,19 +148,29 @@ def active_admin_count(db: Session) -> int:
     return len(db.scalars(stmt).all())
 
 
-@router.post("/{user_id}/reset-link", responses=error_docs(404, 409))
+@router.post("/{user_id}/reset-link", responses=error_docs(400, 404, 409, 429))
 def make_reset_link(
-    user_id: int, admin: AdminUser, db: DbSession, settings: AppSettings, response: Response
+    user_id: int,
+    admin: AdminUser,
+    db: DbSession,
+    settings: AppSettings,
+    request: Request,
+    response: Response,
+    correlation_id: CorrelationId,
+    body: AdminConfirm | None = None,
 ) -> ResetLinkOut:
     """A one-time link for this person to set a new password (30 minutes; a new link ends
-    the old one). Send it to them yourself. 409 for your own account (use the Account
-    page; locked out: the `reset-password` command), one that's off, or the demo's."""
+    the old one). Send it to them yourself. For another admin, send your own password
+    again (`AdminConfirm`). 409 for your own account (use the Account page; locked out:
+    the `reset-password` command), one that's off, or the demo's."""
     user = get_or_404(db, User, user_id, "user")
     if user.id == admin.id:
         # Otherwise a stolen login could set a new password without knowing the current one.
         raise HTTPException(
             status.HTTP_409_CONFLICT, "change your own password on your Account page"
         )
+    if user.role == UserRole.ADMIN:  # or a stolen login could take over another admin
+        confirm_yourself(db, admin, body, request, settings, correlation_id)
     try:
         link = create_reset_link(
             db, user, datetime.now(UTC), by=admin, demo_email=settings.demo_reviewer_email
@@ -151,10 +191,19 @@ def unlock_user(user_id: int, admin: AdminUser, db: DbSession) -> UserRow:
     return user_row(db, user)
 
 
-@router.post("/{user_id}/two-factor/off", responses=error_docs(404, 409))
-def two_factor_off(user_id: int, admin: AdminUser, db: DbSession) -> UserRow:
+@router.post("/{user_id}/two-factor/off", responses=error_docs(400, 404, 409, 429))
+def two_factor_off(
+    user_id: int,
+    admin: AdminUser,
+    db: DbSession,
+    settings: AppSettings,
+    request: Request,
+    correlation_id: CorrelationId,
+    body: AdminConfirm | None = None,
+) -> UserRow:
     """Turn off someone else's two-factor login (e.g. they lost their phone); their logins
-    end. 409 for your own (use the Account page) or when it's already off."""
+    end. For another admin, send your own password again (`AdminConfirm`). 409 for your
+    own (use the Account page) or when it's already off."""
     user = get_or_404(db, User, user_id, "user")
     if user.id == admin.id:
         raise HTTPException(
@@ -162,6 +211,8 @@ def two_factor_off(user_id: int, admin: AdminUser, db: DbSession) -> UserRow:
         )
     if not user.totp_enabled:
         raise HTTPException(status.HTTP_409_CONFLICT, "two-factor login is already off")
+    if user.role == UserRole.ADMIN:
+        confirm_yourself(db, admin, body, request, settings, correlation_id)
     turn_off_two_factor(db, user, datetime.now(UTC), by=admin)
     db.commit()
     return user_row(db, user)

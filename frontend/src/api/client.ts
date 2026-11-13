@@ -71,7 +71,9 @@ async function request<T>(method: string, path: string, options: Options = {}): 
   }
 
   const response = await fetch(apiUrl(path, options.query), { method, headers, body });
-  if (response.status === 401 && token) onUnauthorized();
+  // Log out only if the token this request used is still the saved one: another tab may
+  // have swapped in a new one meanwhile (a password change), and logging out would wipe it.
+  if (response.status === 401 && token && token === getToken()) onUnauthorized();
   if (!response.ok) throw await toApiError(response);
   if (response.status === 204) return undefined as T;
   if (options.blob) return (await response.blob()) as T;

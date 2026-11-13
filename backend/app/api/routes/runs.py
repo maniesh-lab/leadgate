@@ -248,7 +248,8 @@ def run_detail(db: Session, run: Run) -> RunDetail:
 )
 def delete_run(run_id: int, admin: AdminUser, db: DbSession) -> Response:
     """Delete the run and its items, plus every lead that was in no other run (blanked in
-    the audit log). 409 while the run is still collecting or the worker is on an item."""
+    the audit log; an opted-out lead stays, so it's never collected again). 409 while the
+    run is still collecting or the worker is on an item."""
     run = get_or_404(db, Run, run_id, "run")
     campaign_id = run.campaign_id
     try:

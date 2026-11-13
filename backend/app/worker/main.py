@@ -7,8 +7,10 @@
    (`fail_worn_out()` + `give_up()`); checked again every minute, for other workers that
    died; on the public demo (DEMO_REVIEWER_EMAIL set) the same minute check refills its
    approval queue (`app.db.demo.refill_queue()`)
-2. loop: claim the next due job → run its handler → done, retry later, or give up
-3. when the queue is empty, wait POLL_SECONDS and look again
+2. loop: claim the next due job → run its handler (renewing its lock every minute) →
+   done, retry later, or give up
+3. when the queue is empty, wait POLL_SECONDS and look again; after an error outside a
+   job (the database unreachable, say), log it, wait ERROR_WAIT_SECONDS and go on
 4. on SIGTERM / SIGINT (`docker compose stop`, Ctrl+C): finish the current job, then exit
 
 `RUN_WORKER_IN_API=true` runs the same loop in a background thread of the API instead
@@ -25,7 +27,7 @@ import signal
 import socket
 import sys
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from datetime import datetime
 
@@ -46,12 +48,24 @@ from app.services.crm import make_crm
 from app.services.notify import make_notifier
 from app.sources.base import make_http_client
 from app.worker.handlers import HANDLERS, Deps, give_up
-from app.worker.jobs import claim_next, fail_worn_out, mark_done, mark_failed, recover_stale
+from app.worker.jobs import (
+    claim_next,
+    fail_worn_out,
+    mark_done,
+    mark_failed,
+    recover_stale,
+    renew_lock,
+    still_ours,
+)
 
 log = structlog.get_logger(__name__)
 
 POLL_SECONDS = 1.5
 RECOVER_EVERY_SECONDS = 60
+# After an error outside a job (the database was unreachable, say), wait this long.
+ERROR_WAIT_SECONDS = 10
+# How often a running job's lock is renewed; well inside `jobs.STALE_AFTER` (5 min).
+HEARTBEAT_SECONDS = 60
 
 
 class Worker:
@@ -64,14 +78,35 @@ class Worker:
 
     def run(self) -> None:
         log.info("worker_started", worker_id=self.id)
-        with self.deps.session_factory() as session:
-            self.recover(session, self.deps.now(), own_id=self.id)
-        self.last_recover = self.deps.now()
+        self.survive(self.recover_own)
         while not self.stopping.is_set():
-            self.recover_now_and_then()
-            if not self.run_once():
-                self.stopping.wait(POLL_SECONDS)
+            if not self.survive(self.run_pass):
+                self.stopping.wait(ERROR_WAIT_SECONDS)
         log.info("worker_stopped", worker_id=self.id)
+
+    def run_pass(self) -> None:
+        if self.last_recover is None:
+            self.recover_own()  # the startup recovery failed: try it again
+        self.recover_now_and_then()
+        if not self.run_once():
+            self.stopping.wait(POLL_SECONDS)
+
+    def survive(self, step: Callable[[], None]) -> bool:
+        """Run `step`; an error (a lost DB connection, say) is logged instead of ending the
+        loop, since in the API's thread (RUN_WORKER_IN_API) nobody would restart it."""
+        try:
+            step()
+        except Exception:
+            log.exception("worker_loop_error", worker_id=self.id)
+            return False
+        return True
+
+    def recover_own(self) -> None:
+        """At startup: also take back this worker's own unfinished jobs, whatever their age."""
+        now = self.deps.now()
+        with self.deps.session_factory() as session:
+            self.recover(session, now, own_id=self.id)
+        self.last_recover = now
 
     def run_once(self) -> bool:
         """Claim and run one job. False when nothing was due."""
@@ -94,16 +129,43 @@ class Worker:
         with structlog.contextvars.bound_contextvars(**context):
             log.info("job_started", type=job.type, attempt=job.attempts)
             try:
-                HANDLERS[job.type](self.deps, session, job.payload)
+                with self.heartbeat(job.id):
+                    HANDLERS[job.type](self.deps, session, job.payload)
             except Exception as exc:
                 session.rollback()
                 log.exception("job_error", type=job.type)
                 error = f"{type(exc).__name__}: {exc}"
-                if not mark_failed(session, job, error, self.deps.now()):
+                if still_ours(session, job, self.id) and not mark_failed(
+                    session, job, error, self.deps.now()
+                ):
                     give_up(self.deps, session, job)
                 return
-            mark_done(session, job)
-            log.info("job_done", type=job.type)
+            if still_ours(session, job, self.id):
+                mark_done(session, job)
+                log.info("job_done", type=job.type)
+
+    @contextmanager
+    def heartbeat(self, job_id: int) -> Iterator[None]:
+        """Renew the job's lock every HEARTBEAT_SECONDS while it runs, from a thread of its
+        own: other workers take a job whose lock is older than STALE_AFTER for a dead
+        worker's, and a collect or a slow LLM can run longer than that."""
+        done = threading.Event()
+
+        def beat() -> None:
+            while not done.wait(HEARTBEAT_SECONDS):
+                try:
+                    with self.deps.session_factory() as session:
+                        renew_lock(session, job_id, self.id, self.deps.now())
+                except Exception:
+                    log.exception("job_heartbeat_error", job_id=job_id)
+
+        thread = threading.Thread(target=beat, name=f"job-{job_id}-heartbeat", daemon=True)
+        thread.start()
+        try:
+            yield
+        finally:
+            done.set()
+            thread.join()
 
     def recover_now_and_then(self) -> None:
         now = self.deps.now()

@@ -3,12 +3,13 @@
 Listing and creating users are tested in `test_api_auth.py`.
 """
 
+import pyotp
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import AuditLog, User, UserRole
-from tests.conftest import add_user, auth_headers
+from tests.conftest import PASSWORD, add_user, auth_headers
 from tests.unit.conftest import login
 
 
@@ -77,3 +78,67 @@ def test_unknown_user_and_bad_body(client: TestClient, as_admin, reviewer: User)
     )
     bad = client.patch(f"/api/users/{reviewer.id}", json={"role": "admin"}, headers=as_admin)
     assert bad.status_code == 422
+
+
+# --- Changes a stolen login mustn't make: they need the admin's own password again ---
+
+
+def failed_logins(db: Session) -> int:
+    db.expire_all()
+    return len(db.scalars(select(AuditLog).where(AuditLog.action == "auth.login_failed")).all())
+
+
+def test_a_new_admin_needs_your_password_again(client: TestClient, db: Session, as_admin) -> None:
+    body = {"email": "second@example.com", "password": "long-enough", "role": "admin"}
+
+    missing = client.post("/api/users", json=body, headers=as_admin)
+    assert missing.status_code == 400
+    assert "re-enter your password" in missing.json()["error"]["message"]
+    wrong = client.post(
+        "/api/users", json={**body, "confirm": {"password": "not-it"}}, headers=as_admin
+    )
+    assert wrong.status_code == 400
+    assert failed_logins(db) == 1  # counts like a wrong login, so it can't be guessed
+    assert db.scalar(select(User).where(User.email == "second@example.com")) is None
+
+    right = client.post(
+        "/api/users", json={**body, "confirm": {"password": PASSWORD}}, headers=as_admin
+    )
+    assert right.status_code == 201 and right.json()["role"] == "admin"
+    # A reviewer still needs nothing more.
+    reviewer = {"email": "third@example.com", "password": "long-enough"}
+    assert client.post("/api/users", json=reviewer, headers=as_admin).status_code == 201
+
+
+def test_another_admins_reset_link_needs_your_password_again(
+    client: TestClient, db: Session, as_admin
+) -> None:
+    other = add_user(db, "other-admin@example.com", UserRole.ADMIN)
+    path = f"/api/users/{other.id}/reset-link"
+
+    assert client.post(path, headers=as_admin).status_code == 400
+    assert client.post(path, json={"password": "not-it"}, headers=as_admin).status_code == 400
+    response = client.post(path, json={"password": PASSWORD}, headers=as_admin)
+    assert response.status_code == 200 and response.json()["token"]
+
+
+def test_another_admins_two_factor_off_needs_your_password_and_code(
+    client: TestClient, db: Session, admin: User, as_admin
+) -> None:
+    other = add_user(db, "other-admin@example.com", UserRole.ADMIN)
+    other.totp_enabled, other.totp_secret = True, pyotp.random_base32()
+    admin.totp_enabled, admin.totp_secret = True, pyotp.random_base32()
+    db.commit()
+    path = f"/api/users/{other.id}/two-factor/off"
+
+    assert client.post(path, headers=as_admin).status_code == 400
+    no_code = client.post(path, json={"password": PASSWORD}, headers=as_admin)
+    assert (no_code.status_code, no_code.json()["error"]["message"]) == (
+        400,
+        "enter a code from your app too",
+    )
+    wrong_code = client.post(path, json={"password": PASSWORD, "code": "000000"}, headers=as_admin)
+    assert wrong_code.status_code == 400
+    code = pyotp.TOTP(admin.totp_secret).now()
+    off = client.post(path, json={"password": PASSWORD, "code": code}, headers=as_admin)
+    assert off.status_code == 200 and off.json()["two_factor_enabled"] is False
