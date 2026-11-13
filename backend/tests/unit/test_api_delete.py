@@ -156,6 +156,27 @@ def test_deleting_a_run_takes_its_leads_unless_another_run_has_them(
     assert world.db.get(Campaign, started["campaign"]["id"]) is not None
 
 
+def test_deleting_a_run_keeps_its_opted_out_leads_out(
+    client: TestClient, world: World, worker, clock, started, as_reviewer
+) -> None:
+    as_admin = started["as_admin"]
+    opted_out, other = (item["lead"]["id"] for item in waiting(client, as_reviewer))
+    assert client.delete(f"/api/leads/{opted_out}/data", headers=as_admin).status_code == 204
+    run_jobs(worker, clock)  # its rejected item finishes; the other lead still waits
+
+    assert client.delete(f"/api/runs/{started['run']['id']}", headers=as_admin).status_code == 204
+    world.db.expire_all()
+    assert world.db.get(Lead, other) is None
+    assert world.db.get(Lead, opted_out).opt_out is True  # the row that keeps it out stays
+
+    # A new run finds the other lead again, but never the opted-out one.
+    client.post(f"/api/campaigns/{started['campaign']['id']}/runs", headers=as_admin)
+    run_jobs(worker, clock)
+    world.db.expire_all()
+    assert world.db.scalars(select(RunItem.lead_id).where(RunItem.lead_id == opted_out)).all() == []
+    assert len(waiting(client, as_reviewer)) == 1
+
+
 def test_a_run_the_worker_has_not_started_is_not_deleted(
     client: TestClient, world: World, started
 ) -> None:

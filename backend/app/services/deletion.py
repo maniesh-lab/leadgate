@@ -126,11 +126,14 @@ def delete_runs(session: Session, runs: Sequence[Run]) -> Deleted:
 
     lead_of = {item.id: item.lead_id for item in items}  # read before the rows go
     remove_items(session, items)
-    # Leads that were only in these runs go too; a lead also in another run stays.
+    # Leads that were only in these runs go too; a lead also in another run stays. So does
+    # an opted-out lead: its row (already wiped) is what keeps it from being collected again.
     orphans = set(
         session.scalars(
             select(Lead.id).where(
-                Lead.id.in_(set(lead_of.values())), ~exists().where(RunItem.lead_id == Lead.id)
+                Lead.id.in_(set(lead_of.values())),
+                ~exists().where(RunItem.lead_id == Lead.id),
+                Lead.opt_out.is_(False),
             )
         )
     )
