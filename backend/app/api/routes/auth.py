@@ -66,6 +66,7 @@ from app.auth.security import (
 from app.config import Settings
 from app.db.models import ActorType, AuditLog, User
 from app.schemas.users import (
+    AdminConfirm,
     LoginAnswer,
     MeOut,
     PasswordChange,
@@ -261,13 +262,8 @@ def two_factor_disable(
     if not user.totp_enabled or not user.totp_secret:
         raise HTTPException(status.HTTP_409_CONFLICT, "two-factor login is off")
     check_password(db, user, body.password, request, settings, correlation_id)
-    db.refresh(user, with_for_update=True)  # so the same code can't be used twice at once
+    check_code(db, user, body.code, request, correlation_id)
     now = datetime.now(UTC)
-    step = totp_step(user.totp_secret or "", body.code, now)
-    if step is None or step <= (user.totp_last_step or 0):
-        ip = request.client.host if request.client else "unknown"
-        record_failure(db, user.email.lower(), user, ip, now, correlation_id, two_factor=True)
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "wrong code; try the next one")
     user.totp_enabled = False
     user.totp_secret = None
     user.totp_last_step = None
@@ -393,6 +389,42 @@ def check_password(
     if not verify_password(password, user.password_hash):
         record_failure(db, email, user, ip, now, correlation_id)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "the current password is wrong")
+
+
+def check_code(
+    db: Session, user: User, code: str, request: Request, correlation_id: str | None
+) -> None:
+    """A logged-in user's code from their app, good once: a wrong (or used) one is a failed
+    login and a 400. Their row stays locked until the commit, so a code can't be used twice
+    at once."""
+    db.refresh(user, with_for_update=True)
+    now = datetime.now(UTC)
+    step = totp_step(user.totp_secret or "", code, now)
+    if step is None or step <= (user.totp_last_step or 0):
+        ip = request.client.host if request.client else "unknown"
+        record_failure(db, user.email.lower(), user, ip, now, correlation_id, two_factor=True)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "wrong code; try the next one")
+    user.totp_last_step = step
+
+
+def confirm_yourself(
+    db: Session,
+    user: User,
+    confirm: AdminConfirm | None,
+    request: Request,
+    settings: Settings,
+    correlation_id: str | None,
+) -> None:
+    """For a change a stolen login mustn't make (a new admin, another admin's reset link
+    or two-factor): the user's own password again, and a code when their two-factor is on.
+    A login token alone (say one read by an injected script) isn't enough then."""
+    if confirm is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "re-enter your password to do this")
+    check_password(db, user, confirm.password, request, settings, correlation_id)
+    if user.totp_enabled:
+        if not confirm.code:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "enter a code from your app too")
+        check_code(db, user, confirm.code, request, correlation_id)
 
 
 def audit_self(db: Session, user: User, action: str, correlation_id: str | None) -> None:

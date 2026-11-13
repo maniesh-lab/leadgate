@@ -7,12 +7,14 @@
  * Recovery: "Reset link" makes a one-time link (30 minutes) the admin sends to the person
  * themselves; they pick their own password. "Unlock" lifts a login lock after too many
  * wrong passwords or codes. "Turn off 2FA" clears a lost phone's two-factor login.
+ * For another admin, those two ask for your own password again (and a code, if your
+ * two-factor is on) first: the API wants it, so a stolen login can't take over an admin.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, describeError } from "../api/client";
-import type { Page, ResetLink, User, UserCreate, UserRow } from "../api/types";
+import type { AdminConfirm, Page, ResetLink, User, UserCreate, UserRow } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { Badge } from "../components/Badge";
 import { PlusIcon } from "../components/icons";
@@ -134,6 +136,7 @@ function UserActions({ user }: { user: UserRow }) {
           path="two-factor/off"
           label="Turn off 2FA"
           busyLabel="Turning off…"
+          needsConfirm={user.role === "admin"}
           confirm={`Turn off two-factor login for ${user.email}? Their logins end, and they can log in with just their password until they turn it on again.`}
         />
       )}
@@ -145,8 +148,10 @@ function UserActions({ user }: { user: UserRow }) {
 /** A one-time reset link, shown once with a copy button; the admin sends it themselves. */
 function ResetLinkButton({ user }: { user: UserRow }) {
   const [copied, setCopied] = useState(false);
+  const [asking, setAsking] = useState(false);
   const make = useMutation({
-    mutationFn: () => api.post<ResetLink>(`/api/users/${user.id}/reset-link`),
+    mutationFn: (confirm?: AdminConfirm) =>
+      api.post<ResetLink>(`/api/users/${user.id}/reset-link`, confirm),
   });
   // The token goes after "#": browsers never send that part to a server.
   const link = make.data
@@ -162,14 +167,26 @@ function ResetLinkButton({ user }: { user: UserRow }) {
   if (!link) {
     return (
       <div>
-        <button
-          type="button"
-          className="btn px-3 py-1.5 whitespace-nowrap"
-          disabled={make.isPending}
-          onClick={() => make.mutate()}
-        >
-          {make.isPending ? "Making…" : "Reset link"}
-        </button>
+        {asking ? (
+          <ConfirmYourself
+            label="Make link"
+            busy={make.isPending}
+            onConfirm={(confirm) => make.mutate(confirm)}
+            onCancel={() => {
+              setAsking(false);
+              make.reset();
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn px-3 py-1.5 whitespace-nowrap"
+            disabled={make.isPending}
+            onClick={() => (user.role === "admin" ? setAsking(true) : make.mutate(undefined))}
+          >
+            {make.isPending ? "Making…" : "Reset link"}
+          </button>
+        )}
         {make.error && (
           <p role="alert" className="mt-1 text-xs text-(--red)">
             {describeError(make.error)}
@@ -199,41 +216,115 @@ function ResetLinkButton({ user }: { user: UserRow }) {
   );
 }
 
-/** A POST to `/api/users/{id}/<path>` that refreshes the list (asks first if `confirm`). */
+/** A POST to `/api/users/{id}/<path>` that refreshes the list (asks first if `confirm`;
+ * with `needsConfirm`, also for your own password again). */
 function ActionButton(props: {
   user: UserRow;
   path: string;
   label: string;
   busyLabel: string;
   confirm?: string;
+  needsConfirm?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [asking, setAsking] = useState(false);
   const action = useMutation({
-    mutationFn: () => api.post<UserRow>(`/api/users/${props.user.id}/${props.path}`),
+    mutationFn: (confirm?: AdminConfirm) =>
+      api.post<UserRow>(`/api/users/${props.user.id}/${props.path}`, confirm),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
   function run() {
     if (props.confirm && !window.confirm(props.confirm)) return;
-    action.mutate();
+    if (props.needsConfirm) setAsking(true);
+    else action.mutate(undefined);
   }
 
   return (
     <div>
-      <button
-        type="button"
-        className="btn px-3 py-1.5 whitespace-nowrap"
-        disabled={action.isPending}
-        onClick={run}
-      >
-        {action.isPending ? props.busyLabel : props.label}
-      </button>
+      {asking ? (
+        <ConfirmYourself
+          label={props.label}
+          busy={action.isPending}
+          onConfirm={(confirm) => action.mutate(confirm)}
+          onCancel={() => {
+            setAsking(false);
+            action.reset();
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="btn px-3 py-1.5 whitespace-nowrap"
+          disabled={action.isPending}
+          onClick={run}
+        >
+          {action.isPending ? props.busyLabel : props.label}
+        </button>
+      )}
       {action.error && (
         <p role="alert" className="mt-1 text-xs text-(--red)">
           {describeError(action.error)}
         </p>
       )}
     </div>
+  );
+}
+
+/** Your own password again, and a code when your two-factor is on: the API asks for them
+ * before a reset link or two-factor off for another admin, so a login token alone (one
+ * stolen from this browser, say) can't take an admin over. */
+function ConfirmYourself(props: {
+  label: string;
+  busy: boolean;
+  onConfirm: (confirm: AdminConfirm) => void;
+  onCancel: () => void;
+}) {
+  const { user: me } = useAuth();
+  const needsCode = me?.two_factor_enabled ?? false;
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    props.onConfirm({ password, code: needsCode ? code : null });
+  }
+
+  return (
+    <form onSubmit={submit} className="w-56 space-y-1.5 text-left">
+      <input
+        type="password"
+        required
+        maxLength={128}
+        autoComplete="current-password"
+        aria-label="Your password"
+        placeholder="Your password"
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        className="input py-1.5 text-xs"
+      />
+      {needsCode && (
+        <input
+          required
+          inputMode="numeric"
+          maxLength={16}
+          autoComplete="one-time-code"
+          aria-label="Your code"
+          placeholder="Code from your app"
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          className="input py-1.5 text-xs"
+        />
+      )}
+      <div className="flex gap-2">
+        <button type="submit" className="btn px-3 py-1.5 whitespace-nowrap" disabled={props.busy}>
+          {props.busy ? "Checking…" : props.label}
+        </button>
+        <button type="button" className="btn px-3 py-1.5" onClick={props.onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
