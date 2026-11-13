@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -34,6 +35,7 @@ from app.services.approvals import decide
 from app.services.privacy import opt_out_lead
 from app.services.runs import create_run
 from app.worker import handlers
+from app.worker import main as worker_main
 from app.worker.jobs import enqueue
 from app.worker.main import Worker, open_worker
 from tests.agent_world import World
@@ -326,3 +328,28 @@ def broken_llm(*_args, **_kwargs):
 
 def crash(*_args, **_kwargs):
     raise Crash
+
+
+def test_a_database_error_outside_a_job_does_not_end_the_loop(
+    world, worker, clock, monkeypatch
+) -> None:
+    run = start(world, clock)
+    real_claim = worker_main.claim_next
+    calls = 0
+
+    def flaky_claim(session, worker_id, now):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OperationalError("SELECT", {}, Exception("server closed the connection"))
+        job = real_claim(session, worker_id, now)
+        if job is None:
+            worker.stop()  # the queue is empty: end the test's loop
+        return job
+
+    monkeypatch.setattr(worker_main, "claim_next", flaky_claim)
+    monkeypatch.setattr(worker_main, "ERROR_WAIT_SECONDS", 0)
+
+    worker.run()
+
+    assert {item.status for item in items(world.db, run)} == {RunItemStatus.AWAITING_APPROVAL}
