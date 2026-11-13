@@ -1,8 +1,8 @@
 /** The API client: URLs, the token header, and turning error answers into messages. */
-import { describe, expect, it } from "vitest";
-import { setToken } from "../auth/token";
+import { describe, expect, it, vi } from "vitest";
+import { getToken, setToken } from "../auth/token";
 import { fakeApi, reply } from "../test/render";
-import { ApiError, api, apiUrl, describeError } from "./client";
+import { ApiError, api, apiUrl, describeError, setUnauthorizedHandler } from "./client";
 
 describe("apiUrl", () => {
   it("leaves out empty values", () => {
@@ -30,6 +30,27 @@ describe("api", () => {
       "Content-Type": "application/json",
     });
     expect(seen[0].body).toBe('{"name":"x"}');
+  });
+
+  it("logs out on a 401, unless another tab saved a new token meanwhile", async () => {
+    const logout = vi.fn();
+    setUnauthorizedHandler(logout);
+    const expired = () => reply(401, { error: { code: "unauthorized", message: "expired" } });
+    fakeApi({
+      "GET /api/runs": expired,
+      "GET /api/leads": () => {
+        setToken("new-token"); // a password change in another tab, while this request ran
+        return expired();
+      },
+    });
+
+    setToken("old-token");
+    await api.get("/api/leads").catch(() => {});
+    expect(logout).not.toHaveBeenCalled(); // that would have wiped the other tab's new token
+    expect(getToken()).toBe("new-token");
+
+    await api.get("/api/runs").catch(() => {});
+    expect(logout).toHaveBeenCalledOnce();
   });
 
   it("turns the API's error shape into an ApiError", async () => {

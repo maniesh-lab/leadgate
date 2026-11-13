@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Campaign } from "../api/types";
 import { ADMIN, fakeApi, page, REVIEWER, renderApp, reply } from "../test/render";
-import { getToken } from "./token";
+import { getToken, setToken, TOKEN_KEY } from "./token";
 
 const CAMPAIGN: Campaign = {
   id: 3,
@@ -67,6 +67,18 @@ describe("protected routes", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("wrong email or password");
     expect(getToken()).toBeNull();
+  });
+
+  it("follows a logout in another tab", async () => {
+    fakeApi(campaignsApi());
+    const router = renderApp("/campaigns", { user: ADMIN });
+    expect(await screen.findByText(CAMPAIGN.name)).toBeInTheDocument();
+
+    setToken(null); // the other tab logs out: this tab only hears a storage event
+    window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY }));
+
+    expect(await screen.findByRole("button", { name: "Log in" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/login");
   });
 
   it("logs out when the token has expired", async () => {
