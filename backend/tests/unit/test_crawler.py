@@ -8,7 +8,9 @@ import httpx2
 import pytest
 
 from app.enrichment.crawler import (
+    MAX_FETCH_SECONDS,
     MAX_PAGE_BYTES,
+    MAX_ROBOTS_BYTES,
     Crawler,
     PrivateAddressError,
     is_public,
@@ -225,6 +227,67 @@ def test_a_huge_page_is_cut_at_the_size_cap() -> None:
     page = make_crawler(web).fetch("https://big.test/")
     assert page.parsed is not None
     assert len(page.parsed.text) <= MAX_PAGE_BYTES
+
+
+class Drip:
+    """A streamed body of `chunk`s, `total` bytes in all; each chunk moves the clock on by
+    `seconds_each`. Counts how many bytes were actually read."""
+
+    def __init__(self, clock: FakeClock, chunk: bytes, total: int, seconds_each: float = 0):
+        self.clock, self.chunk, self.total, self.seconds_each = clock, chunk, total, seconds_each
+        self.sent = 0
+
+    def __iter__(self):
+        while self.sent < self.total:
+            self.clock.now += self.seconds_each
+            self.sent += len(self.chunk)
+            yield self.chunk
+
+
+def streaming_crawler(routes: dict[str, tuple[str, Drip]], clock: FakeClock) -> Crawler:
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        content_type, body = routes.get(str(request.url), ("text/plain", None))
+        if body is None:
+            return httpx2.Response(404)
+        return httpx2.Response(200, headers={"content-type": content_type}, content=body)
+
+    client = httpx2.Client(transport=httpx2.MockTransport(answer))
+    return Crawler(client, USER_AGENT, clock=clock, sleep=clock.sleep)
+
+
+def test_a_huge_robots_txt_is_cut_not_read_whole() -> None:
+    clock = FakeClock()
+    robots = Drip(clock, b"User-agent: *\nDisallow: /private\n" * 2000, total=20_000_000)
+    crawler = streaming_crawler({"https://big.test/robots.txt": ("text/plain", robots)}, clock)
+
+    assert crawler.allowed("https://big.test/private") is False
+    assert robots.sent < MAX_ROBOTS_BYTES + len(robots.chunk)
+
+
+def test_a_page_that_drips_in_too_slowly_times_out() -> None:
+    clock = FakeClock()
+    page = Drip(clock, b"<p>a</p>", total=1_000_000, seconds_each=5)
+    crawler = streaming_crawler({"https://drip.test/": ("text/html", page)}, clock)
+
+    fetched = crawler.fetch("https://drip.test/")
+
+    assert (fetched.error, fetched.parsed) == ("timeout", None)
+    assert page.sent * 5 / len(page.chunk) <= MAX_FETCH_SECONDS + 10
+
+
+def test_a_robots_txt_that_drips_in_too_slowly_means_stay_out() -> None:
+    clock = FakeClock()
+    robots = Drip(clock, b"# hi\n", total=1_000_000, seconds_each=5)
+    crawler = streaming_crawler({"https://drip.test/robots.txt": ("text/plain", robots)}, clock)
+    assert crawler.allowed("https://drip.test/") is False
+
+
+def test_a_charset_that_isnt_a_text_encoding_reads_as_utf8() -> None:
+    clock = FakeClock()
+    page = "<p>caf\u00e9</p>".encode()
+    odd = ("text/html; charset=rot13", Drip(clock, page, total=len(page)))
+    fetched = streaming_crawler({"https://odd.test/": odd}, clock).fetch("https://odd.test/")
+    assert fetched.parsed is not None and fetched.parsed.text == "caf\u00e9"
 
 
 def test_start_url_adds_a_scheme_when_missing() -> None:
