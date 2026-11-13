@@ -146,6 +146,18 @@ def test_crawl_delay_in_robots_txt_slows_us_down() -> None:
     assert clock.sleeps == [5.0, 5.0]
 
 
+def test_a_crawl_delay_too_long_to_wait_means_stay_out() -> None:
+    robots = "User-agent: *\nCrawl-delay: 100000000\n"
+    web = FakeWeb(
+        {"https://slow.test/robots.txt": ("text", robots), "https://slow.test/": ("html", "x")}
+    )
+    clock = FakeClock()
+    page = make_crawler(web, clock).crawl("https://slow.test/")[0]
+    assert page.error == "blocked by robots.txt"
+    assert web.requests == ["https://slow.test/robots.txt"]
+    assert clock.sleeps == []
+
+
 def test_waits_are_per_site() -> None:
     web = FakeWeb({"https://a.test/": ("html", "a"), "https://b.test/": ("html", "b")})
     clock = FakeClock()

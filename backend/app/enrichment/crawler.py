@@ -6,7 +6,8 @@ it links to that look like contact / about / team / services pages
 
 The rules (PLAN §4, plus 10c's public-addresses-only):
 - robots.txt is read once per site and obeyed (RFC 9309: a 4xx answer means no
-  rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer.
+  rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer;
+  one over 10 s means stay out.
 - at least 1 s between two requests to the same domain (robots.txt included)
 - a timeout on every request; at most 3 redirects. A page's redirects are followed by
   hand, so each hop is checked against robots.txt and waits its turn; the robots.txt
@@ -41,6 +42,8 @@ log = structlog.get_logger(__name__)
 TIMEOUT_SECONDS = 10
 MAX_REDIRECTS = 3
 MIN_SECONDS_BETWEEN_REQUESTS = 1.0
+# A site whose robots.txt asks for a longer Crawl-delay is left alone.
+MAX_CRAWL_DELAY_SECONDS = 10.0
 MAX_PAGE_BYTES = 2_000_000
 # RFC 9309 asks crawlers to read at least 500 KiB of a robots.txt.
 MAX_ROBOTS_CHARS = 500_000
@@ -206,9 +209,13 @@ class Crawler:
 
         if response.status_code == 200:
             rules.parse(response.text[:MAX_ROBOTS_CHARS].splitlines())
-            crawl_delay = rules.crawl_delay(self.user_agent)
-            if crawl_delay:
-                self.delay[site_host(origin)] = float(crawl_delay)
+            crawl_delay = float(rules.crawl_delay(self.user_agent) or 0)
+            if crawl_delay > MAX_CRAWL_DELAY_SECONDS:
+                # Coming faster than asked would be rude, and waiting that long would hold
+                # the worker (one job at a time) up for every other lead: stay out.
+                rules.disallow_all = True
+            elif crawl_delay:
+                self.delay[site_host(origin)] = crawl_delay
         elif 400 <= response.status_code < 500:
             rules.allow_all = True
         else:
