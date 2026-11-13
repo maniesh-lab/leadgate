@@ -317,4 +317,8 @@ Passwords are hashed with Argon2; logins are 60-minute JWTs, and changing your p
 
 ## License
 
-Not open source. You may read and review the code, and run or change your own private copy to test it, without asking. Using it, or the leads it finds, for a business, a client or paid work needs written approval, and so do hosting it for others and sharing a changed copy; the details are in [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL). Built by [Manish Pandeya](https://github.com/maniesh-lab).
+Not open source. You may read and review the code, and run or change your own private copy to test it, without asking. Using it, or the leads it finds, for a business, a client or paid work needs written approval, and so do hosting it for others and sharing a changed copy; the details are in [LICENSE](LICENSE). Third-party parts keep their own licences (e.g. the bundled fonts are SIL OFL).
+
+## Author
+
+**Manish Pandeya** · [github.com/maniesh-lab](https://github.com/maniesh-lab)
