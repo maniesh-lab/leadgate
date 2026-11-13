@@ -25,7 +25,7 @@ Nothing outside leadgate changes: a lead already sent to the CRM or Discord stay
 A deleted lead can be found again by a later run; an opt-out (`app.services.privacy`) is
 what keeps a business out for good.
 
-Also used by the opt-out: `redact_audit()` and `purge_checkpoints()`.
+Also used by the opt-out: `redact_audit()`, `redact_steps()` and `purge_checkpoints()`.
 
 The caller writes its own audit row (`lead.deleted`, ...) and commits.
 """
@@ -33,6 +33,7 @@ The caller writes its own audit row (`lead.deleted`, ...) and commits.
 from collections.abc import Collection, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import ColumnElement, Select, and_, delete, exists, or_, select, text
 from sqlalchemy.orm import Session
@@ -237,10 +238,34 @@ def redact_audit(
         session.execute(text("SELECT set_config('leadgate.audit_redaction', 'on', true)"))
     changed = 0
     for row in session.scalars(select(AuditLog).where(or_(*about))):
-        blanked = {key: value for key, value in row.details.items() if key in SAFE_DETAILS}
-        blanked["redacted"] = why
+        blanked = blank(row.details, why)
         if blanked != row.details:
             row.details = blanked
             changed += 1
     session.flush()
     return changed
+
+
+def redact_steps(session: Session, item_ids: Sequence[int], why: str) -> int:
+    """Blank these run items' steps: their input and output keep only `SAFE_DETAILS` (a
+    step stores the whole state: source data, website text, contact fields), and an error
+    message goes. Returns how many rows changed."""
+    if not item_ids:
+        return 0
+    changed = 0
+    for step in session.scalars(select(RunStep).where(RunStep.run_item_id.in_(item_ids))):
+        blanked = (blank(step.input, why), blank(step.output, why), why if step.error else None)
+        if blanked != (step.input, step.output, step.error):
+            step.input, step.output, step.error = blanked
+            changed += 1
+    session.flush()
+    return changed
+
+
+def blank(details: dict[str, Any] | None, why: str) -> dict[str, Any] | None:
+    """`details` with only the `SAFE_DETAILS` keys, plus `"redacted": <why>`."""
+    if details is None:
+        return None
+    kept = {key: value for key, value in details.items() if key in SAFE_DETAILS}
+    kept["redacted"] = why
+    return kept
