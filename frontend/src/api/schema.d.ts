@@ -411,7 +411,8 @@ export interface paths {
         /**
          * Delete One Campaign
          * @description Delete the campaign, its runs, every lead found only by them (blanked in the audit
-         *     log) and its uploaded CSV if no other campaign uses it. 409 while a run is working.
+         *     log; an opted-out lead stays) and its uploaded CSV if no other campaign uses it. 409
+         *     while a run is working.
          */
         delete: operations["delete_one_campaign_api_campaigns__campaign_id__delete"];
         options?: never;
@@ -500,7 +501,8 @@ export interface paths {
         /**
          * Delete Run
          * @description Delete the run and its items, plus every lead that was in no other run (blanked in
-         *     the audit log). 409 while the run is still collecting or the worker is on an item.
+         *     the audit log; an opted-out lead stays, so it's never collected again). 409 while the
+         *     run is still collecting or the worker is on an item.
          */
         delete: operations["delete_run_api_runs__run_id__delete"];
         options?: never;
@@ -673,9 +675,9 @@ export interface paths {
         post?: never;
         /**
          * Delete Lead Data
-         * @description Opt the lead out: wipe its contact data and website findings (also in its audit rows
-         *     and finished items' checkpoints), never collect or crawl it again, and reject its items
-         *     waiting for approval. Safe to repeat.
+         * @description Opt the lead out: wipe its contact data and website findings (also in its run steps,
+         *     its audit rows and finished items' checkpoints), never collect or crawl it again, and
+         *     reject its items waiting for approval. Safe to repeat.
          */
         delete: operations["delete_lead_data_api_leads__lead_id__data_delete"];
         options?: never;

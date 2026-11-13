@@ -11,7 +11,8 @@ What each delete removes:
   checkpoints, then blanks the audit rows about it. Its runs' statuses are refreshed
   (a run waiting only on this lead is completed).
 - `delete_runs()`: the runs, their jobs and all their items (as above), and every lead
-  left without a run item in another run (blanked in the audit log too).
+  left without a run item in another run (blanked in the audit log too), apart from an
+  opted-out one: its wiped row stays, so a later collect still skips it.
 - `delete_campaign()`: all its runs (as above), then the campaign, and its uploaded CSV
   when no other campaign uses it.
 - `delete_upload()`: an uploaded CSV no campaign uses (`InUse` otherwise).

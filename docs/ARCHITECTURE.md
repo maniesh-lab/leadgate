@@ -98,8 +98,9 @@ sequenceDiagram
   running job renews it every minute, so a slow collect or LLM call is never taken for a
   dead worker's, and a worker finishes a job only if it still holds it). A killed attempt
   counts like a failed one, so a job that kills the worker every time (e.g. out of
-  memory) fails after its third attempt instead of coming back forever. Every handler first asks LangGraph
-  where the thread is and only does what's left, so completed nodes never run twice.
+  memory) fails after its third attempt instead of coming back forever. Every handler
+  first asks LangGraph where the thread is and only does what's left, so completed nodes
+  never run twice.
   `act` checks `notified_at` and the CRM key, so a message or CRM record happens once.
   This is tested by killing the worker mid-run (`tests/integration/test_worker_postgres.py`)
   and was checked by hand with `docker compose kill worker`.
@@ -158,7 +159,7 @@ ends), and at most 20 are open per API process (3 per user); over that it answer
 
 **Deleting** a lead, run, campaign or uploaded CSV (admins) happens in one transaction:
 the run items go with their steps, approvals, jobs and LangGraph checkpoints, a run takes
-the leads in no other run, and a campaign its runs and its file when no other campaign uses
+the leads in no other run (apart from opted-out ones), and a campaign its runs and its file when no other campaign uses
 it. It's refused (409) while the worker may still be on any of it. Audit rows stay: a
 narrow exception in the trigger lets the delete blank their names, contact details and free
 text, and a `lead.deleted` / `run.deleted` / `campaign.deleted` / `csv.deleted` row records

@@ -152,7 +152,8 @@ def start_run(
 )
 def delete_one_campaign(campaign_id: int, admin: AdminUser, db: DbSession) -> Response:
     """Delete the campaign, its runs, every lead found only by them (blanked in the audit
-    log) and its uploaded CSV if no other campaign uses it. 409 while a run is working."""
+    log; an opted-out lead stays) and its uploaded CSV if no other campaign uses it. 409
+    while a run is working."""
     campaign = get_or_404(db, Campaign, campaign_id, "campaign")
     name = campaign.name
     try:

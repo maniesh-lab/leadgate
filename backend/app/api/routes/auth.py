@@ -26,6 +26,11 @@ logins.
 A password change bumps the user's `token_version`, which ends every older token (other
 browsers, a stolen token); the answer is a fresh token so this browser stays logged in.
 
+`confirm_yourself()` asks a logged-in admin for their password again (and a code, with
+two-factor on) before a change a stolen login mustn't make: a new admin, or another
+admin's reset link or two-factor off (`app.api.routes.users`). A wrong one counts as a
+failed login (`check_password()`, `check_code()`).
+
 The public demo's reviewer (DEMO_REVIEWER_EMAIL) is different: its password is on the
 login page, so changing it is refused (403; it would lock every visitor out), and failed
 logins for that email don't lock it (anyone could lock it for 15 minutes). The
