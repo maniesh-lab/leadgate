@@ -67,7 +67,7 @@ from app.enrichment.crawler import Crawler
 from app.observability.tracing import Tracer
 from app.services.approvals import NotAwaitingDecision, decide
 from app.services.crm import CRMClient
-from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
+from app.services.deletion import purge_checkpoints, redact_audit, redact_items, redact_steps
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
 from app.services.privacy import OPT_OUT_REASON
@@ -217,6 +217,7 @@ def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStat
         # wrote after the opt-out hold the old contact data. Once the thread is over, its
         # saved state goes too (a waiting thread still needs it for the decision).
         redact_steps(session, [item.id], "lead opted out")
+        redact_items(session, [item.id], "lead opted out", keep=OPT_OUT_REASON)
         redact_audit(session, [item.lead_id], [item.id], "lead opted out")
         if status != RunItemStatus.AWAITING_APPROVAL:
             purge_checkpoints(session, [item.thread_id])

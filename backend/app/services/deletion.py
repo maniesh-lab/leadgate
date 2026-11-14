@@ -273,6 +273,22 @@ def redact_steps(session: Session, item_ids: Sequence[int], why: str) -> int:
     return changed
 
 
+def redact_items(session: Session, item_ids: Sequence[int], why: str, keep: str) -> None:
+    """Blank the free text on these run items: their last error, and their decisions'
+    reasons (a reviewer's words, which may quote the lead), apart from `keep` (the reason
+    the opt-out itself gives)."""
+    if not item_ids:
+        return
+    for item in session.scalars(select(RunItem).where(RunItem.id.in_(item_ids))):
+        if item.error:
+            item.error = why
+    approvals = select(Approval).where(Approval.run_item_id.in_(item_ids))
+    for approval in session.scalars(approvals):
+        if approval.reason and approval.reason != keep:
+            approval.reason = why
+    session.flush()
+
+
 def blank(details: dict[str, Any] | None, why: str) -> dict[str, Any] | None:
     """`details` with only the `SAFE_DETAILS` keys, plus `"redacted": <why>`."""
     if details is None:
