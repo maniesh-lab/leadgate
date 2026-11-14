@@ -1,8 +1,11 @@
 """Where approved leads go: the `CRMClient` interface, `AirtableCRM`, and `FakeCRM`.
 
-The `act` node calls `upsert_lead(key, fields)`. The key is the lead's thread id
-(one per run item), so calling it twice for the same item updates one record instead
+The `act` node calls `upsert_lead(key, fields, record_id)`. The key is the lead's thread
+id (one per run item), so calling it twice for the same item updates one record instead
 of creating two: that's what makes the CRM write safe to repeat after a crash.
+`record_id` is the lead's record from an earlier run (`leads.crm_record_id`): that record
+is updated in place, its key moved to this thread, so a business approved again in a
+later run stays one record. If it was deleted in the CRM, a new one is made.
 
 `make_crm(settings, client)` picks the implementation: `AirtableCRM` when the three
 AIRTABLE_* settings are set, else `FakeCRM` (tests, CI, demos without an Airtable base).
@@ -47,11 +50,17 @@ TRIES = 2
 class CRMError(Exception):
     """The CRM write failed. The `act` node fails, and the worker retries the job."""
 
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status  # the CRM's HTTP status, when it answered
+
 
 class CRMClient(ABC):
     @abstractmethod
-    def upsert_lead(self, key: str, fields: dict[str, Any]) -> str:
-        """Create the record with this key, or update it if it exists. Returns its id."""
+    def upsert_lead(self, key: str, fields: dict[str, Any], record_id: str | None = None) -> str:
+        """Update `record_id` (the lead's record from an earlier run) if it's given and still
+        there, else create the record with this key, or update it if it exists. Returns
+        the record's id."""
 
 
 class FakeCRM(CRMClient):
@@ -62,8 +71,12 @@ class FakeCRM(CRMClient):
         self.ids: dict[str, str] = {}
         self.writes = 0
 
-    def upsert_lead(self, key: str, fields: dict[str, Any]) -> str:
+    def upsert_lead(self, key: str, fields: dict[str, Any], record_id: str | None = None) -> str:
         self.writes += 1
+        earlier = next((k for k, v in self.ids.items() if v == record_id), None)
+        if earlier is not None:  # the lead's record from an earlier run: it moves to `key`
+            del self.records[earlier], self.ids[earlier]
+            self.ids[key] = record_id
         self.records[key] = fields
         return self.ids.setdefault(key, f"fake-crm-{len(self.ids) + 1}")
 
@@ -88,7 +101,14 @@ class AirtableCRM(CRMClient):
         self.url = f"{AIRTABLE_API}/{base_id}/{quote(table, safe='')}"
         self.sleep = sleep  # tests pass a fake, so they don't wait 30 s
 
-    def upsert_lead(self, key: str, fields: dict[str, Any]) -> str:
+    def upsert_lead(self, key: str, fields: dict[str, Any], record_id: str | None = None) -> str:
+        if record_id:
+            try:
+                return self.update(record_id, key, fields)
+            except CRMError as exc:
+                if exc.status not in (404, 422):  # 404/422: no such record (deleted)
+                    raise
+                log.info("crm_record_gone", record_id=record_id)
         body = {
             "performUpsert": {"fieldsToMergeOn": [KEY_FIELD]},
             # Lets Airtable turn our values into the cell types (e.g. a URL field).
@@ -100,6 +120,16 @@ class AirtableCRM(CRMClient):
         created = record_id in answer.get("createdRecords", [])
         log.info("crm_written", key=key, record_id=record_id, created=created)
         return record_id
+
+    def update(self, record_id: str, key: str, fields: dict[str, Any]) -> str:
+        """Update the lead's record from an earlier run in place (its key moves to `key`)."""
+        body = {
+            "typecast": True,
+            "records": [{"id": record_id, "fields": {KEY_FIELD: key, **airtable_fields(fields)}}],
+        }
+        updated = self.patch(body).json()["records"][0]["id"]
+        log.info("crm_written", key=key, record_id=updated, created=False)
+        return updated
 
     def patch(self, body: dict[str, Any]) -> httpx2.Response:
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -114,7 +144,10 @@ class AirtableCRM(CRMClient):
                 continue
             if response.is_error:
                 # Airtable's error body says what's wrong (e.g. an unknown field name).
-                raise CRMError(f"Airtable answered {response.status_code}: {response.text[:300]}")
+                raise CRMError(
+                    f"Airtable answered {response.status_code}: {response.text[:300]}",
+                    status=response.status_code,
+                )
             return response
         raise AssertionError("unreachable")  # the last try either returns or raises
 

@@ -40,7 +40,10 @@ def act(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
     update: LeadState = {}
     if state["route"] == Route.NOTIFY:
         if not state.get("crm_record_id"):
-            update["crm_record_id"] = context.crm.upsert_lead(state["thread_id"], crm_fields(state))
+            # The lead's record from an earlier run (if any) is updated, not duplicated.
+            update["crm_record_id"] = context.crm.upsert_lead(
+                state["thread_id"], crm_fields(state), record_id=lead.crm_record_id
+            )
         if not already_notified(context, state):
             notify(context, state, Channel.LEADS, lead_message(state))
             update["notified"] = True

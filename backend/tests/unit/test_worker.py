@@ -202,8 +202,8 @@ def test_a_crash_in_act_is_finished_on_restart_with_one_crm_record(world, deps, 
     decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
     real_upsert = world.crm.upsert_lead
 
-    def crash_after_writing(key, fields):
-        real_upsert(key, fields)
+    def crash_after_writing(key, fields, record_id=None):
+        real_upsert(key, fields, record_id)
         raise Crash
 
     world.crm.upsert_lead = crash_after_writing
@@ -498,3 +498,24 @@ def test_a_worn_out_job_and_its_item_fail_in_one_commit(world, worker, clock, mo
     world.db.expire_all()
     assert world.db.get(Job, job.id).status == JobStatus.FAILED
     assert items(world.db, run)[0].status == RunItemStatus.FAILED
+
+
+def test_a_lead_approved_again_in_a_later_run_stays_one_crm_record(world, worker, clock) -> None:
+    first_run = start(world, clock)
+    worker.run_until_idle()
+    smile = items(world.db, first_run)[0]
+    who = reviewer(world.db)
+    decide(world.db, smile.id, who, "approved", None, clock())
+    worker.run_until_idle()
+    record_id = world.db.get(Lead, smile.lead_id).crm_record_id
+    assert record_id is not None
+
+    second_run = start(world, clock)  # the same campaign again finds the same leads
+    worker.run_until_idle()
+    again = next(i for i in items(world.db, second_run) if i.lead_id == smile.lead_id)
+    decide(world.db, again.id, who, "approved", None, clock())
+    worker.run_until_idle()
+
+    assert world.crm.ids == {again.thread_id: record_id}  # one record, moved to run 2
+    world.db.expire_all()
+    assert world.db.get(Lead, smile.lead_id).crm_record_id == record_id
