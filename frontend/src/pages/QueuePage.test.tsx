@@ -2,7 +2,7 @@
  * and going on past the end of a page. */
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { QueueItem } from "../api/types";
 import { fakeApi, page, REVIEWER, renderApp, reply } from "../test/render";
 
@@ -208,6 +208,18 @@ describe("QueuePage", () => {
 
     await userEvent.keyboard("{Escape}");
     expect(review).toHaveFocus();
+  });
+
+  it("tells a visitor on the shared demo login that reasons aren't kept", async () => {
+    vi.stubEnv("VITE_DEMO_EMAIL", REVIEWER.email);
+    vi.stubEnv("VITE_DEMO_PASSWORD", "public");
+    try {
+      setup();
+      const dialog = await openFirst();
+      expect(within(dialog).getByText(/the reason you type isn't kept/)).toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("closes with Esc", async () => {

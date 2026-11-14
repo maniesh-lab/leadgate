@@ -607,7 +607,8 @@ export interface paths {
         put?: never;
         /**
          * Decide Item
-         * @description Approve or reject a waiting item (a rejection needs a reason).
+         * @description Approve or reject a waiting item (a rejection needs a reason; on the public demo's
+         *     login a reason is saved as a placeholder, not as typed).
          *
          *     409 if the item isn't waiting, or if its lead opted out and this is an approval.
          */

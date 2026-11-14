@@ -18,6 +18,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, api, describeError } from "../api/client";
 import type { Approval, Decision, LeadDetail, QueueItem } from "../api/types";
+import { useAuth } from "../auth/AuthProvider";
+import { demoLogin } from "../lib/demo";
 import { FlagBadge } from "./Badge";
 import { type Enrichment, SignalList } from "./Enrichment";
 import { GoogleCredit } from "./GoogleCredit";
@@ -37,6 +39,9 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
   const [reason, setReason] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  // Every visitor shares the public demo's login, so the API keeps no reason typed there.
+  const onDemoLogin = user !== null && user.email === demoLogin()?.email;
   const lead = item.lead;
 
   // The queue item has no enrichment; the lead's own page data has the site signals.
@@ -204,6 +209,11 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
             className="input"
             placeholder="e.g. a chain, not a small practice"
           />
+          {onDemoLogin && (
+            <p className="mt-1 text-xs text-muted">
+              Every visitor shares the demo login, so the reason you type isn't kept.
+            </p>
+          )}
         </div>
 
         {(problem || decide.error) && (
