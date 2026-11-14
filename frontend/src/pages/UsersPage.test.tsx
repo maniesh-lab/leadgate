@@ -115,6 +115,9 @@ describe("UsersPage recovery", () => {
     const link = await screen.findByLabelText(`Reset link for ${SAM.email}`);
     expect(link).toHaveValue(`${window.location.origin}/reset-password#token=one-time-token`);
     expect(screen.getByText(/Works once/)).toBeInTheDocument();
+    // No clipboard here (as on a plain-http address): it says so instead of nothing.
+    await userEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(await screen.findByText("Copy failed: select it and copy")).toBeInTheDocument();
   });
 
   it("shows a lock and two-factor, and unlocks or turns two-factor off", async () => {

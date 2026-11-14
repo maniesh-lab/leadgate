@@ -95,4 +95,38 @@ describe("two-factor login", () => {
     expect(getToken()).toBe("fresh-token");
     expect(await form.findByRole("button", { name: "Turn off two-factor" })).toBeInTheDocument();
   });
+
+  it("says it's off after turning it on and off in one visit", async () => {
+    let enabled = false;
+    fakeApi({
+      "GET /api/auth/me": () => ({ ...REVIEWER, two_factor_enabled: enabled }),
+      "POST /api/auth/two-factor/setup": () => ({
+        secret: "JBSWY3DPEHPK3PXP",
+        otpauth_uri: "otpauth://totp/leadgate:reviewer@example.com?secret=JBSWY3DPEHPK3PXP",
+        qr_svg: "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C/svg%3E",
+      }),
+      "POST /api/auth/two-factor/enable": () => {
+        enabled = true;
+        return { access_token: "token-2", token_type: "bearer" };
+      },
+      "POST /api/auth/two-factor/disable": () => {
+        enabled = false;
+        return { access_token: "token-3", token_type: "bearer" };
+      },
+    });
+    renderApp("/account", { user: REVIEWER });
+    const form = within(await screen.findByRole("form", { name: "Two-factor login" }));
+    await userEvent.type(form.getByLabelText("Current password"), "password-123");
+    await userEvent.click(form.getByRole("button", { name: "Set up two-factor" }));
+    await userEvent.type(await form.findByLabelText("Code from the app"), "123456");
+    await userEvent.click(form.getByRole("button", { name: "Turn on" }));
+    await form.findByRole("button", { name: "Turn off two-factor" });
+
+    await userEvent.type(form.getByLabelText("Current password"), "password-123");
+    await userEvent.type(form.getByLabelText("Code from the app"), "654321");
+    await userEvent.click(form.getByRole("button", { name: "Turn off two-factor" }));
+
+    await form.findByRole("button", { name: "Set up two-factor" });
+    expect(form.getByRole("status")).toHaveTextContent("Two-factor login is off");
+  });
 });

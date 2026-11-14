@@ -147,7 +147,7 @@ function UserActions({ user }: { user: UserRow }) {
 
 /** A one-time reset link, shown once with a copy button; the admin sends it themselves. */
 function ResetLinkButton({ user }: { user: UserRow }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<boolean | null>(null); // null: not tried yet
   const [asking, setAsking] = useState(false);
   const make = useMutation({
     mutationFn: (confirm?: AdminConfirm) =>
@@ -160,8 +160,13 @@ function ResetLinkButton({ user }: { user: UserRow }) {
 
   async function copy() {
     if (!link) return;
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
+    try {
+      // Missing (or refused) on a plain-http address: say so, rather than nothing.
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
   }
 
   if (!link) {
@@ -206,7 +211,7 @@ function ResetLinkButton({ user }: { user: UserRow }) {
       />
       <div className="mt-1 flex items-center gap-2 text-xs text-muted">
         <button type="button" className="btn px-2 py-1" onClick={() => void copy()}>
-          {copied ? "Copied" : "Copy"}
+          {copied ? "Copied" : copied === false ? "Copy failed: select it and copy" : "Copy"}
         </button>
         <span>
           Works once, until {formatTime(make.data?.expires_at ?? "")}. Send it to them yourself.
