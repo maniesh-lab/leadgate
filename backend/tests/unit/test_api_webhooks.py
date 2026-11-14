@@ -207,7 +207,7 @@ def test_inline_leads_run_to_the_end_and_n8n_gets_the_summary(
         ("Smile Austin Dental", "notify"),
         ("Barton Creek Dentistry", "skip"),
     ]
-    assert summary["leads"][0]["crm_record_id"] == "fake-crm-1"
+    assert summary["leads"][0]["crm_record_id"].startswith("fake-crm-")
     assert summary["leads"][1]["crm_record_id"] is None
     assert "phone" not in summary["leads"][0]  # no contact details in the callback
     assert actions(world)[-1] == "run.callback_sent"

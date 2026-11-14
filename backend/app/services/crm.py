@@ -13,6 +13,7 @@ Called by the worker (`app.worker.main.open_worker`).
 """
 
 import time
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
@@ -78,7 +79,8 @@ class FakeCRM(CRMClient):
             del self.records[earlier], self.ids[earlier]
             self.ids[key] = record_id
         self.records[key] = fields
-        return self.ids.setdefault(key, f"fake-crm-{len(self.ids) + 1}")
+        # Unique across processes: a lead keeps its id in `crm_record_id` after a restart.
+        return self.ids.setdefault(key, f"fake-crm-{uuid.uuid4().hex[:12]}")
 
 
 class AirtableCRM(CRMClient):

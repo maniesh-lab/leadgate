@@ -175,3 +175,10 @@ def test_make_crm_needs_all_three_settings(settings: Settings) -> None:
 
     full = partly.model_copy(update={"airtable_table": "leadgate leads"})
     assert isinstance(make_crm(full, client), AirtableCRM)
+
+
+def test_fake_record_ids_stay_unique_across_worker_restarts() -> None:
+    # A lead keeps its record id in the database, and an earlier run's id is passed back.
+    assert FakeCRM().upsert_lead("run-1-lead-7", FIELDS) != FakeCRM().upsert_lead(
+        "run-1-lead-8", FIELDS
+    )

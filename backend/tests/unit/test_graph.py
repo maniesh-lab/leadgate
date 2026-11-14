@@ -89,7 +89,7 @@ def test_approve_path_writes_the_crm_and_sends_one_message(world: World) -> None
     state = decide(world, lead, "approved")
 
     assert state["route"] == "notify"
-    assert state["crm_record_id"] == "fake-crm-1"
+    assert state["crm_record_id"].startswith("fake-crm-")
     assert state["notified"] is True
     assert world.crm.writes == 1
     assert world.crm.records[f"lead-{lead.id}"]["email"] == "info@smileaustin.test"
@@ -100,7 +100,7 @@ def test_approve_path_writes_the_crm_and_sends_one_message(world: World) -> None
     world.db.expire_all()
     saved = world.db.get(Lead, lead.id)
     assert saved.status == LeadStatus.APPROVED
-    assert saved.crm_record_id == "fake-crm-1"
+    assert saved.crm_record_id == state["crm_record_id"]
     assert waiting_for(world.graph, f"lead-{lead.id}") is None
 
 
