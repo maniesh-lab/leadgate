@@ -24,8 +24,10 @@ breaks the parser) becomes a `FetchedPage` with an `error`; the crawler never ra
 those, so one bad site can't stop a batch.
 """
 
+import contextlib
 import ipaddress
 import socket
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -51,6 +53,9 @@ MAX_PAGE_BYTES = 2_000_000
 MAX_ROBOTS_BYTES = 512_000
 # How long a page (or robots.txt) may take to arrive in full, from the request.
 MAX_FETCH_SECONDS = 30.0
+# No kept-alive connections: each request opens its own, which `Deadline` can shut. A site
+# gets a few pages a second apart, so reusing a connection would save little.
+CRAWLER_LIMITS = httpx2.Limits(max_keepalive_connections=0)
 HTML_TYPES = ("text/html", "application/xhtml+xml")
 
 
@@ -152,11 +157,57 @@ def make_crawler_client(
     return httpx2.Client(
         headers={"User-Agent": user_agent},
         timeout=TIMEOUT_SECONDS,
+        limits=CRAWLER_LIMITS,
         # Only robots.txt requests follow redirects by themselves; pages do it in `fetch()`.
         max_redirects=MAX_REDIRECTS,
         event_hooks={"request": [] if blocked else [public_only(resolve)]},
         transport=blocked_transport() if blocked else None,
     )
+
+
+class Deadline:
+    """Shuts the request's connection down if it isn't over `seconds` from now. httpx's
+    timeout is per read, so a server sending its headers (or page) a byte every few seconds
+    could hold the worker for days. Give the request `extensions=deadline.extensions`: it
+    hears of each connection the request opens (a new one each time: `CRAWLER_LIMITS`)."""
+
+    def __init__(self, seconds: float) -> None:
+        self.passed = False
+        self.extensions = {"trace": self._trace}
+        self._sockets: list[socket.socket] = []
+        self._lock = threading.Lock()
+        self._timer = threading.Timer(seconds, self._expire)
+        self._timer.daemon = True
+
+    def __enter__(self) -> Deadline:
+        self._timer.start()
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self._timer.cancel()
+
+    def _trace(self, event: str, info: dict[str, Any]) -> None:
+        if event in ("connection.connect_tcp.complete", "connection.start_tls.complete"):
+            sock = info["return_value"].get_extra_info("socket")
+            with self._lock:
+                self._sockets.append(sock)
+                if self.passed:
+                    shut(sock)
+
+    def _expire(self) -> None:
+        with self._lock:
+            self.passed = True
+            for sock in self._sockets:
+                shut(sock)
+
+
+def shut(sock: socket.socket | None) -> None:
+    """Wake a read blocked on `sock` with end-of-stream. The plain socket call, even for a
+    TLS socket: its own `shutdown()` would pull the TLS state from under the reading thread."""
+    if sock is None:
+        return
+    with contextlib.suppress(OSError):  # already closed
+        socket.socket.shutdown(sock, socket.SHUT_RDWR)
 
 
 def start_url(website: str) -> str:
@@ -197,12 +248,16 @@ class Crawler:
         """One page, following up to MAX_REDIRECTS redirects by hand (so each hop obeys robots)."""
         current = url
         for _ in range(MAX_REDIRECTS + 1):
+            watchdog = Deadline(MAX_FETCH_SECONDS)  # headers included (see `read_text()`)
             try:
                 if not self.allowed(current):
                     return self.logged(FetchedPage(url, current, error="blocked by robots.txt"))
                 self.wait_turn(current)
                 deadline = self.clock() + MAX_FETCH_SECONDS
-                with self.client.stream("GET", current) as response:
+                with (
+                    watchdog,
+                    self.client.stream("GET", current, extensions=watchdog.extensions) as response,
+                ):
                     if response.has_redirect_location:
                         current = urljoin(current, response.headers["location"])
                         continue
@@ -214,7 +269,7 @@ class Crawler:
             except httpx2.TimeoutException:
                 return self.logged(FetchedPage(url, current, error="timeout"))
             except httpx2.HTTPError as exc:
-                error = f"request failed: {type(exc).__name__}"
+                error = "timeout" if watchdog.passed else f"request failed: {type(exc).__name__}"
                 return self.logged(FetchedPage(url, current, error=error))
         return self.logged(FetchedPage(url, current, error=f"more than {MAX_REDIRECTS} redirects"))
 
@@ -232,8 +287,14 @@ class Crawler:
             deadline = self.clock() + MAX_FETCH_SECONDS
             url = f"{origin}/robots.txt"
             # Streamed like a page, so a huge (or gzip-bombed) robots.txt is cut, not
-            # loaded whole into memory.
-            with self.client.stream("GET", url, follow_redirects=True) as response:
+            # loaded whole into memory; the watchdog covers the headers too.
+            watchdog = Deadline(MAX_FETCH_SECONDS)
+            with (
+                watchdog,
+                self.client.stream(
+                    "GET", url, follow_redirects=True, extensions=watchdog.extensions
+                ) as response,
+            ):
                 status = response.status_code
                 text = (
                     read_text(response, MAX_ROBOTS_BYTES, deadline, self.clock)
@@ -248,7 +309,10 @@ class Crawler:
 
         if status == 200:
             rules.parse(text.splitlines())
-            crawl_delay = float(rules.crawl_delay(self.user_agent) or 0)
+            try:
+                crawl_delay = float(rules.crawl_delay(self.user_agent) or 0)
+            except OverflowError:  # a 400-digit Crawl-delay: too long to wait, like any other
+                crawl_delay = float("inf")
             if crawl_delay > MAX_CRAWL_DELAY_SECONDS:
                 # Coming faster than asked would be rude, and waiting that long would hold
                 # the worker (one job at a time) up for every other lead: stay out.

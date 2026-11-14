@@ -4,10 +4,16 @@ No network: `tests.fake_web` answers every request from a dict of URL -> answer,
 `FakeClock` stands in for time, so the 1 s waits between requests take no time.
 """
 
+import contextlib
+import socket
+import threading
+import time
+
 import httpx2
 import pytest
 
 from app.enrichment.crawler import (
+    CRAWLER_LIMITS,
     MAX_FETCH_SECONDS,
     MAX_PAGE_BYTES,
     MAX_ROBOTS_BYTES,
@@ -394,3 +400,61 @@ def test_a_broken_address_is_an_error_page_not_a_crash(bad: str) -> None:
     # A redirect to one was already an error page (httpx2 refuses the answer).
     web = FakeWeb({"https://a.test/": ("redirect", bad)})
     assert make_crawler(web).fetch("https://a.test/").error is not None
+
+
+@pytest.fixture
+def trickling_server():
+    """A real local server whose page (and robots.txt, at /slow/robots.txt) sends its
+    headers a line every 0.1 s, forever; /robots.txt answers 404 at once."""
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen()
+    stop = threading.Event()
+
+    def handle(conn: socket.socket) -> None:
+        with conn:
+            request = conn.recv(4096)
+            if b"GET /robots.txt " in request:
+                conn.sendall(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
+                return
+            with contextlib.suppress(OSError):
+                conn.sendall(b"HTTP/1.1 200 OK\r\n")
+                while not stop.is_set():
+                    conn.sendall(b"X-Still-Coming: yes\r\n")
+                    time.sleep(0.1)
+
+    def serve() -> None:
+        while not stop.is_set():
+            try:
+                conn, _ = server.accept()
+            except OSError:
+                return
+            threading.Thread(target=handle, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=serve, daemon=True).start()
+    yield f"http://127.0.0.1:{server.getsockname()[1]}"
+    stop.set()
+    server.close()
+
+
+def test_headers_that_trickle_in_time_out_too(trickling_server: str, monkeypatch) -> None:
+    # httpx's timeout is per read; only the whole-request limit stops this.
+    monkeypatch.setattr("app.enrichment.crawler.MAX_FETCH_SECONDS", 0.5)
+    client = httpx2.Client(limits=CRAWLER_LIMITS, timeout=10)  # no address guard: localhost
+    crawler = Crawler(client, USER_AGENT, sleep=lambda _seconds: None)
+
+    started = time.monotonic()
+    page = crawler.fetch(f"{trickling_server}/")
+    assert page.error == "timeout"
+    slow_robots = Crawler(client, USER_AGENT, sleep=lambda _seconds: None)
+    slow_robots.robots.clear()
+    assert slow_robots.load_robots(f"{trickling_server}/slow").disallow_all is True
+    assert time.monotonic() - started < 5
+
+
+def test_a_crawl_delay_too_big_for_a_float_means_stay_out() -> None:
+    robots = "User-agent: *\nCrawl-delay: " + "9" * 400 + "\n"
+    web = FakeWeb(
+        {"https://huge.test/robots.txt": ("text", robots), "https://huge.test/": ("html", "x")}
+    )
+    assert make_crawler(web).crawl("https://huge.test/")[0].error == "blocked by robots.txt"
