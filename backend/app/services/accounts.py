@@ -160,10 +160,11 @@ ATTEMPT_WAIT = "3s"
 
 
 def one_attempt_at_a_time(db: Session, email: str) -> None:
-    """Make password checks for this email wait for each other until the transaction ends
-    (Postgres advisory lock), so parallel guesses can't all pass the lock check before any
-    failure is saved. A waiter gives up after ATTEMPT_WAIT (raises Busy) rather than holding
-    a pooled connection. Elsewhere (SQLite in tests) it does nothing."""
+    """Make password checks for this email (or `ip:<address>`) wait for each other until
+    the transaction ends (Postgres advisory lock), so parallel guesses can't all pass the
+    lock check before any failure is saved. A waiter gives up after ATTEMPT_WAIT (raises
+    Busy) rather than holding a pooled connection. Elsewhere (SQLite in tests) it does
+    nothing."""
     if db.get_bind().dialect.name != "postgresql":
         return
     db.execute(text(f"SET LOCAL lock_timeout = '{ATTEMPT_WAIT}'"))  # a constant, not input

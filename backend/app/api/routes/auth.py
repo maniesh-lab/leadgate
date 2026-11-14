@@ -123,7 +123,7 @@ def login(
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
     lock_email = not is_demo(email, settings)
-    serialize(db, email, lock_email)
+    serialize(db, email, ip, lock_email)
     if too_many_failures(db, email, ip, now, lock_email=lock_email):
         log.warning("login_rate_limited", email=email, ip=ip)
         raise too_many()
@@ -321,17 +321,20 @@ def me(user: CurrentUser, settings: AppSettings) -> MeOut:
     return answer
 
 
-def serialize(db: Session, email: str, lock_email: bool) -> None:
+def serialize(db: Session, email: str, ip: str, lock_email: bool) -> None:
     """One password check at a time for an email that can be locked (the demo's can't, so
-    racing it gains nothing). 429 if another check for it takes too long."""
-    if not lock_email:
-        return
+    racing it gains nothing), and one at a time from an address: else a burst of guesses
+    for many emails would all pass the per-address check before any failure was saved.
+    Always email first, then address, so two checks can't wait for each other. 429 if
+    another check takes too long."""
     try:
-        one_attempt_at_a_time(db, email)
+        if lock_email:
+            one_attempt_at_a_time(db, email)
+        one_attempt_at_a_time(db, f"ip:{ip}")
     except Busy as exc:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "another login for this email is being checked; try again",
+            "another login is being checked; try again",
             headers={"Retry-After": "3"},
         ) from exc
 
@@ -388,7 +391,7 @@ def check_password(
     now = datetime.now(UTC)
     email = user.email.lower()
     lock_email = not is_demo(email, settings)
-    serialize(db, email, lock_email)
+    serialize(db, email, ip, lock_email)
     if too_many_failures(db, email, ip, now, lock_email=lock_email):
         raise too_many()
     if not verify_password(password, user.password_hash):
