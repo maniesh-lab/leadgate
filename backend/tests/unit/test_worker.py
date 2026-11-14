@@ -7,7 +7,7 @@ the campaign's only source is a small CSV file, so nothing touches the network. 
 """
 
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -486,11 +486,12 @@ def test_a_worn_out_job_and_its_item_fail_in_one_commit(world, worker, clock, mo
         raise RuntimeError("the database went away")
 
     monkeypatch.setattr(handlers, "finish_item", broken)
-    with worker.deps.session_factory() as session, pytest.raises(RuntimeError):
-        worker.recover(session, clock())
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())  # logs it and goes on
     world.db.expire_all()
     # Neither was saved: the job is still there to be failed by the next recovery.
     assert world.db.get(Job, job.id).status == JobStatus.RUNNING
+    assert items(world.db, run)[0].status == RunItemStatus.RUNNING
 
     monkeypatch.setattr(handlers, "finish_item", real_finish)
     with worker.deps.session_factory() as session:
@@ -519,3 +520,45 @@ def test_a_lead_approved_again_in_a_later_run_stays_one_crm_record(world, worker
     assert world.crm.ids == {again.thread_id: record_id}  # one record, moved to run 2
     world.db.expire_all()
     assert world.db.get(Lead, smile.lead_id).crm_record_id == record_id
+
+
+def test_a_worn_out_job_whose_item_is_gone_fails_alone_and_recovery_goes_on(
+    world, worker, clock
+) -> None:
+    run = start(world, clock)
+    worker.run_once()  # start_run
+    smile, barton = items(world.db, run)
+    gone = worn_out_job(world, run, smile, RunItemStatus.RUNNING, clock)
+    gone.payload = {"run_item_id": 999_999}  # its item was deleted meanwhile
+    stale = enqueue(world.db, JobType.PROCESS_ITEM, {"run_item_id": barton.id}, clock())
+    stale.status, stale.attempts, stale.max_attempts = JobStatus.RUNNING, 1, 3
+    stale.locked_by, stale.locked_at = "dead-worker", clock() - timedelta(minutes=10)
+    world.db.commit()
+
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())
+
+    world.db.expire_all()
+    assert world.db.get(Job, gone.id).status == JobStatus.FAILED
+    assert world.db.get(Job, stale.id).status == JobStatus.QUEUED  # recovery went on
+
+
+def test_a_dead_process_job_doesnt_fail_an_item_a_reviewer_decided_since(
+    world, worker, clock
+) -> None:
+    run = start(world, clock)
+    worker.run_until_idle()  # both leads at the gate
+    smile = items(world.db, run)[0]
+    # Its process job saved it at the gate, then died before being marked done...
+    job = worn_out_job(world, run, smile, RunItemStatus.AWAITING_APPROVAL, clock)
+    # ...and meanwhile a reviewer approved it.
+    decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
+
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())  # gives the dead process job up
+    worker.run_until_idle()  # the resume job runs
+
+    world.db.expire_all()
+    assert world.db.get(Job, job.id).status == JobStatus.FAILED
+    assert items(world.db, run)[0].status == RunItemStatus.DONE
+    assert len(world.crm.records) == 1  # the approval went through

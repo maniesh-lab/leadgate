@@ -34,6 +34,7 @@ Used by `app.worker.main` (the loop) and by whoever creates work (`app.services.
 `app.services.approvals`).
 """
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -155,7 +156,9 @@ def stale_running(now: datetime, own_id: str | None) -> ColumnElement[bool]:
     return and_(Job.status == JobStatus.RUNNING, dead)
 
 
-def fail_next_worn_out(session: Session, now: datetime, own_id: str | None = None) -> Job | None:
+def fail_next_worn_out(
+    session: Session, now: datetime, own_id: str | None = None, skip: Sequence[int] = ()
+) -> Job | None:
     """Fail one of the dead worker's jobs that was on its last attempt, or None if there's
     none. Not committed: the row stays locked (Postgres) until the caller commits it
     together with its item's failure (`give_up()`), so a crash can't keep one without the
@@ -163,6 +166,7 @@ def fail_next_worn_out(session: Session, now: datetime, own_id: str | None = Non
     stmt = (
         select(Job)
         .where(stale_running(now, own_id), Job.attempts >= Job.max_attempts)
+        .where(Job.id.not_in(skip))  # ones whose give-up failed in this pass
         .order_by(Job.id)
         .limit(1)
         .with_for_update(skip_locked=True)
@@ -180,6 +184,23 @@ def fail_next_worn_out(session: Session, now: datetime, own_id: str | None = Non
     session.flush()
     log.warning("stale_job_failed", job_id=job.id)
     return job
+
+
+def fail_alone(session: Session, job_id: int) -> None:
+    """Fail a worn-out job whose item or run is gone (nothing to mark failed), and commit:
+    else every recovery would pick it again."""
+    session.execute(
+        update(Job)
+        .where(Job.id == job_id)
+        .values(
+            status=JobStatus.FAILED,
+            locked_at=None,
+            locked_by=None,
+            last_error="the worker stopped on its last attempt; its item or run is gone",
+        )
+        .execution_options(synchronize_session=False)
+    )
+    session.commit()
 
 
 def recover_stale(session: Session, now: datetime, own_id: str | None = None) -> int:

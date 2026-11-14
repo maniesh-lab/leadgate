@@ -50,6 +50,7 @@ from app.sources.base import make_http_client
 from app.worker.handlers import HANDLERS, Deps, give_up
 from app.worker.jobs import (
     claim_next,
+    fail_alone,
     fail_next_worn_out,
     mark_done,
     mark_failed,
@@ -130,9 +131,12 @@ class Worker:
             log.info("job_started", type=job.type, attempt=job.attempts)
             try:
                 with self.heartbeat(job.id):
-                    HANDLERS[job.type](self.deps, session, job.payload)
+                    try:
+                        HANDLERS[job.type](self.deps, session, job.payload)
+                    except Exception:
+                        session.rollback()  # free its row locks before waiting on the heartbeat
+                        raise
             except Exception as exc:
-                session.rollback()
                 log.exception("job_error", type=job.type)
                 error = f"{type(exc).__name__}: {exc}"
                 if not still_ours(session, job, self.id):
@@ -184,8 +188,18 @@ class Worker:
     def recover(self, session: Session, now: datetime, own_id: str | None = None) -> None:
         """Clean up after dead workers: their jobs on a last attempt fail (each in one commit
         with its item's failure), the rest requeue."""
-        while job := fail_next_worn_out(session, now, own_id):
-            give_up(self.deps, session, job)
+        # One job that can't be given up mustn't stop the rest (or the loop's claims).
+        retry_later: list[int] = []
+        while job := fail_next_worn_out(session, now, own_id, skip=retry_later):
+            try:
+                give_up(self.deps, session, job)
+            except LookupError:  # its item or run is gone: nothing to mark, the job fails alone
+                session.rollback()
+                fail_alone(session, job.id)
+            except Exception:  # e.g. a lock timeout: left as it is, tried again next time
+                session.rollback()
+                log.exception("give_up_failed", job_id=job.id)
+                retry_later.append(job.id)
         recover_stale(session, now, own_id)
 
     def stop(self, *_signal_args: object) -> None:

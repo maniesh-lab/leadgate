@@ -65,7 +65,7 @@ from app.services.crm import CRMClient
 from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
-from app.services.runs import BUSY, audit_run, collect_run, fail_run, refresh_run_status
+from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
 
 log = structlog.get_logger(__name__)
 
@@ -202,8 +202,10 @@ def save_item(deps: Deps, session: Session, item: RunItem) -> None:
 
 def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStatus) -> None:
     item.status = status
-    # The row as it is now: this session may have read the lead before an opt-out.
-    lead = session.get(Lead, item.lead_id, populate_existing=True)
+    # The row as it is now (this session may have read the lead before an opt-out), locked
+    # until the commit: an opt-out in between would see the item still busy and leave its
+    # saved state for this to delete, while this would think the lead hadn't opted out.
+    lead = session.get(Lead, item.lead_id, with_for_update=True, populate_existing=True)
     if lead is not None and lead.opt_out:
         # The nodes work from the thread's saved state, so the steps and audit rows they
         # wrote after the opt-out hold the old contact data. Once the thread is over, its
@@ -237,11 +239,20 @@ def give_up(deps: Deps, session: Session, job: Job) -> None:
         session.commit()
     elif "run_item_id" in job.payload:
         item = get(session, RunItem, job.payload["run_item_id"])
-        if item.status not in BUSY:  # e.g. already waiting for a decision, or done
+        # Only the statuses this job is responsible for: a process job that died after
+        # saving its item at the gate mustn't fail it once a reviewer has decided (resuming).
+        if item.status not in GIVES_UP_ON.get(job.type, ()):
             session.commit()
             return
         item.error = error
         finish_item(deps, session, item, RunItemStatus.FAILED)
+
+
+# The item statuses a job that gives up may mark failed: those it was working on.
+GIVES_UP_ON = {
+    JobType.PROCESS_ITEM: (RunItemStatus.PENDING, RunItemStatus.RUNNING),
+    JobType.RESUME_ITEM: (RunItemStatus.RESUMING,),
+}
 
 
 def get[T](session: Session, model: type[T], row_id: int) -> T:
