@@ -234,3 +234,9 @@ def test_unique_phones_keeps_at_most_max_phones() -> None:
     started = time.perf_counter()
     assert unique_phones(phones) == phones[:MAX_PHONES]
     assert time.perf_counter() - started < 1
+
+
+def test_json_ld_nested_too_deep_is_skipped() -> None:
+    deep = "[" * 100_000 + "]" * 100_000
+    html = f'<script type="application/ld+json">{deep}</script><a href="mailto:hi@a.test">x</a>'
+    assert parse_page(html, "https://a.test/").emails == ["hi@a.test"]

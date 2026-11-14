@@ -379,3 +379,12 @@ def test_the_real_client_has_the_guard() -> None:
     client = make_crawler_client(USER_AGENT, resolve=lambda _host: ["192.168.1.20"])
     with client, pytest.raises(PrivateAddressError):
         client.get("http://printer.test/")
+
+
+@pytest.mark.parametrize("bad", ["http://x.test:abc/", "http://[::1/"])
+def test_a_broken_address_is_an_error_page_not_a_crash(bad: str) -> None:
+    # A lead's website comes from any CSV, OSM tag or n8n call.
+    assert make_crawler(FakeWeb({})).crawl(bad)[0].error == "not a valid address"
+    # A redirect to one was already an error page (httpx2 refuses the answer).
+    web = FakeWeb({"https://a.test/": ("redirect", bad)})
+    assert make_crawler(web).fetch("https://a.test/").error is not None

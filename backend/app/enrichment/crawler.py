@@ -19,8 +19,9 @@ The rules (PLAN §4, plus 10c's public-addresses-only):
   network (10.x, 192.168.x, the compose services) or a cloud metadata address is refused
   before it's sent (`public_only`), since a lead's website can come from any CSV or n8n.
 
-A page that fails (timeout, 404, not HTML, blocked) becomes a `FetchedPage` with an
-`error`; the crawler never raises for network problems, so one bad site can't stop a batch.
+A page that fails (timeout, 404, not HTML, blocked, a broken address or a page that
+breaks the parser) becomes a `FetchedPage` with an `error`; the crawler never raises for
+those, so one bad site can't stop a batch.
 """
 
 import ipaddress
@@ -186,6 +187,8 @@ class Crawler:
                     return self.logged(read_page(url, current, response, deadline, self.clock))
             except PrivateAddressError:
                 return self.logged(FetchedPage(url, current, error="not a public address"))
+            except httpx2.InvalidURL, ValueError:  # e.g. "http://x.test:abc/" from a CSV
+                return self.logged(FetchedPage(url, current, error="not a valid address"))
             except httpx2.TimeoutException:
                 return self.logged(FetchedPage(url, current, error="timeout"))
             except httpx2.HTTPError as exc:
@@ -268,7 +271,11 @@ def read_page(
     if content_type not in HTML_TYPES:
         page.error = f"not HTML ({content_type or 'no content type'})"
         return page
-    page.parsed = parse_page(read_text(response, MAX_PAGE_BYTES, deadline, clock), final_url)
+    text = read_text(response, MAX_PAGE_BYTES, deadline, clock)
+    try:
+        page.parsed = parse_page(text, final_url)
+    except RecursionError, ValueError:  # a page built to break the parser
+        page.error = "couldn't read the page"
     return page
 
 

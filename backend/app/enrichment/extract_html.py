@@ -152,16 +152,17 @@ def structured_data_contacts(soup: BeautifulSoup) -> tuple[list[str], list[str]]
 
     Many sites describe the business for search engines in
     `<script type="application/ld+json">{"@type": "Dentist", "telephone": ...}</script>`.
-    A block that isn't valid JSON is skipped.
+    A block that isn't valid JSON, or is nested too deep, is skipped.
     """
     emails: list[str] = []
     phones: list[str] = []
     for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
         try:
             data = json.loads(script.get_text())
-        except ValueError:
+            pairs = list(json_strings(data, {"email", "telephone"}))
+        except ValueError, RecursionError:  # not JSON, or nested too deep to walk
             continue
-        for key, value in json_strings(data, {"email", "telephone"}):
+        for key, value in pairs:
             if key == "email":
                 emails.append(value.removeprefix("mailto:"))
             else:
