@@ -56,20 +56,25 @@ export function LeadsPage() {
   });
 
   /** Change one filter (back to page 1), or the page. Empty = remove it from the URL. */
-  function update(key: string, value: string) {
+  function update(key: string, value: string, replace = false) {
     // Leaving a box without changing it isn't a new filter (it would reset the page).
     if ((params.get(key) ?? "") === value) return;
     // Build on the URL as it is now (the search box calls this after a pause).
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      if (value) next.set(key, value);
-      else next.delete(key);
-      if (key !== "page") next.delete("page");
-      return next;
-    });
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        if (key !== "page") next.delete("page");
+        return next;
+      },
+      { replace },
+    );
   }
 
-  useStayOnAPageWithRows(page, PAGE_SIZE, leads.data, (last) => update("page", String(last)));
+  // Not the previous query's rows (shown while this one loads): they'd say "past the end".
+  const settled = leads.isPlaceholderData ? undefined : leads.data;
+  useStayOnAPageWithRows(page, PAGE_SIZE, settled, (last) => update("page", String(last), true));
 
   const hasFilters = FILTER_KEYS.some((key) => key !== "sort" && params.get(key));
 

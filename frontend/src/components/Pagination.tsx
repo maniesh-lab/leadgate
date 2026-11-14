@@ -41,7 +41,10 @@ export function Pagination({ page, pageSize, total, onPage }: Props) {
 }
 
 /** A page past the end (its last rows were decided or deleted meanwhile) moves back to the
- * last page that has rows, instead of an empty list with no buttons to leave it. */
+ * last page that has rows, instead of an empty list with no buttons to leave it. `onPage`
+ * should replace the history entry: Back would otherwise land on the empty page again,
+ * which moves forward again. Pass no `data` while it's a placeholder (another query's
+ * rows shown while this one loads). */
 export function useStayOnAPageWithRows(
   page: number,
   pageSize: number,

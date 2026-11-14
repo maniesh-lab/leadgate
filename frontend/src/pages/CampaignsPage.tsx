@@ -38,13 +38,13 @@ export function CampaignsPage() {
     return rubric ? rubricLabel(rubric) : `#${id}`;
   };
 
-  useStayOnAPageWithRows(page, PAGE_SIZE, campaigns.data, (last) => show({ page: last }));
+  useStayOnAPageWithRows(page, PAGE_SIZE, campaigns.data, (last) => show({ page: last }, true));
 
-  function show(next: { page?: number; archived?: boolean }) {
+  function show(next: { page?: number; archived?: boolean }, replace = false) {
     const query = new URLSearchParams();
     if (next.archived ?? archived) query.set("archived", "true");
     if (next.page && next.page > 1) query.set("page", String(next.page));
-    setParams(query);
+    setParams(query, { replace });
   }
 
   return (

@@ -1,5 +1,5 @@
 /** The lead table's filters: read from the URL, sent to the API, changed into the URL. */
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { LeadRow } from "../api/types";
@@ -106,6 +106,24 @@ describe("LeadsPage", () => {
     await userEvent.tab(); // leaves the box, value unchanged
 
     expect(router.state.location.search).toBe("?area=Zilker&page=2");
+  });
+
+  it("doesn't leave page 3 on another filter's empty rows shown while it loads", async () => {
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/campaigns": () => page([]),
+      "GET /api/leads": (url) =>
+        url.searchParams.get("status") === "new"
+          ? { ...page([leadRow({})]), total: 150 }
+          : page([]),
+    });
+    const router = renderApp("/leads?status=escalated", { user: ADMIN });
+    await screen.findByText("No leads match.");
+
+    await act(() => router.navigate("/leads?status=new&page=3"));
+
+    await screen.findByText(leadRow({}).name);
+    expect(router.state.location.search).toBe("?status=new&page=3");
   });
 
   it("searches after you stop typing", async () => {
