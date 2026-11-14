@@ -50,7 +50,7 @@ export function AuditPage() {
         page,
         page_size: PAGE_SIZE,
         ...filters,
-        from: filters.from && `${filters.from}T00:00:00Z`,
+        from: dayStart(filters.from),
         to: nextDay(filters.to), // "to" is the whole day
       }),
   });
@@ -199,11 +199,18 @@ export function AuditPage() {
   );
 }
 
-/** "2026-10-30" -> "2026-10-31T00:00:00Z" (UTC), so a "to" day includes all of that day.
- * Not a date (someone edited the URL): no "to" filter, rather than a crash. */
-function nextDay(day: string): string | undefined {
+/** "2026-10-30" -> "2026-10-30T00:00:00Z" (UTC). Not a date (someone edited the URL): no
+ * filter, rather than a crash or an error from the API. */
+function dayStart(day: string): string | undefined {
   const date = new Date(`${day}T00:00:00Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(date.getTime())) return undefined;
+  return `${day}T00:00:00Z`;
+}
+
+/** "2026-10-30" -> "2026-10-31T00:00:00Z", so a "to" day includes all of that day. */
+function nextDay(day: string): string | undefined {
+  if (!dayStart(day)) return undefined;
+  const date = new Date(`${day}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + 1);
   return `${date.toISOString().slice(0, 10)}T00:00:00Z`;
 }

@@ -195,6 +195,21 @@ describe("UsersPage, another admin", () => {
       }),
     );
   });
+
+  it("moves keyboard focus into the password prompt, and back on Cancel", async () => {
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/users": () => page([ADMIN, ANN]),
+    });
+    renderApp("/settings/users", { user: ADMIN });
+    const annRow = within(await findRow(ANN.email));
+    const button = annRow.getByRole("button", { name: "Reset link" });
+
+    await userEvent.click(button);
+    expect(annRow.getByLabelText("Your password")).toHaveFocus();
+    await userEvent.click(annRow.getByRole("button", { name: "Cancel" }));
+    expect(annRow.getByRole("button", { name: "Reset link" })).toHaveFocus();
+  });
 });
 
 async function findRow(email: string) {
