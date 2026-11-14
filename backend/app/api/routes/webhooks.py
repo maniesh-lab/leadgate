@@ -78,24 +78,34 @@ def n8n_run(body: N8nRunRequest, db: DbSession, correlation_id: CorrelationId) -
 
 
 def campaign_for(db: Session, body: N8nRunRequest) -> Campaign:
+    """The campaign to run. Without `leads` it must have sources to collect from: a
+    campaign made for leads n8n sent (no sources) would otherwise run empty."""
     if body.campaign_id is not None:
         campaign = get_or_404(db, Campaign, body.campaign_id, "campaign")
         if campaign.is_archived:
             raise HTTPException(status.HTTP_409_CONFLICT, f"campaign {campaign.id} is archived")
+        if not body.leads and not campaign.sources:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"campaign {campaign.id} has no sources to collect from: send `leads`",
+            )
         return campaign
-    return find_campaign(db, body.niche, body.location) or new_campaign(db, body)
+    found = find_campaign(db, body.niche, body.location, needs_sources=not body.leads)
+    return found or new_campaign(db, body)
 
 
-def find_campaign(db: Session, niche: str, location: str) -> Campaign | None:
+def find_campaign(
+    db: Session, niche: str, location: str, *, needs_sources: bool
+) -> Campaign | None:
+    """The newest open campaign for this niche and place (with sources, if `needs_sources`)."""
     stmt = (
         select(Campaign)
         .where(func.lower(Campaign.niche) == niche.lower())
         .where(func.lower(Campaign.location) == location.lower())
         .where(Campaign.is_archived.is_(False))
         .order_by(Campaign.id.desc())
-        .limit(1)
     )
-    return db.scalars(stmt).first()
+    return next((c for c in db.scalars(stmt) if c.sources or not needs_sources), None)
 
 
 def new_campaign(db: Session, body: N8nRunRequest) -> Campaign:
