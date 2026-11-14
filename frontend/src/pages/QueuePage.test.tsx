@@ -211,7 +211,7 @@ describe("QueuePage", () => {
   });
 
   it("tells a visitor on the shared demo login that reasons aren't kept", async () => {
-    vi.stubEnv("VITE_DEMO_EMAIL", REVIEWER.email);
+    vi.stubEnv("VITE_DEMO_EMAIL", REVIEWER.email.toUpperCase()); // case doesn't matter
     vi.stubEnv("VITE_DEMO_PASSWORD", "public");
     try {
       setup();
@@ -273,6 +273,21 @@ describe("QueuePage", () => {
 
     expect(await screen.findByText("Lake Dental")).toBeInTheDocument();
     expect(router.state.location.search).not.toContain("page=2");
+    // In place of the empty page: Back mustn't land on it (and move forward again).
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("ignores a held R once it has moved focus into the reason box", async () => {
+    setup();
+    const dialog = await openFirst();
+    fireEvent.keyDown(window, { key: "r" }); // no reason yet: focus goes to the box
+    const box = within(dialog).getByLabelText(/Reason/);
+    expect(box).toHaveFocus();
+
+    // The key is still down: its repeats must not type "rrr" into the box.
+    expect(fireEvent.keyDown(box, { key: "r", repeat: true })).toBe(false);
+    fireEvent.keyUp(window, { key: "r" });
+    expect(fireEvent.keyDown(box, { key: "r" })).toBe(true); // typing an "r" is fine
   });
 
   it("closes with Esc", async () => {
