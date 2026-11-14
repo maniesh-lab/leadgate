@@ -45,8 +45,9 @@ def test_the_webhook_needs_the_secret(client: TestClient, world: World) -> None:
     body = {"campaign_id": world.campaign.id}
     missing = client.post(URL, json=body)
     wrong = client.post(URL, json=body, headers={SECRET_HEADER: "nope"})
+    accented = client.post(URL, json=body, headers={SECRET_HEADER: "s\u00e9cret".encode("latin-1")})
 
-    assert (missing.status_code, wrong.status_code) == (401, 401)
+    assert (missing.status_code, wrong.status_code, accented.status_code) == (401, 401, 401)
     assert missing.json()["error"]["code"] == "unauthorized"
     assert world.db.scalars(select(Run).where(Run.trigger == RunTrigger.N8N)).first() is None
 

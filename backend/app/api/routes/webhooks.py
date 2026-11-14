@@ -44,8 +44,9 @@ def check_secret(
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the n8n webhook is off (N8N_WEBHOOK_SECRET)"
         )
-    # compare_digest: takes the same time however much of the secret matches.
-    if not secret or not hmac.compare_digest(secret, settings.n8n_webhook_secret):
+    # compare_digest: takes the same time however much of the secret matches. As bytes,
+    # since it refuses non-ASCII text (a header like that would be a 500, not a 401).
+    if not secret or not hmac.compare_digest(secret.encode(), settings.n8n_webhook_secret.encode()):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, f"wrong or missing {SECRET_HEADER}")
 
 

@@ -137,7 +137,8 @@ def totp_step(secret: str, code: str, now: datetime) -> int | None:
     """The 30-second step `code` belongs to (now, or one step either side), or None if it
     matches none. The caller refuses a step it has already used."""
     code = code.strip().replace(" ", "")
-    if len(code) != 6 or not code.isdigit():
+    # isascii: "١٢٣٤٥٦" passes isdigit(), and compare_digest raises on non-ASCII text.
+    if len(code) != 6 or not code.isascii() or not code.isdigit():
         return None
     totp = pyotp.TOTP(secret)
     current = totp.timecode(now)
