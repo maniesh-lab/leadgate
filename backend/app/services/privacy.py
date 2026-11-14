@@ -24,6 +24,8 @@ from sqlalchemy.orm import Session
 from app.db.models import Lead, RunItem, RunItemStatus
 from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
 
+# The reason on a decision the opt-out itself makes (an item waiting at the gate).
+OPT_OUT_REASON = "the lead opted out"
 # Wiped on opt-out. The name stays as the lead's label; category/city are not contact data.
 CONTACT_FIELDS = ("phone", "email", "website", "website_domain", "address", "lat", "lng")
 # Items whose thread is over: nothing will read their saved state again.

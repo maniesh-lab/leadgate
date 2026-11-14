@@ -52,7 +52,7 @@ from app.schemas.leads import LeadDetail, LeadRow, LeadRunItem
 from app.services.approvals import NotAwaitingDecision, decide
 from app.services.audit import record
 from app.services.deletion import OptedOut, StillWorking, delete_lead
-from app.services.privacy import opt_out_lead
+from app.services.privacy import OPT_OUT_REASON, opt_out_lead
 
 router = APIRouter(prefix="/leads", tags=["leads"], responses=error_docs(401))
 
@@ -67,7 +67,6 @@ SORTS = {
     "-name": Lead.name.desc(),
     "-updated_at": Lead.updated_at.desc(),
 }
-OPT_OUT_REASON = "the lead opted out"
 
 
 @router.get("")

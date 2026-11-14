@@ -18,6 +18,8 @@ from sqlalchemy.orm import Session
 from app.agents import runner
 from app.config import Settings
 from app.db.models import (
+    ActorType,
+    Approval,
     AuditLog,
     Job,
     JobStatus,
@@ -34,13 +36,15 @@ from app.db.models import (
 )
 from app.main import create_app
 from app.services.approvals import decide
-from app.services.privacy import opt_out_lead
+from app.services.audit import record
+from app.services.privacy import OPT_OUT_REASON, opt_out_lead
 from app.services.runs import create_run
 from app.worker import handlers
 from app.worker import main as worker_main
 from app.worker.jobs import enqueue, recover_stale
 from app.worker.main import Worker, open_worker
 from tests.agent_world import World
+from tests.conftest import add_user
 from tests.unit.conftest import Clock
 
 
@@ -562,3 +566,42 @@ def test_a_dead_process_job_doesnt_fail_an_item_a_reviewer_decided_since(
     assert world.db.get(Job, job.id).status == JobStatus.FAILED
     assert items(world.db, run)[0].status == RunItemStatus.DONE
     assert len(world.crm.records) == 1  # the approval went through
+
+
+def test_an_item_whose_lead_opted_out_while_it_ran_is_rejected_at_the_gate(
+    world, worker, clock, deps
+) -> None:
+    run = start(world, clock)
+    worker.run_once()  # start_run
+    smile = items(world.db, run)[0]
+    admin = add_user(world.db, "admin@example.com", UserRole.ADMIN)
+    crawl = deps.crawler.crawl
+
+    def opt_out_meanwhile(website: str):
+        # The admin opts out through the API while the item is running: nothing is waiting
+        # at the gate yet for the API to reject.
+        with deps.session_factory() as other:
+            opt_out_lead(other, other.get(Lead, smile.lead_id))
+            record(
+                other,
+                actor_type=ActorType.USER,
+                actor=admin.email,
+                action="lead.opted_out",
+                entity_type="lead",
+                entity_id=smile.lead_id,
+            )
+            other.commit()
+        return crawl(website)
+
+    deps.crawler.crawl = opt_out_meanwhile
+    worker.run_until_idle()
+
+    smile = items(world.db, run)[0]
+    assert smile.status == RunItemStatus.DONE  # rejected at the gate, then finished
+    approval = world.db.scalars(select(Approval).where(Approval.run_item_id == smile.id)).one()
+    assert (approval.decision.value, approval.reason, approval.reviewer_id) == (
+        "rejected",
+        OPT_OUT_REASON,
+        admin.id,
+    )
+    assert world.crm.records == {}

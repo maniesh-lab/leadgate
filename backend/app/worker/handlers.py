@@ -23,6 +23,7 @@ it is and only writes a `run.callback_failed` audit row.
 Called by `app.worker.main.Worker`.
 """
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -31,7 +32,7 @@ from typing import Any
 import httpx2
 import structlog
 from langgraph.graph.state import CompiledStateGraph
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agents.llm import LLM
@@ -49,7 +50,9 @@ from app.agents.runner import (
 from app.agents.state import AgentContext, utc_now
 from app.config import Settings
 from app.db.models import (
+    ActorType,
     Approval,
+    AuditLog,
     Job,
     JobType,
     Lead,
@@ -58,13 +61,16 @@ from app.db.models import (
     RunItem,
     RunItemStatus,
     RunStatus,
+    User,
 )
 from app.enrichment.crawler import Crawler
 from app.observability.tracing import Tracer
+from app.services.approvals import NotAwaitingDecision, decide
 from app.services.crm import CRMClient
 from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
+from app.services.privacy import OPT_OUT_REASON
 from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
 
 log = structlog.get_logger(__name__)
@@ -217,6 +223,37 @@ def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStat
     refresh_run_status(session, get(session, Run, item.run_id), deps.now())
     session.commit()
     log.info("item_saved", run_item_id=item.id, status=status, score=item.score)
+    if status == RunItemStatus.AWAITING_APPROVAL and lead is not None and lead.opt_out:
+        reject_opted_out(deps, session, item)
+
+
+def reject_opted_out(deps: Deps, session: Session, item: RunItem) -> None:
+    """An item whose lead opted out while it ran reaches the gate after the opt-out
+    rejected whatever was waiting: reject it now, so its saved state (the old contact
+    data) goes once it finishes. In the name of the admin who opted the lead out, since a
+    decision needs a user; after an opt-out from the command line there's none, and it
+    waits for an admin to reject it (it can't be approved)."""
+    actor = session.scalar(
+        select(AuditLog.actor)
+        .where(
+            AuditLog.action == "lead.opted_out",
+            AuditLog.entity_type == "lead",
+            AuditLog.entity_id == item.lead_id,
+            AuditLog.actor_type == ActorType.USER,
+        )
+        .order_by(AuditLog.id.desc())
+        .limit(1)
+    )
+    admin = (
+        session.scalar(select(User).where(func.lower(User.email) == actor.lower()))
+        if actor
+        else None
+    )
+    if admin is None:
+        log.info("opted_out_item_waits", run_item_id=item.id)
+        return
+    with contextlib.suppress(NotAwaitingDecision):  # someone decided it meanwhile
+        decide(session, item.id, admin, "rejected", OPT_OUT_REASON, deps.now())
 
 
 def give_up(deps: Deps, session: Session, job: Job) -> None:
