@@ -696,6 +696,7 @@ export interface paths {
          * List Audit
          * @description Audit rows, newest first. Login, account, campaign, upload and export rows (`auth.*`,
          *     `user.*`, `campaign.*`, `csv.*`, `leads.exported`) are left out unless you're an admin.
+         *     `actor` can be "user <id>" (how other users show to non-admins).
          */
         get: operations["list_audit_api_audit_get"];
         put?: never;

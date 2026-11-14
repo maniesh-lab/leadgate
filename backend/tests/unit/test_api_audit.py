@@ -137,3 +137,20 @@ def test_only_admins_see_other_users_emails(
 
     assert actors(as_admin) == [reviewer.email, admin.email]
     assert actors(as_reviewer) == [reviewer.email, f"user {admin.id}"]  # their own only
+
+
+def test_a_reviewer_cant_find_out_whose_email_is_whose(
+    client: TestClient, db: Session, admin: User, reviewer: User, as_admin, as_reviewer
+) -> None:
+    add_row(db, at(9), "run.created", actor_type=ActorType.USER, actor=admin.email)
+
+    def total(query: str, headers: dict[str, str]) -> int:
+        return client.get(f"/api/audit?{query}", headers=headers).json()["total"]
+
+    # A guessed email finds nothing for a reviewer (it would confirm the email is a user's);
+    # the label they see does, and an admin can search by email.
+    assert total(f"actor={admin.email}", as_reviewer) == 0
+    assert total(f"actor=user {admin.id}", as_reviewer) == 1
+    assert total(f"actor={admin.email}", as_admin) == 1
+    assert total(f"actor=user {admin.id}", as_admin) == 1
+    assert total("actor=user 999", as_reviewer) == 0

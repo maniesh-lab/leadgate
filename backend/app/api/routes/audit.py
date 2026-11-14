@@ -12,6 +12,7 @@ reviewer login can read everything else here:
   (`csv.*`, the file name) and exports (`leads.exported`)
 """
 
+import re
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -58,7 +59,9 @@ def list_audit(
     occurred_to: Annotated[datetime | None, Query(alias="to", description="before")] = None,
 ) -> Page[AuditOut]:
     """Audit rows, newest first. Login, account, campaign, upload and export rows (`auth.*`,
-    `user.*`, `campaign.*`, `csv.*`, `leads.exported`) are left out unless you're an admin."""
+    `user.*`, `campaign.*`, `csv.*`, `leads.exported`) are left out unless you're an admin.
+    `actor` can be "user <id>" (how other users show to non-admins)."""
+    actor = searchable_actor(db, actor, emails)
     stmt = audit_query(
         run_id=run_id,
         entity_type=entity_type,
@@ -81,6 +84,23 @@ def list_audit(
         page=paging.page,
         page_size=paging.page_size,
     )
+
+
+USER_LABEL = re.compile(r"^user (\d+)$")
+NOBODY = "\x00nobody"  # an actor no row has
+
+
+def searchable_actor(db: Session, actor: str | None, emails: Emails) -> str | None:
+    """The `actor` filter as stored: "user <id>" becomes that user's email; another user's
+    email from a non-admin matches nothing (it would tell them the email is a user's)."""
+    if actor is None:
+        return None
+    if match := USER_LABEL.match(actor.strip()):
+        user = db.get(User, int(match.group(1)))
+        return user.email if user else NOBODY
+    if "@" in actor and not emails.may_search(actor):
+        return NOBODY
+    return actor
 
 
 def shown_actors(db: Session, rows: list[AuditLog], emails: Emails) -> list[AuditOut]:

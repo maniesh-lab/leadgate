@@ -99,6 +99,11 @@ class Emails:
             return email
         return f"user {user_id}" if user_id is not None else "a user"
 
+    def may_search(self, email: str) -> bool:
+        """Whether a filter by this email may run: else a reviewer could guess emails and
+        tell from the rows that came back which ones belong to a user."""
+        return self.all or email.lower() == self.own
+
 
 def get_emails(user: CurrentUser, settings: AppSettings) -> Emails:
     return Emails(user, settings)
