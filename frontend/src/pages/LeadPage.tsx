@@ -46,7 +46,8 @@ export function LeadPage() {
             <StatusBadge status={data.status} />
             {data.opt_out && <Badge tone="red">opted out</Badge>}
             <OptOutButton lead={data} />
-            {user?.role === "admin" && (
+            {/* An opted-out lead's wiped row is what keeps it out: the API won't delete it. */}
+            {user?.role === "admin" && !data.opt_out && (
               <DeleteButton
                 path={`/api/leads/${data.id}`}
                 question={`Delete ${data.name} and its history? This can't be undone. The audit log keeps its rows with the name and contact details blanked. Anything already sent to Airtable or Discord stays there. A later run may find it again: to keep it out for good, use Opt out instead.`}

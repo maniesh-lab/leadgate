@@ -8,7 +8,8 @@ migration).
 
 What each delete removes:
 - `delete_lead()`: the lead, its run items, their steps, approvals, jobs and LangGraph
-  checkpoints, then blanks the audit rows about it. Its runs' statuses are refreshed
+  checkpoints, then blanks the audit rows about it. Not an opted-out lead (`OptedOut`):
+  its wiped row is what keeps it out. Its runs' statuses are refreshed
   (a run waiting only on this lead is completed).
 - `delete_runs()`: the runs, their jobs and all their items (as above), and every lead
   left without a run item in another run (blanked in the audit log too), apart from an
@@ -88,6 +89,10 @@ class InUse(Exception):
     """A campaign still uses the uploaded CSV."""
 
 
+class OptedOut(Exception):
+    """The lead opted out: its wiped row is what keeps it from being collected again."""
+
+
 @dataclass
 class Deleted:
     """How much a delete removed: the details of its audit row."""
@@ -103,6 +108,8 @@ class Deleted:
 
 
 def delete_lead(session: Session, lead: Lead, now: datetime) -> Deleted:
+    if lead.opt_out:
+        raise OptedOut("this lead opted out: its row (already wiped) keeps it out for good")
     lead_id = lead.id
     items = session.scalars(fresh(select(RunItem).where(RunItem.lead_id == lead_id))).all()
     check_idle(session, items)

@@ -51,7 +51,7 @@ from app.schemas.common import Page, Review
 from app.schemas.leads import LeadDetail, LeadRow, LeadRunItem
 from app.services.approvals import NotAwaitingDecision, decide
 from app.services.audit import record
-from app.services.deletion import StillWorking, delete_lead
+from app.services.deletion import OptedOut, StillWorking, delete_lead
 from app.services.privacy import opt_out_lead
 
 router = APIRouter(prefix="/leads", tags=["leads"], responses=error_docs(401))
@@ -214,13 +214,16 @@ def delete_lead_data(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
 )
 def delete_one_lead(lead_id: int, admin: AdminUser, db: DbSession) -> Response:
     """Delete the lead, its run items and their steps and decisions, and blank its name and
-    contact data in the audit log. 409 while the worker is still on one of its items."""
+    contact data in the audit log. 409 while the worker is still on one of its items, or
+    for an opted-out lead (its wiped row is what keeps it from being collected again)."""
     lead = get_or_404(db, Lead, lead_id, "lead")
     try:
         deleted = delete_lead(db, lead, datetime.now(UTC))
     except StillWorking as exc:
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, f"{exc}; try again shortly") from exc
+    except OptedOut as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     record(
         db,
         actor_type=ActorType.USER,

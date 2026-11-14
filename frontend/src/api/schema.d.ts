@@ -656,7 +656,8 @@ export interface paths {
         /**
          * Delete One Lead
          * @description Delete the lead, its run items and their steps and decisions, and blank its name and
-         *     contact data in the audit log. 409 while the worker is still on one of its items.
+         *     contact data in the audit log. 409 while the worker is still on one of its items, or
+         *     for an opted-out lead (its wiped row is what keeps it from being collected again).
          */
         delete: operations["delete_one_lead_api_leads__lead_id__delete"];
         options?: never;
