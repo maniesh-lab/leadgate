@@ -5,11 +5,13 @@ No login: n8n proves who it is with the shared `X-Webhook-Secret` header
 on the public demo (PUBLIC_DEMO).
 
 The body names the campaign by `campaign_id`, or by `niche` + `location`: the newest
-open campaign with the same niche and location (any case) is used, else a new one is
-made (rubric `general-b2b`, source `osm`; with no source when the call brings its own
-`leads`, since those are its list). Like `POST /api/campaigns/{id}/runs`, the route only
-writes the run row and its `start_run` job; the worker does the rest, and posts the
-results to `callback_url` at the end (`app.services.n8n`).
+open campaign with the same niche and location (any case) that has sources is used (any
+one, if the call brings its own `leads`), else a new one is made (rubric `general-b2b`,
+source `osm`; with no source when the call brings its own `leads`, since those are its
+list). A `campaign_id` with no sources needs `leads` (else 409): it would run empty.
+Like `POST /api/campaigns/{id}/runs`, the route only writes the run row and its
+`start_run` job; the worker does the rest, and posts the results to `callback_url` at the
+end (`app.services.n8n`).
 """
 
 import hmac

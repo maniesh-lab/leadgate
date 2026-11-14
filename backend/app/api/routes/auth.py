@@ -403,8 +403,8 @@ def check_code(
     db: Session, user: User, code: str, request: Request, correlation_id: str | None
 ) -> None:
     """A logged-in user's code from their app, good once: a wrong (or used) one is a failed
-    login and a 400. Their row stays locked until the commit, so a code can't be used twice
-    at once."""
+    login and a 400. Their row is locked while the code is checked, and its step committed
+    at once, so a code can't be used twice, at once or after the request fails."""
     db.refresh(user, with_for_update=True)
     now = datetime.now(UTC)
     step = totp_step(user.totp_secret or "", code, now)

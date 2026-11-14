@@ -233,7 +233,8 @@ erDiagram
   its own kind (`typ: 2fa`) that only `/api/auth/login/two-factor` accepts, never as a
   login. Each code's 30-second step is stored, and the user's row is locked while a code
   is checked, so a code works once. `REQUIRE_ADMIN_TWO_FACTOR` makes `require_role` refuse
-  an admin without it.
+  an admin without it (set it once every admin has turned two-factor on: until then, the
+  password alone can turn it on).
 - Reset links (`password_reset_links`, `app.services.accounts`): 256 random bits, only the
   SHA-256 stored, one use, 30 minutes, a new link ends the old ones; using one ends the
   user's older logins and lifts the lock. The dashboard puts the token after `#`, so it

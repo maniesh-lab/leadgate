@@ -1291,7 +1291,8 @@ export interface components {
         };
         /**
          * N8nRunRequest
-         * @description Which campaign to run: `campaign_id`, or `niche` + `location` (found or created).
+         * @description Which campaign to run: `campaign_id`, or `niche` + `location` (found or created; a
+         *     campaign without sources is only used for a call that brings its own `leads`).
          */
         N8nRunRequest: {
             /**

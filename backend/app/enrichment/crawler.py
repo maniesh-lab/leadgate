@@ -9,7 +9,8 @@ The rules (PLAN §4, plus 10c's public-addresses-only):
   rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer;
   one over 10 s means stay out.
 - at least 1 s between two requests to the same domain (robots.txt included)
-- a timeout on every request, and 30 s for a whole answer; at most 3 redirects. A page's
+- a timeout on every read, and 30 s for a whole request, headers included (`Deadline`
+  shuts the connection); at most 3 redirects. A page's
   redirects are followed by hand, so each hop is checked against robots.txt and waits its
   turn; the robots.txt request itself lets httpx2 follow its (max 3) redirects.
 - only HTML pages are read (a PDF or an image is skipped), and only the first 2 MB (and
@@ -102,7 +103,8 @@ IPV4_IN_LAST_32_BITS = tuple(
 
 def is_public(address: str) -> bool:
     """False for loopback, private, link-local (cloud metadata), CGNAT, reserved, ...; an
-    IPv6 address with an IPv4 one inside (mapped, NAT64, 6to4, Teredo) counts as that one."""
+    IPv6 address with an IPv4 one inside (mapped, NAT64, IPv4-translated, IPv4-compatible,
+    6to4, Teredo) counts as that one."""
     ip = ipaddress.ip_address(address.split("%")[0])  # drop an IPv6 zone like "%eth0"
     if isinstance(ip, ipaddress.IPv4Address):
         return ip.is_global

@@ -152,10 +152,12 @@ def counted_failures(db: Session, email: str, now: datetime) -> list[datetime]:
 
 
 class Busy(Exception):
-    """Another password check for this email took longer than ATTEMPT_WAIT to finish."""
+    """Another password check for this email (or from this address) took longer than
+    ATTEMPT_WAIT to finish."""
 
 
-# How long a password check waits for another one for the same email (then: try again).
+# How long a password check waits for another one for the same email or address (then:
+# try again).
 ATTEMPT_WAIT = "3s"
 
 

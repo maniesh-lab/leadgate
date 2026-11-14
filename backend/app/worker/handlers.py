@@ -13,8 +13,9 @@ them from the graph's result, apart from `pending` (new items, `collect_run()`) 
 `resuming` (a decision, `app.services.approvals.decide()`).
 
 When an item of an opted-out lead stops (at the gate or the end), `finish_item()` blanks
-its steps and audit rows, and once it's finished deletes its checkpoints, as the opt-out
-did for the items already finished (`app.services.privacy`).
+its steps, free text and audit rows, and once it's finished deletes its checkpoints, as
+the opt-out did for the items already finished (`app.services.privacy`). One that reaches
+the gate after the opt-out is rejected there (`reject_opted_out()`).
 
 `give_up()` runs when a job has failed `max_attempts` times: the item (or the run, for
 `start_run`) is marked failed with the error. A callback that gives up leaves the run as
