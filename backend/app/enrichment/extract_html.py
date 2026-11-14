@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, CData, NavigableString, Tag
 
 # Tags whose text a visitor never sees.
 HIDDEN_TAGS = ["script", "style", "noscript", "template", "svg", "head"]
@@ -40,6 +40,11 @@ PHONE_MIN_DIGITS = 9
 PHONE_MAX_DIGITS = 15
 # A business lists a few numbers; a page with thousands is junk (or an attack).
 MAX_PHONES = 20
+# Nested <a> and <form> tags (html.parser leaves them open) keep the work per page linear:
+# links read, nodes of each link read for its text, forms looked into.
+MAX_LINKS = 500
+LINK_TEXT_NODES = 50
+MAX_FORMS = 20
 
 # host (without "www." / "m.") -> network name
 SOCIAL_HOSTS = {
@@ -115,7 +120,7 @@ LINK_SCHEMES = ("http", "https", "mailto", "tel")
 
 def page_links(soup: BeautifulSoup, base_url: str) -> list[Link]:
     links = []
-    for anchor in soup.find_all("a", href=True):
+    for anchor in soup.find_all("a", href=True, limit=MAX_LINKS):
         href = str(anchor["href"]).strip()
         if not href or href.startswith("#"):
             continue
@@ -126,8 +131,21 @@ def page_links(soup: BeautifulSoup, base_url: str) -> list[Link]:
         if parts.scheme.lower() not in LINK_SCHEMES:
             continue
         url = without_fragment(urlunsplit(parts))
-        links.append(Link(url=url, text=anchor.get_text(" ", strip=True)))
+        links.append(Link(url=url, text=link_text(anchor)))
     return links
+
+
+def link_text(anchor: Tag) -> str:
+    """The link's text, from its first few nodes only. html.parser doesn't close a nested
+    <a>, so on a page of nested links each one holds the rest of the page, and reading
+    every link's whole text would take minutes."""
+    parts: list[str] = []
+    for count, node in enumerate(anchor.descendants):
+        if count >= LINK_TEXT_NODES:
+            break
+        if type(node) in (NavigableString, CData) and (text := node.strip()):
+            parts.append(text)
+    return " ".join(parts)
 
 
 def has_mobile_viewport(soup: BeautifulSoup) -> bool:
@@ -144,7 +162,9 @@ def has_contact_form(soup: BeautifulSoup) -> bool:
     That's a <form> that takes a message, an email or a phone (a search box alone is
     not one), or an <iframe> that embeds a form/booking widget.
     """
-    for form in soup.find_all("form"):
+    # The first few forms only: html.parser doesn't close a nested <form> either, so each
+    # one of a page of nested forms would be searched through the rest of the page.
+    for form in soup.find_all("form", limit=MAX_FORMS):
         if form.find("textarea"):
             return True
         input_types = {str(tag.get("type", "")).lower() for tag in form.find_all("input")}

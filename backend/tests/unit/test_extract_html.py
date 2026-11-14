@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from app.enrichment.extract_html import (
+    MAX_LINKS,
     MAX_PHONES,
     Link,
     ParsedPage,
@@ -256,3 +257,12 @@ def test_only_web_mail_and_phone_links_are_kept() -> None:
         "tel:+15125550142",
     ]
     assert find_socials(page.links) == {"facebook": "https://facebook.com/smiledental"}
+
+
+@pytest.mark.parametrize("unit", ["<form><input>", '<a href="/contact">'])
+def test_nested_forms_and_links_parse_in_linear_time(unit: str) -> None:
+    # html.parser leaves nested <form> and <a> open: each holds the rest of the page.
+    started = time.perf_counter()
+    page = parse_page(unit * (200_000 // len(unit)), "https://a.test/")
+    assert time.perf_counter() - started < 3  # 24 s for the forms before the caps
+    assert len(page.links) <= MAX_LINKS
