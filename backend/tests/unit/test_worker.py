@@ -15,6 +15,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.agents import runner
 from app.config import Settings
 from app.db.models import (
     AuditLog,
@@ -22,6 +23,7 @@ from app.db.models import (
     JobStatus,
     JobType,
     Lead,
+    LeadStatus,
     Run,
     RunItem,
     RunItemStatus,
@@ -398,3 +400,49 @@ def test_a_job_another_worker_took_over_is_left_to_it(world, worker, clock, monk
 
 def job_id(session: Session) -> int:
     return session.scalars(select(Job.id).where(Job.type == JobType.START_RUN)).one()
+
+
+def test_a_kill_after_the_gate_before_the_lead_was_saved_still_saves_it(
+    world, deps, clock, monkeypatch
+) -> None:
+    run = start(world, clock)
+    first = Worker(deps, worker_id="container-1")
+    first.run_once()  # start_run
+    real_save = runner.save_result
+
+    def killed_before_saving(*args, **kwargs):
+        monkeypatch.setattr(runner, "save_result", real_save)
+        raise Crash
+
+    monkeypatch.setattr(runner, "save_result", killed_before_saving)
+    with pytest.raises(Crash):
+        first.run_once()  # the first lead's thread reaches the gate, then the kill
+
+    restarted = Worker(deps, worker_id="container-1")
+    restarted.stop()  # only the startup recovery, then return
+    restarted.run()
+    restarted.run_until_idle()
+
+    smile = items(world.db, run)[0]
+    lead = world.db.get(Lead, smile.lead_id)
+    assert smile.status == RunItemStatus.AWAITING_APPROVAL
+    assert (lead.status, lead.score) == (LeadStatus.IN_REVIEW, smile.score)
+    assert lead.phone == "+15125550142"  # the extracted, cleaned phone
+
+
+def test_a_decision_for_a_thread_whose_state_is_gone_fails_the_item(world, worker, clock) -> None:
+    run = start(world, clock)
+    worker.run_until_idle()
+    smile = items(world.db, run)[0]
+    score = smile.score
+    decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
+    world.graph.checkpointer.delete_thread(smile.thread_id)  # deleted meanwhile
+
+    for _ in range(3):  # each attempt fails; then the job gives up
+        clock.advance(60)
+        worker.run_until_idle()
+
+    smile = items(world.db, run)[0]
+    assert smile.status == RunItemStatus.FAILED
+    assert "no saved state to resume" in smile.error
+    assert smile.score == score  # not wiped

@@ -42,6 +42,7 @@ from app.agents.runner import (
     continue_lead,
     current_state,
     resume_lead,
+    save_result,
     start_lead,
     thread_status,
 )
@@ -125,6 +126,8 @@ def process_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
         )
     elif status == UNFINISHED:
         continue_lead(deps.graph, context, item.thread_id)
+    else:  # at the gate already: a kill may have come before its results reached the lead
+        save_result(deps.graph, context, item.thread_id)
     save_item(deps, session, item)
 
 
@@ -137,6 +140,10 @@ def resume_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
 
     context = deps.agent_context(session)
     status = thread_status(deps.graph, item.thread_id)
+    if status == NEW:
+        # Its saved state is gone (deleted): there's nothing to give the decision to, and
+        # finishing it here would wipe its score and flags. It fails instead.
+        raise RuntimeError(f"thread {item.thread_id} has no saved state to resume")
     if status == PAUSED:
         resume_lead(
             deps.graph,
@@ -148,6 +155,8 @@ def resume_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
         )
     elif status == UNFINISHED:  # died during route / act last time
         continue_lead(deps.graph, context, item.thread_id)
+    else:  # finished: a kill may have come before its results reached the lead
+        save_result(deps.graph, context, item.thread_id)
     save_item(deps, session, item)
 
 
