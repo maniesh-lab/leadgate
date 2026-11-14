@@ -13,7 +13,7 @@ import { Badge, FlagBadge, ScoreMeter, StatusBadge } from "../components/Badge";
 import { CampaignSelect } from "../components/CampaignSelect";
 import { GoogleCredit } from "../components/GoogleCredit";
 import { EmptyState, PageHeader } from "../components/Page";
-import { Pagination } from "../components/Pagination";
+import { Pagination, useStayOnAPageWithRows } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
 
 const PAGE_SIZE = 50;
@@ -66,6 +66,8 @@ export function LeadsPage() {
       return next;
     });
   }
+
+  useStayOnAPageWithRows(page, PAGE_SIZE, leads.data, (last) => update("page", String(last)));
 
   const hasFilters = FILTER_KEYS.some((key) => key !== "sort" && params.get(key));
 

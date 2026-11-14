@@ -222,6 +222,59 @@ describe("QueuePage", () => {
     }
   });
 
+  it("stays closed when a decision lands after the dialog was closed", async () => {
+    // The decision's answer arrives a moment after Esc.
+    const slow = () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            setTimeout(() => {
+              controller.enqueue(new TextEncoder().encode("{}"));
+              controller.close();
+            }, 100);
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    setup(slow);
+    const dialog = await openFirst();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Approve/ }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(screen.queryByRole("dialog")).toBeNull(); // not reopened on the next lead
+  });
+
+  it("goes back a page when the last lead on this one was decided", async () => {
+    let decided = false;
+    fakeApi({
+      "GET /api/auth/me": () => REVIEWER,
+      "GET /api/campaigns": () => page([]),
+      // 51 waiting: one on page 2. Once it's decided, page 2 is past the end.
+      "GET /api/approvals/queue": (url) => {
+        const onPage2 = url.searchParams.get("page") === "2";
+        if (onPage2)
+          return decided
+            ? { ...page([]), total: 50 }
+            : { ...page([queueItem(1, "Bright Smiles")]), total: 51 };
+        return { ...page([queueItem(2, "Lake Dental")]), total: decided ? 50 : 51 };
+      },
+      "GET /api/leads/10": () => ({ enrichment: null }),
+      "GET /api/leads/20": () => ({ enrichment: null }),
+      "POST /api/run-items/1/decision": () => {
+        decided = true;
+        return reply(200, {});
+      },
+    });
+    const router = renderApp("/queue?page=2", { user: REVIEWER });
+    await openFirst();
+    await userEvent.keyboard("a");
+
+    expect(await screen.findByText("Lake Dental")).toBeInTheDocument();
+    expect(router.state.location.search).not.toContain("page=2");
+  });
+
   it("closes with Esc", async () => {
     setup();
     await openFirst();

@@ -1,4 +1,5 @@
 /** "51–100 of 230" with previous / next buttons, under every paged list. */
+import { useEffect } from "react";
 
 type Props = {
   page: number;
@@ -37,4 +38,19 @@ export function Pagination({ page, pageSize, total, onPage }: Props) {
       </div>
     </div>
   );
+}
+
+/** A page past the end (its last rows were decided or deleted meanwhile) moves back to the
+ * last page that has rows, instead of an empty list with no buttons to leave it. */
+export function useStayOnAPageWithRows(
+  page: number,
+  pageSize: number,
+  data: { items: unknown[]; total: number } | undefined,
+  onPage: (page: number) => void,
+) {
+  const lastPage = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
+  const pastTheEnd = data !== undefined && data.items.length === 0 && page > lastPage;
+  useEffect(() => {
+    if (pastTheEnd) onPage(lastPage);
+  }, [pastTheEnd, lastPage, onPage]);
 }

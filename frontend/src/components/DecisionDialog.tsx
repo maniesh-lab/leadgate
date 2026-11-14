@@ -35,6 +35,13 @@ type Props = {
 export function DecisionDialog({ item, onClose, onDecided }: Props) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const open = useRef(true);
+  useEffect(
+    () => () => {
+      open.current = false;
+    },
+    [],
+  );
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const [reason, setReason] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -59,7 +66,8 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
     onSuccess: () => {
       // Statuses change everywhere: the queue, the run, the lead.
       queryClient.invalidateQueries();
-      onDecided();
+      // Closed while the decision was on its way: don't open the next lead.
+      if (open.current) onDecided();
     },
   });
 
