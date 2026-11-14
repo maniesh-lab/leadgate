@@ -87,7 +87,8 @@ def list_audit(
 
 
 USER_LABEL = re.compile(r"^user (\d+)$")
-NOBODY = "\x00nobody"  # an actor no row has
+NOBODY = "(no such user)"  # an actor no row has (no email, node or worker name looks so)
+MAX_ID = 2**31 - 1  # Postgres integer ids
 
 
 def searchable_actor(db: Session, actor: str | None, emails: Emails) -> str | None:
@@ -96,7 +97,8 @@ def searchable_actor(db: Session, actor: str | None, emails: Emails) -> str | No
     if actor is None:
         return None
     if match := USER_LABEL.match(actor.strip()):
-        user = db.get(User, int(match.group(1)))
+        user_id = int(match.group(1))
+        user = db.get(User, user_id) if user_id <= MAX_ID else None
         return user.email if user else NOBODY
     if "@" in actor and not emails.may_search(actor):
         return NOBODY

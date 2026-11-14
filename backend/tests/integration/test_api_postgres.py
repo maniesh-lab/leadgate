@@ -228,3 +228,22 @@ def test_reviewer_stats_name_other_reviewers_to_admins_only(api: Api) -> None:
 
     assert reviewers(admin) == {"alice@example.com", "bob@example.com"}
     assert reviewers(api.alice) == {"alice@example.com", f"user {api.bob.id}"}
+
+
+def test_an_id_too_big_for_postgres_is_a_404(api: Api) -> None:
+    headers = auth_headers(api.alice)
+    for path in ("/api/leads/3000000000", "/api/runs/3000000000"):
+        assert api.client.get(path, headers=headers).status_code == 404, path
+    # As a filter it just matches nobody.
+    audit = api.client.get("/api/audit", params={"actor": "user 3000000000"}, headers=headers)
+    assert (audit.status_code, audit.json()["total"]) == (200, 0)
+
+
+def test_filters_that_match_nobody_or_carry_a_nul_dont_break_postgres(api: Api) -> None:
+    headers = auth_headers(api.alice)
+    # Another user's email, from a non-admin, matches nothing (a placeholder actor).
+    audit = api.client.get("/api/audit", params={"actor": "bob@example.com"}, headers=headers)
+    assert (audit.status_code, audit.json()["total"]) == (200, 0)
+    # Postgres refuses text with a NUL in it: a 422, not a 500.
+    assert api.client.get("/api/leads?q=%00", headers=headers).status_code == 422
+    assert api.client.get("/api/audit?action=a%00b", headers=headers).status_code == 422
