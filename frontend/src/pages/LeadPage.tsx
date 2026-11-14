@@ -18,6 +18,7 @@ import { EmptyState, Fact, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { ScoreReview } from "../components/ScoreReview";
 import { formatDateTime } from "../lib/format";
+import { webLink } from "../lib/links";
 
 export function LeadPage() {
   const { leadId } = useParams();
@@ -71,9 +72,10 @@ export function LeadPage() {
           <Fact
             label="Website"
             value={
-              data.website && (
+              data.website &&
+              (webLink(data.website) ? (
                 <a
-                  href={data.website}
+                  href={webLink(data.website) ?? undefined}
                   target="_blank"
                   rel="noreferrer"
                   className="link inline-flex items-center gap-1"
@@ -81,7 +83,9 @@ export function LeadPage() {
                   {data.website_domain ?? data.website}
                   <ExternalIcon className="size-3" />
                 </a>
-              )
+              ) : (
+                data.website
+              ))
             }
           />
           <Fact label="Category" value={data.category} />

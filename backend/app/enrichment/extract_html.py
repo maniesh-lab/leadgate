@@ -108,14 +108,25 @@ def visible_text(soup: BeautifulSoup) -> str:
     return " ".join(soup.get_text(" ").split())
 
 
+# The links kept from a page. Checked on the parsed URL, which drops the tabs and newlines
+# a browser ignores too: "java\tscript:" is javascript:, and would pass a text check.
+LINK_SCHEMES = ("http", "https", "mailto", "tel")
+
+
 def page_links(soup: BeautifulSoup, base_url: str) -> list[Link]:
     links = []
     for anchor in soup.find_all("a", href=True):
         href = str(anchor["href"]).strip()
-        if not href or href.startswith("#") or href.lower().startswith("javascript:"):
+        if not href or href.startswith("#"):
             continue
-        absolute = urljoin(base_url, href)
-        links.append(Link(url=without_fragment(absolute), text=anchor.get_text(" ", strip=True)))
+        try:
+            parts = urlsplit(urljoin(base_url, href))
+        except ValueError:  # e.g. a broken IPv6 address
+            continue
+        if parts.scheme.lower() not in LINK_SCHEMES:
+            continue
+        url = without_fragment(urlunsplit(parts))
+        links.append(Link(url=url, text=anchor.get_text(" ", strip=True)))
     return links
 
 

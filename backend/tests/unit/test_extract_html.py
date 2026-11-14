@@ -240,3 +240,19 @@ def test_json_ld_nested_too_deep_is_skipped() -> None:
     deep = "[" * 100_000 + "]" * 100_000
     html = f'<script type="application/ld+json">{deep}</script><a href="mailto:hi@a.test">x</a>'
     assert parse_page(html, "https://a.test/").emails == ["hi@a.test"]
+
+
+def test_only_web_mail_and_phone_links_are_kept() -> None:
+    html = (
+        '<a href="java\tscript://facebook.com/smile">a</a>'
+        '<a href="javascript:alert(1)">b</a><a href="data:text/html,x">c</a>'
+        '<a href="https://facebook.com/smiledental">d</a>'
+        '<a href="mailto:hi@a.test">e</a><a href="tel:+15125550142">f</a>'
+    )
+    page = parse_page(html, "https://a.test/")
+    assert [link.url for link in page.links] == [
+        "https://facebook.com/smiledental",
+        "mailto:hi@a.test",
+        "tel:+15125550142",
+    ]
+    assert find_socials(page.links) == {"facebook": "https://facebook.com/smiledental"}
