@@ -413,6 +413,8 @@ def check_code(
         record_failure(db, user.email.lower(), user, ip, now, correlation_id, two_factor=True)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "wrong code; try the next one")
     user.totp_last_step = step
+    # Spent now, even if the request then fails (say a 409): else it would work again.
+    db.commit()
 
 
 def confirm_yourself(
@@ -423,8 +425,9 @@ def confirm_yourself(
     settings: Settings,
     correlation_id: str | None,
 ) -> None:
-    """For a change a stolen login mustn't make (a new admin, another admin's reset link
-    or two-factor): the user's own password again, and a code when their two-factor is on.
+    """For a change a stolen login mustn't make (a new admin, another admin turned back on,
+    another admin's reset link or two-factor): the user's own password again, and a code
+    when their two-factor is on.
     A login token alone (say one read by an injected script) isn't enough then."""
     if confirm is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "re-enter your password to do this")

@@ -369,9 +369,11 @@ function ConfirmYourself(props: {
 /** "Turn off" (asks first) or "Turn on" for one account. */
 function ActiveButton({ user }: { user: User }) {
   const queryClient = useQueryClient();
+  const [asking, setAsking] = useState(false);
+  const button = useFocusBackOnCancel(asking);
   const change = useMutation({
-    mutationFn: (isActive: boolean) =>
-      api.patch<User>(`/api/users/${user.id}`, { is_active: isActive }),
+    mutationFn: (body: { is_active: boolean; confirm?: AdminConfirm }) =>
+      api.patch<User>(`/api/users/${user.id}`, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
@@ -379,20 +381,38 @@ function ActiveButton({ user }: { user: User }) {
     if (user.is_active) {
       const sure = window.confirm(`Turn off ${user.email}? Their logins end right away.`);
       if (!sure) return;
+      change.mutate({ is_active: false });
+    } else if (user.role === "admin") {
+      setAsking(true); // a former admin back on: the API wants your password again
+    } else {
+      change.mutate({ is_active: true });
     }
-    change.mutate(!user.is_active);
   }
 
   return (
     <div>
-      <button
-        type="button"
-        className="btn px-3 py-1.5 whitespace-nowrap"
-        disabled={change.isPending}
-        onClick={toggle}
-      >
-        {user.is_active ? "Turn off" : "Turn on"}
-      </button>
+      {asking ? (
+        <ConfirmYourself
+          label="Turn on"
+          busy={change.isPending}
+          onConfirm={(confirm) => change.mutate({ is_active: true, confirm })}
+          onCancel={() => {
+            button.cancelled();
+            setAsking(false);
+            change.reset();
+          }}
+        />
+      ) : (
+        <button
+          ref={button.ref}
+          type="button"
+          className="btn px-3 py-1.5 whitespace-nowrap"
+          disabled={change.isPending}
+          onClick={toggle}
+        >
+          {user.is_active ? "Turn off" : "Turn on"}
+        </button>
+      )}
       {change.error && (
         <p role="alert" className="mt-1 text-xs text-(--red)">
           {describeError(change.error)}

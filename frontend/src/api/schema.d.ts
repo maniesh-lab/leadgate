@@ -251,8 +251,9 @@ export interface paths {
         head?: never;
         /**
          * Update User
-         * @description Turn an account off (its logins end at once) or back on. 409 for your own account
-         *     or the last active admin.
+         * @description Turn an account off (its logins end at once) or back on. Turning an admin back on
+         *     needs your password again in `confirm` (a former admin's password still works). 409 for
+         *     your own account or the last active admin.
          */
         patch: operations["update_user_api_users__user_id__patch"];
         trace?: never;
@@ -1928,6 +1929,8 @@ export interface components {
         UserUpdate: {
             /** Is Active */
             is_active: boolean;
+            /** @description Needed to turn another admin back on (see `AdminConfirm`). */
+            confirm?: components["schemas"]["AdminConfirm"] | null;
         };
     };
     responses: never;
@@ -2592,6 +2595,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserOut"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -2630,6 +2642,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
