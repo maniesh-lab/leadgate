@@ -213,3 +213,18 @@ def test_two_retries_at_once_queue_one_job(api: Api) -> None:
     api.db.expire_all()
     assert count(api.db, Job, Job.type == JobType.PROCESS_ITEM) == 1
     assert count(api.db, AuditLog, AuditLog.action == "run_item.retried") == 1
+
+
+def test_reviewer_stats_name_other_reviewers_to_admins_only(api: Api) -> None:
+    first, second = waiting_items(api, 2)
+    assert decide(api, first.id, api.alice, {"decision": "approved"}) == 200
+    assert decide(api, second.id, api.bob, {"decision": "approved"}) == 200
+    admin = add_user(api.db, "admin@example.com", UserRole.ADMIN)
+
+    def reviewers(user: User) -> set[str]:
+        response = api.client.get("/api/reports/reviewer_stats", headers=auth_headers(user))
+        assert response.status_code == 200, response.text
+        return {row["reviewer"] for row in response.json()["rows"]}
+
+    assert reviewers(admin) == {"alice@example.com", "bob@example.com"}
+    assert reviewers(api.alice) == {"alice@example.com", f"user {api.bob.id}"}

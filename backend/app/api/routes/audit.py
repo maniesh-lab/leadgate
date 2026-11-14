@@ -3,8 +3,9 @@
 Rows come from `app.services.audit.record()` (nodes, the worker, reviewers, admins); the
 API never changes them, and on Postgres a trigger refuses UPDATE and DELETE anyway.
 
-Some rows are for admins only, because the public demo's reviewer login can read
-everything else here:
+A user row's `actor` (their email) shows as "user <id>" to anyone but an admin and that
+user (`app.api.deps.Emails`). Some rows are for admins only, because the public demo's
+reviewer login can read everything else here:
 - login rows (`auth.*`, e.g. `auth.login_failed`): the email someone typed and their IP
 - account rows (`user.*`): the users' emails
 - the admin tools' rows: campaigns (`campaign.*`, what an admin searched for), CSV uploads
@@ -15,11 +16,21 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
+from sqlalchemy.orm import Session
 
-from app.api.deps import AppSettings, CurrentUser, DbSession, Paging, needs_two_factor, paginate
+from app.api.deps import (
+    AppSettings,
+    CurrentUser,
+    DbSession,
+    Emails,
+    Paging,
+    ShownEmails,
+    needs_two_factor,
+    paginate,
+)
 from app.api.errors import error_docs
-from app.db.models import AuditLog, UserRole
+from app.db.models import ActorType, AuditLog, User, UserRole
 from app.schemas.audit import AuditOut
 from app.schemas.common import Page
 
@@ -35,6 +46,7 @@ def list_audit(
     db: DbSession,
     settings: AppSettings,
     paging: Paging,
+    emails: ShownEmails,
     run_id: int | None = None,
     entity_type: Annotated[str | None, Query(description="e.g. lead, run, run_item")] = None,
     entity_id: int | None = None,
@@ -64,11 +76,34 @@ def list_audit(
             stmt = stmt.where(AuditLog.action.not_like(f"{prefix}%"))
     rows, total = paginate(db, stmt, paging)
     return Page(
-        items=[AuditOut.model_validate(row) for (row,) in rows],
+        items=shown_actors(db, [row for (row,) in rows], emails),
         total=total,
         page=paging.page,
         page_size=paging.page_size,
     )
+
+
+def shown_actors(db: Session, rows: list[AuditLog], emails: Emails) -> list[AuditOut]:
+    """The rows as answers, each user actor's email shown as `emails` allows."""
+    actors = {row.actor.lower() for row in rows if row.actor_type == ActorType.USER}
+    ids = (
+        dict(
+            db.execute(
+                select(func.lower(User.email), User.id).where(func.lower(User.email).in_(actors))
+            )
+            .tuples()
+            .all()
+        )
+        if actors
+        else {}
+    )
+    shown = []
+    for row in rows:
+        out = AuditOut.model_validate(row)
+        if row.actor_type == ActorType.USER:
+            out.actor = emails.show(row.actor, ids.get(row.actor.lower())) or row.actor
+        shown.append(out)
+    return shown
 
 
 def audit_query(

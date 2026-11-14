@@ -24,7 +24,16 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import ColumnElement, Select, Text, cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import AdminUser, CurrentUser, DbSession, Paging, get_or_404, paginate
+from app.api.deps import (
+    AdminUser,
+    CurrentUser,
+    DbSession,
+    Emails,
+    Paging,
+    ShownEmails,
+    get_or_404,
+    paginate,
+)
 from app.api.errors import error_docs
 from app.api.routes.runs import reviews_for
 from app.db.models import (
@@ -145,10 +154,10 @@ def leads_query(
 
 
 @router.get("/{lead_id}", responses=error_docs(404))
-def get_lead(lead_id: int, _user: CurrentUser, db: DbSession) -> LeadDetail:
+def get_lead(lead_id: int, _user: CurrentUser, db: DbSession, emails: ShownEmails) -> LeadDetail:
     """Everything about a lead: its fields, website findings, score breakdown and runs."""
     lead = get_or_404(db, Lead, lead_id, "lead")
-    history = lead_history(db, lead.id)
+    history = lead_history(db, lead.id, emails)
     review = reviews_for(db, [history[0].run_item_id])[history[0].run_item_id] if history else None
     enrichment = lead.enrichment
     if enrichment is not None:
@@ -238,7 +247,7 @@ def latest_flags(db: Session, lead_ids: list[int]) -> dict[int, list[str]]:
     return flags
 
 
-def lead_history(db: Session, lead_id: int) -> list[LeadRunItem]:
+def lead_history(db: Session, lead_id: int, emails: Emails) -> list[LeadRunItem]:
     rows = db.execute(lead_history_query(lead_id)).all()
     return [
         LeadRunItem(
@@ -252,7 +261,7 @@ def lead_history(db: Session, lead_id: int) -> list[LeadRunItem]:
             flags=item.flags,
             decision=approval.decision if approval else None,
             reason=approval.reason if approval else None,
-            reviewer_email=email,
+            reviewer_email=emails.show(email, approval.reviewer_id if approval else None),
             created_at=item.created_at,
         )
         for item, campaign_id, campaign_name, approval, email in rows

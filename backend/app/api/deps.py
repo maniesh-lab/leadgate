@@ -85,6 +85,28 @@ def needs_two_factor(user: User, settings: Settings) -> bool:
     )
 
 
+class Emails:
+    """How users' emails show to the caller. An admin sees them all; anyone else sees their
+    own, and every other user as "user <id>": an email names a real person, and the public
+    demo's reviewer login can read whatever a reviewer can."""
+
+    def __init__(self, viewer: User, settings: Settings) -> None:
+        self.all = viewer.role == UserRole.ADMIN and not needs_two_factor(viewer, settings)
+        self.own = viewer.email.lower()
+
+    def show(self, email: str | None, user_id: int | None) -> str | None:
+        if email is None or self.all or email.lower() == self.own:
+            return email
+        return f"user {user_id}" if user_id is not None else "a user"
+
+
+def get_emails(user: CurrentUser, settings: AppSettings) -> Emails:
+    return Emails(user, settings)
+
+
+ShownEmails = Annotated[Emails, Depends(get_emails)]
+
+
 def require_role(*roles: UserRole) -> Callable[..., User]:
     """A dependency that lets only users with one of `roles` through (else 403).
 

@@ -14,9 +14,11 @@ from app.db.models import (
     RunItemStatus,
     RunStep,
     RunTrigger,
+    UserRole,
 )
 from app.services.approvals import NotAwaitingDecision
 from tests.agent_world import World, add_lead
+from tests.conftest import add_user, auth_headers
 from tests.unit.conftest import run_jobs
 
 
@@ -163,6 +165,11 @@ def test_lead_detail_after_a_decision(
         "approved",
         reviewer.email,
     )
+    # Who decided shows to admins and to that reviewer; anyone else sees "user <id>".
+    other = auth_headers(add_user(world.db, "other@example.com", UserRole.REVIEWER))
+    for headers, shown in ((started["as_admin"], reviewer.email), (other, f"user {reviewer.id}")):
+        lead = client.get(f"/api/leads/{item['lead']['id']}", headers=headers).json()
+        assert lead["history"][0]["reviewer_email"] == shown
 
 
 def test_opt_out_still_succeeds_when_a_reviewer_decided_first(

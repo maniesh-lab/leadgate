@@ -95,6 +95,7 @@ ORDER BY city, area, rank, lead_id
 
 REVIEWER_STATS = """
 SELECT users.email AS reviewer,
+       users.id AS reviewer_id,
        count(*) AS decisions,
        count(*) FILTER (WHERE approvals.decision = 'approved') AS approved,
        count(*) FILTER (WHERE approvals.decision = 'rejected') AS rejected,
@@ -116,7 +117,7 @@ LEFT JOIN (
     WHERE node = 'approval_gate'
     GROUP BY run_item_id
 ) AS gate ON gate.run_item_id = approvals.run_item_id
-GROUP BY users.email
+GROUP BY users.id, users.email
 ORDER BY decisions DESC, reviewer
 """
 

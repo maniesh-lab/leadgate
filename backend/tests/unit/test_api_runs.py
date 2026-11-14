@@ -9,8 +9,9 @@ website, CRM and notifier are fakes. No network.
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.db.models import AuditLog, Job, JobType
+from app.db.models import AuditLog, Job, JobType, UserRole
 from tests.agent_world import World, add_lead
+from tests.conftest import add_user, auth_headers
 from tests.unit.conftest import login, run_jobs
 
 
@@ -79,7 +80,7 @@ def test_the_whole_flow_through_the_api(
 
 
 def test_run_item_detail_has_the_timeline_and_the_decision(
-    client: TestClient, worker, clock, reviewer, started, as_reviewer
+    client: TestClient, world: World, worker, clock, reviewer, started, as_reviewer
 ) -> None:
     run = client.get(f"/api/runs/{started['run']['id']}", headers=as_reviewer).json()
     item_id = run["items"][0]["id"]
@@ -108,6 +109,9 @@ def test_run_item_detail_has_the_timeline_and_the_decision(
     assert detail["review"]["extraction_issues"] == []
     assert detail["approval"]["decision"] == "approved"
     assert detail["approval"]["reviewer_email"] == reviewer.email
+    other = auth_headers(add_user(world.db, "other@example.com", UserRole.REVIEWER))
+    by_other = client.get(f"/api/run-items/{detail['id']}", headers=other).json()
+    assert by_other["approval"]["reviewer_email"] == f"user {reviewer.id}"
 
     assert client.get("/api/run-items/999", headers=as_reviewer).status_code == 404
 
