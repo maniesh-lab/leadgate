@@ -446,3 +446,55 @@ def test_a_decision_for_a_thread_whose_state_is_gone_fails_the_item(world, worke
     assert smile.status == RunItemStatus.FAILED
     assert "no saved state to resume" in smile.error
     assert smile.score == score  # not wiped
+
+
+def worn_out_job(world, run, item, status: RunItemStatus, clock) -> Job:
+    """`item` at `status`, and its process job left running on its last attempt by a worker
+    that died long ago."""
+    item.status = status
+    job = enqueue(world.db, JobType.PROCESS_ITEM, {"run_item_id": item.id}, clock())
+    job.status, job.attempts, job.max_attempts = JobStatus.RUNNING, 3, 3
+    job.locked_by, job.locked_at = "dead-worker", clock()
+    world.db.commit()
+    clock.advance(10 * 60)
+    return job
+
+
+def test_a_worn_out_job_leaves_an_item_it_already_finished_alone(world, worker, clock) -> None:
+    # Killed between saving the item (at the gate) and marking the job done, three times.
+    run = start(world, clock)
+    worker.run_once()  # start_run: the items and their jobs
+    smile = items(world.db, run)[0]
+    job = worn_out_job(world, run, smile, RunItemStatus.AWAITING_APPROVAL, clock)
+
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())
+
+    world.db.expire_all()
+    assert world.db.get(Job, job.id).status == JobStatus.FAILED
+    assert items(world.db, run)[0].status == RunItemStatus.AWAITING_APPROVAL
+
+
+def test_a_worn_out_job_and_its_item_fail_in_one_commit(world, worker, clock, monkeypatch) -> None:
+    run = start(world, clock)
+    worker.run_once()
+    smile = items(world.db, run)[0]
+    job = worn_out_job(world, run, smile, RunItemStatus.RUNNING, clock)
+    real_finish = handlers.finish_item
+
+    def broken(*_args, **_kwargs):
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(handlers, "finish_item", broken)
+    with worker.deps.session_factory() as session, pytest.raises(RuntimeError):
+        worker.recover(session, clock())
+    world.db.expire_all()
+    # Neither was saved: the job is still there to be failed by the next recovery.
+    assert world.db.get(Job, job.id).status == JobStatus.RUNNING
+
+    monkeypatch.setattr(handlers, "finish_item", real_finish)
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())
+    world.db.expire_all()
+    assert world.db.get(Job, job.id).status == JobStatus.FAILED
+    assert items(world.db, run)[0].status == RunItemStatus.FAILED

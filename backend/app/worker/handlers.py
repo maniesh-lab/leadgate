@@ -48,14 +48,24 @@ from app.agents.runner import (
 )
 from app.agents.state import AgentContext, utc_now
 from app.config import Settings
-from app.db.models import Approval, Job, JobType, Lead, Route, Run, RunItem, RunItemStatus
+from app.db.models import (
+    Approval,
+    Job,
+    JobType,
+    Lead,
+    Route,
+    Run,
+    RunItem,
+    RunItemStatus,
+    RunStatus,
+)
 from app.enrichment.crawler import Crawler
 from app.observability.tracing import Tracer
 from app.services.crm import CRMClient
 from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
-from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
+from app.services.runs import BUSY, audit_run, collect_run, fail_run, refresh_run_status
 
 log = structlog.get_logger(__name__)
 
@@ -208,10 +218,14 @@ def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStat
 
 
 def give_up(deps: Deps, session: Session, job: Job) -> None:
-    """The job failed for good: mark its item (or run) failed with the last error."""
+    """The job failed for good: mark its item (or run) failed with the last error, and
+    commit (with the job's own failure, which the caller left uncommitted). An item or run
+    the job already took past its work (a kill after it was saved) is left as it is."""
     error = job.last_error or "unknown error"
     if job.type == JobType.START_RUN:
-        fail_run(session, get(session, Run, job.payload["run_id"]), error, deps.now())
+        run = get(session, Run, job.payload["run_id"])
+        if run.status in (RunStatus.QUEUED, RunStatus.COLLECTING):
+            fail_run(session, run, error, deps.now())
         session.commit()
     elif job.type == JobType.SEND_CALLBACK:
         audit_run(
@@ -223,6 +237,9 @@ def give_up(deps: Deps, session: Session, job: Job) -> None:
         session.commit()
     elif "run_item_id" in job.payload:
         item = get(session, RunItem, job.payload["run_item_id"])
+        if item.status not in BUSY:  # e.g. already waiting for a decision, or done
+            session.commit()
+            return
         item.error = error
         finish_item(deps, session, item, RunItemStatus.FAILED)
 

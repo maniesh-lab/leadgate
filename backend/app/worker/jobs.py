@@ -13,10 +13,11 @@
   whose lock wasn't renewed for 5 min, and jobs locked under the starting worker's own id (an
   earlier life of the same worker, e.g. the same container restarted). That's what makes
   "kill the worker, start it again" work
-- `fail_worn_out()` fails such a job instead when it already used its last attempt. A
-  job that kills the worker every time (e.g. out of memory) never raises an exception,
+- `fail_next_worn_out()` fails such a job instead when it already used its last attempt.
+  A job that kills the worker every time (e.g. out of memory) never raises an exception,
   so without this it would go back in the queue forever. The claim counts every
-  attempt, so a killed attempt counts like a failed one
+  attempt, so a killed attempt counts like a failed one. One job at a time, left
+  uncommitted, so the worker saves its item's failure (`give_up()`) in the same commit
 
 The claim is one statement:
 
@@ -120,8 +121,11 @@ def mark_done(session: Session, job: Job) -> None:
     session.commit()
 
 
-def mark_failed(session: Session, job: Job, error: str, now: datetime) -> bool:
-    """Queue the job again with a wait, or fail it for good. True if it will be retried."""
+def mark_failed(
+    session: Session, job: Job, error: str, now: datetime, *, commit: bool = True
+) -> bool:
+    """Queue the job again with a wait, or fail it for good. True if it will be retried.
+    `commit=False` leaves the commit to the caller (to save the item's failure with it)."""
     job.last_error = error[:MAX_ERROR]
     job.locked_at = None
     job.locked_by = None
@@ -131,7 +135,8 @@ def mark_failed(session: Session, job: Job, error: str, now: datetime) -> bool:
         job.run_after = now + timedelta(seconds=2**job.attempts)
     else:
         job.status = JobStatus.FAILED
-    session.commit()
+    if commit:
+        session.commit()
     log.warning(
         "job_failed", job_id=job.id, type=job.type, attempts=job.attempts, retry=retry, error=error
     )
@@ -150,35 +155,37 @@ def stale_running(now: datetime, own_id: str | None) -> ColumnElement[bool]:
     return and_(Job.status == JobStatus.RUNNING, dead)
 
 
-def fail_worn_out(session: Session, now: datetime, own_id: str | None = None) -> list[Job]:
-    """Fail the dead worker's jobs that were on their last attempt, and commit.
-
-    Returns them, so the worker can mark their items (or runs) failed with `give_up()`.
-    """
+def fail_next_worn_out(session: Session, now: datetime, own_id: str | None = None) -> Job | None:
+    """Fail one of the dead worker's jobs that was on its last attempt, or None if there's
+    none. Not committed: the row stays locked (Postgres) until the caller commits it
+    together with its item's failure (`give_up()`), so a crash can't keep one without the
+    other."""
     stmt = (
         select(Job)
         .where(stale_running(now, own_id), Job.attempts >= Job.max_attempts)
+        .order_by(Job.id)
+        .limit(1)
         .with_for_update(skip_locked=True)
     )
-    jobs = list(session.scalars(stmt))
-    for job in jobs:
-        job.status = JobStatus.FAILED
-        job.locked_at = None
-        job.locked_by = None
-        job.last_error = (
-            f"the worker stopped during attempt {job.attempts} of {job.max_attempts}"
-            " (killed or out of memory)"
-        )
-    session.commit()
-    if jobs:
-        log.warning("stale_jobs_failed", job_ids=[job.id for job in jobs])
-    return jobs
+    job = session.scalars(stmt).first()
+    if job is None:
+        return None
+    job.status = JobStatus.FAILED
+    job.locked_at = None
+    job.locked_by = None
+    job.last_error = (
+        f"the worker stopped during attempt {job.attempts} of {job.max_attempts}"
+        " (killed or out of memory)"
+    )
+    session.flush()
+    log.warning("stale_job_failed", job_id=job.id)
+    return job
 
 
 def recover_stale(session: Session, now: datetime, own_id: str | None = None) -> int:
     """Put a dead worker's jobs that have attempts left back in the queue. Returns how many.
 
-    Jobs on their last attempt are `fail_worn_out()`'s; call it first.
+    Jobs on their last attempt are `fail_next_worn_out()`'s; call it first.
     """
     stmt = (
         update(Job)
