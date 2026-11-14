@@ -196,6 +196,31 @@ describe("UsersPage, another admin", () => {
     );
   });
 
+  it("asks for your password before turning a former admin back on", async () => {
+    let active = false;
+    const bodies: unknown[] = [];
+    const formerAdmin: UserRow = { ...ANN, is_active: false, two_factor_enabled: false };
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/users": () => page([ADMIN, { ...formerAdmin, is_active: active }]),
+      "PATCH /api/users/5": (_url, init) => {
+        bodies.push(JSON.parse(String(init.body)));
+        active = true;
+        return { ...formerAdmin, is_active: true };
+      },
+    });
+    renderApp("/settings/users", { user: ADMIN });
+    const annRow = within(await findRow(ANN.email));
+
+    await userEvent.click(annRow.getByRole("button", { name: "Turn on" }));
+    await userEvent.type(annRow.getByLabelText("Your password"), "my-password");
+    await userEvent.click(annRow.getByRole("button", { name: "Turn on" }));
+
+    expect(await annRow.findByRole("button", { name: "Turn off" })).toBeInTheDocument();
+    expect(annRow.queryByLabelText("Your password")).toBeNull(); // the prompt is gone
+    expect(bodies).toEqual([{ is_active: true, confirm: { password: "my-password", code: null } }]);
+  });
+
   it("moves keyboard focus into the password prompt, and back on Cancel", async () => {
     fakeApi({
       "GET /api/auth/me": () => ADMIN,

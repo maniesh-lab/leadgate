@@ -8,7 +8,8 @@
  * themselves; they pick their own password. "Unlock" lifts a login lock after too many
  * wrong passwords or codes. "Turn off 2FA" clears a lost phone's two-factor login.
  * For another admin, those two ask for your own password again (and a code, if your
- * two-factor is on) first: the API wants it, so a stolen login can't take over an admin.
+ * two-factor is on) first, and so does turning a former admin back on: the API wants it,
+ * so a stolen login can't take over an admin or bring one back.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -374,7 +375,10 @@ function ActiveButton({ user }: { user: User }) {
   const change = useMutation({
     mutationFn: (body: { is_active: boolean; confirm?: AdminConfirm }) =>
       api.patch<User>(`/api/users/${user.id}`, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      setAsking(false); // the row stays: its prompt goes once the admin is back on
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
   });
 
   function toggle() {
