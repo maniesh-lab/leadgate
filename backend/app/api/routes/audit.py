@@ -106,17 +106,8 @@ def searchable_actor(db: Session, actor: str | None, emails: Emails) -> str | No
 def shown_actors(db: Session, rows: list[AuditLog], emails: Emails) -> list[AuditOut]:
     """The rows as answers, each user actor's email shown as `emails` allows."""
     actors = {row.actor.lower() for row in rows if row.actor_type == ActorType.USER}
-    ids = (
-        dict(
-            db.execute(
-                select(func.lower(User.email), User.id).where(func.lower(User.email).in_(actors))
-            )
-            .tuples()
-            .all()
-        )
-        if actors
-        else {}
-    )
+    stmt = select(func.lower(User.email), User.id).where(func.lower(User.email).in_(actors))
+    ids: dict[str, int] = {email: user_id for email, user_id in db.execute(stmt)} if actors else {}
     shown = []
     for row in rows:
         out = AuditOut.model_validate(row)
