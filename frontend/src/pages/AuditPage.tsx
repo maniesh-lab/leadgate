@@ -50,12 +50,14 @@ export function AuditPage() {
         page,
         page_size: PAGE_SIZE,
         ...filters,
-        from: filters.from && `${filters.from}T00:00:00Z`,
-        to: filters.to && `${nextDay(filters.to)}T00:00:00Z`, // "to" is the whole day
+        from: dayStart(filters.from),
+        to: nextDay(filters.to), // "to" is the whole day
       }),
   });
 
   function update(key: string, value: string) {
+    // Leaving a box without changing it isn't a new filter (it would reset the page).
+    if ((params.get(key) ?? "") === value) return;
     setParams((current) => {
       const next = new URLSearchParams(current);
       if (value) next.set(key, value);
@@ -197,11 +199,20 @@ export function AuditPage() {
   );
 }
 
-/** "2026-10-30" -> "2026-10-31" (UTC), so a "to" day includes all of that day. */
-function nextDay(day: string): string {
+/** "2026-10-30" -> "2026-10-30T00:00:00Z" (UTC). Not a date (someone edited the URL): no
+ * filter, rather than a crash or an error from the API. */
+function dayStart(day: string): string | undefined {
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(date.getTime())) return undefined;
+  return `${day}T00:00:00Z`;
+}
+
+/** "2026-10-30" -> "2026-10-31T00:00:00Z", so a "to" day includes all of that day. */
+function nextDay(day: string): string | undefined {
+  if (!dayStart(day)) return undefined;
   const date = new Date(`${day}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
+  return `${date.toISOString().slice(0, 10)}T00:00:00Z`;
 }
 
 function EntityLink({ type, id }: { type: string; id: number | null }) {

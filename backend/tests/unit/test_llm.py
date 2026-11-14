@@ -3,6 +3,7 @@
 No network: the retry loop runs on `ScriptedProvider`, which replays canned replies.
 """
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -92,6 +93,17 @@ def test_close_can_be_called_twice() -> None:
     llm, _ = scripted_llm([])
     llm.close()
     llm.close()
+
+
+def test_close_works_inside_a_running_event_loop() -> None:
+    # The API's shutdown closes the worker it runs (RUN_WORKER_IN_API) on its own loop.
+    llm, _ = scripted_llm(['{"name": "Rex", "legs": 4}'])
+    ask(llm)  # the LLM's own loop has run
+
+    async def shutdown() -> None:
+        llm.close()
+
+    asyncio.run(shutdown())
 
 
 def test_make_llm_fake_by_default(settings: Settings) -> None:

@@ -260,6 +260,9 @@ def upsert_lead(session: Session, values: dict[str, Any]) -> None:
             # ON CONFLICT skips the model's `onupdate`, so set it here.
             "updated_at": func.now(),
         },
+        # `ingest()` already skips opted-out leads, but one can opt out while a collect
+        # runs: the row itself decides, so its wiped data is never written back.
+        where=Lead.opt_out.is_(False),
     )
     session.execute(stmt)
 

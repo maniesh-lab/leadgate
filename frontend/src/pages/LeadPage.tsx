@@ -18,6 +18,7 @@ import { EmptyState, Fact, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { ScoreReview } from "../components/ScoreReview";
 import { formatDateTime } from "../lib/format";
+import { webLink } from "../lib/links";
 
 export function LeadPage() {
   const { leadId } = useParams();
@@ -45,7 +46,8 @@ export function LeadPage() {
             <StatusBadge status={data.status} />
             {data.opt_out && <Badge tone="red">opted out</Badge>}
             <OptOutButton lead={data} />
-            {user?.role === "admin" && (
+            {/* An opted-out lead's wiped row is what keeps it out: the API won't delete it. */}
+            {user?.role === "admin" && !data.opt_out && (
               <DeleteButton
                 path={`/api/leads/${data.id}`}
                 question={`Delete ${data.name} and its history? This can't be undone. The audit log keeps its rows with the name and contact details blanked. Anything already sent to Airtable or Discord stays there. A later run may find it again: to keep it out for good, use Opt out instead.`}
@@ -71,9 +73,10 @@ export function LeadPage() {
           <Fact
             label="Website"
             value={
-              data.website && (
+              data.website &&
+              (webLink(data.website) ? (
                 <a
-                  href={data.website}
+                  href={webLink(data.website) ?? undefined}
                   target="_blank"
                   rel="noreferrer"
                   className="link inline-flex items-center gap-1"
@@ -81,7 +84,9 @@ export function LeadPage() {
                   {data.website_domain ?? data.website}
                   <ExternalIcon className="size-3" />
                 </a>
-              )
+              ) : (
+                data.website
+              ))
             }
           />
           <Fact label="Category" value={data.category} />

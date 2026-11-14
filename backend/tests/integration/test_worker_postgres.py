@@ -169,8 +169,8 @@ def test_a_killed_worker_resumes_and_every_side_effect_happens_once(pg) -> None:
     decide(db, lone_star.id, reviewer, "rejected", "not our area", clock())
 
     # --- Life 3: die in act, right after the CRM write for the first approved lead.
-    def write_then_crash(key, fields):
-        real_upsert(key, fields)
+    def write_then_crash(key, fields, record_id=None):
+        real_upsert(key, fields, record_id)
         raise Crash
 
     with ExitStack() as process:

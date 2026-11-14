@@ -41,7 +41,9 @@ from app.api.deps import (
     AppSettings,
     CurrentUser,
     DbSession,
+    Emails,
     Paging,
+    ShownEmails,
     get_current_user,
     get_or_404,
     oauth2_scheme,
@@ -272,7 +274,9 @@ def delete_run(run_id: int, admin: AdminUser, db: DbSession) -> Response:
 
 
 @router.get("/run-items/{item_id}", responses=error_docs(404))
-def get_run_item(item_id: int, _user: CurrentUser, db: DbSession) -> RunItemDetail:
+def get_run_item(
+    item_id: int, _user: CurrentUser, db: DbSession, emails: ShownEmails
+) -> RunItemDetail:
     """One lead in one run: lead card, step timeline, score breakdown, decision."""
     item = get_or_404(db, RunItem, item_id, "run item")
     run = db.get(Run, item.run_id)
@@ -294,7 +298,7 @@ def get_run_item(item_id: int, _user: CurrentUser, db: DbSession) -> RunItemDeta
         lead=LeadSummary.model_validate(db.get(Lead, item.lead_id)),
         review=reviews_for(db, [item.id])[item.id],
         steps=[StepOut.model_validate(step) for step in steps],
-        approval=approval_for(db, item.id),
+        approval=approval_for(db, item.id, emails),
     )
 
 
@@ -392,7 +396,7 @@ def reviews_for(db: Session, item_ids: Iterable[int]) -> dict[int, Review]:
     return reviews
 
 
-def approval_for(db: Session, item_id: int) -> ApprovalOut | None:
+def approval_for(db: Session, item_id: int, emails: Emails) -> ApprovalOut | None:
     row = db.execute(
         select(Approval, User.email)
         .join(User, User.id == Approval.reviewer_id)
@@ -401,7 +405,7 @@ def approval_for(db: Session, item_id: int) -> ApprovalOut | None:
     if row is None:
         return None
     approval, email = row
-    return approval_out(approval, email)
+    return approval_out(approval, emails.show(email, approval.reviewer_id) or "")
 
 
 def approval_out(approval: Approval, reviewer_email: str) -> ApprovalOut:

@@ -9,8 +9,10 @@ website, CRM and notifier are fakes. No network.
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.db.models import AuditLog, Job, JobType
+from app.api.routes.approvals import DEMO_REASON
+from app.db.models import AuditLog, Job, JobType, UserRole
 from tests.agent_world import World, add_lead
+from tests.conftest import add_user, auth_headers
 from tests.unit.conftest import login, run_jobs
 
 
@@ -79,7 +81,7 @@ def test_the_whole_flow_through_the_api(
 
 
 def test_run_item_detail_has_the_timeline_and_the_decision(
-    client: TestClient, worker, clock, reviewer, started, as_reviewer
+    client: TestClient, world: World, worker, clock, reviewer, started, as_reviewer
 ) -> None:
     run = client.get(f"/api/runs/{started['run']['id']}", headers=as_reviewer).json()
     item_id = run["items"][0]["id"]
@@ -108,6 +110,9 @@ def test_run_item_detail_has_the_timeline_and_the_decision(
     assert detail["review"]["extraction_issues"] == []
     assert detail["approval"]["decision"] == "approved"
     assert detail["approval"]["reviewer_email"] == reviewer.email
+    other = auth_headers(add_user(world.db, "other@example.com", UserRole.REVIEWER))
+    by_other = client.get(f"/api/run-items/{detail['id']}", headers=other).json()
+    assert by_other["approval"]["reviewer_email"] == f"user {reviewer.id}"
 
     assert client.get("/api/run-items/999", headers=as_reviewer).status_code == 404
 
@@ -205,3 +210,31 @@ def test_admins_decide_too_and_only_logged_in_users_read(
     assert response.status_code == 200
     for path in ("/api/runs", f"/api/runs/{started['run']['id']}", "/api/approvals/queue"):
         assert client.get(path).status_code == 401
+
+
+def test_a_reason_typed_on_the_shared_demo_login_is_never_kept(
+    client: TestClient, world: World, worker, clock, settings, started, as_reviewer
+) -> None:
+    client.app.state.settings = settings.model_copy(
+        update={"demo_reviewer_email": "demo@example.com"}
+    )
+    demo = auth_headers(add_user(world.db, "demo@example.com", UserRole.REVIEWER))
+    waiting = client.get("/api/approvals/queue", headers=demo).json()["items"][0]
+    item_id, lead_id = waiting["run_item_id"], waiting["lead"]["id"]
+    typed = "visit totally-real-offer.example"
+
+    decided = client.post(
+        f"/api/run-items/{item_id}/decision",
+        json={"decision": "rejected", "reason": typed},
+        headers=demo,
+    )
+    run_jobs(worker, clock)  # the item resumes: the gate's step and audit rows are written
+
+    assert decided.status_code == 200 and decided.json()["reason"] == DEMO_REASON
+    seen = [
+        client.get(f"/api/run-items/{item_id}", headers=as_reviewer).text,
+        client.get("/api/audit?page_size=100", headers=as_reviewer).text,
+        client.get(f"/api/leads/{lead_id}", headers=as_reviewer).text,
+    ]
+    assert not any(typed in text for text in seen)
+    assert DEMO_REASON in seen[0]

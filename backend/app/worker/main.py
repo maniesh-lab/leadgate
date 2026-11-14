@@ -4,9 +4,9 @@
 
 1. on startup, jobs left `running` by a dead worker go back in the queue
    (`recover_stale()`), or fail for good if that was their last attempt
-   (`fail_worn_out()` + `give_up()`); checked again every minute, for other workers that
-   died; on the public demo (DEMO_REVIEWER_EMAIL set) the same minute check refills its
-   approval queue (`app.db.demo.refill_queue()`)
+   (`fail_next_worn_out()` + `give_up()`, one commit each); checked again every minute,
+   for other workers that died; on the public demo (DEMO_REVIEWER_EMAIL set) the same
+   minute check refills its approval queue (`app.db.demo.refill_queue()`)
 2. loop: claim the next due job → run its handler (renewing its lock every minute) →
    done, retry later, or give up
 3. when the queue is empty, wait POLL_SECONDS and look again; after an error outside a
@@ -50,7 +50,8 @@ from app.sources.base import make_http_client
 from app.worker.handlers import HANDLERS, Deps, give_up
 from app.worker.jobs import (
     claim_next,
-    fail_worn_out,
+    fail_alone,
+    fail_next_worn_out,
     mark_done,
     mark_failed,
     recover_stale,
@@ -130,14 +131,21 @@ class Worker:
             log.info("job_started", type=job.type, attempt=job.attempts)
             try:
                 with self.heartbeat(job.id):
-                    HANDLERS[job.type](self.deps, session, job.payload)
+                    try:
+                        HANDLERS[job.type](self.deps, session, job.payload)
+                    except Exception:
+                        session.rollback()  # free its row locks before waiting on the heartbeat
+                        raise
             except Exception as exc:
-                session.rollback()
                 log.exception("job_error", type=job.type)
                 error = f"{type(exc).__name__}: {exc}"
-                if still_ours(session, job, self.id) and not mark_failed(
-                    session, job, error, self.deps.now()
-                ):
+                if not still_ours(session, job, self.id):
+                    return
+                # Not committed yet: a job out of tries is saved failed together with its
+                # item (or run), so a crash in between can't strand the item `running`.
+                if mark_failed(session, job, error, self.deps.now(), commit=False):
+                    session.commit()
+                else:
                     give_up(self.deps, session, job)
                 return
             if still_ours(session, job, self.id):
@@ -178,9 +186,20 @@ class Worker:
         self.last_recover = now
 
     def recover(self, session: Session, now: datetime, own_id: str | None = None) -> None:
-        """Clean up after dead workers: their jobs on a last attempt fail, the rest requeue."""
-        for job in fail_worn_out(session, now, own_id):
-            give_up(self.deps, session, job)
+        """Clean up after dead workers: their jobs on a last attempt fail (each in one commit
+        with its item's failure), the rest requeue."""
+        # One job that can't be given up mustn't stop the rest (or the loop's claims).
+        retry_later: list[int] = []
+        while job := fail_next_worn_out(session, now, own_id, skip=retry_later):
+            try:
+                give_up(self.deps, session, job)
+            except LookupError:  # its item or run is gone: nothing to mark, the job fails alone
+                session.rollback()
+                fail_alone(session, job.id)
+            except Exception:  # e.g. a lock timeout: left as it is, tried again next time
+                session.rollback()
+                log.exception("give_up_failed", job_id=job.id)
+                retry_later.append(job.id)
         recover_stale(session, now, own_id)
 
     def stop(self, *_signal_args: object) -> None:

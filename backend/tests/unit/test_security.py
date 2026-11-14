@@ -11,7 +11,9 @@ from app.auth.security import (
     create_access_token,
     dummy_hash,
     hash_password,
+    new_totp_secret,
     read_access_token,
+    totp_step,
     verify_password,
 )
 
@@ -70,3 +72,9 @@ def test_a_token_from_before_versions_counts_as_version_0() -> None:
     claims = {"sub": "7", "exp": datetime.now(UTC) + timedelta(minutes=5)}
     old = jwt.encode(claims, SECRET, algorithm=ALGORITHM)
     assert read_access_token(old, SECRET).version == 0
+
+
+@pytest.mark.parametrize("code", ["١٢٣٤٥٦", "１２３４５６", "12345６"])
+def test_a_code_in_other_digits_is_just_wrong(code: str) -> None:
+    # isdigit() says yes to these, and compare_digest raises on non-ASCII text.
+    assert totp_step(new_totp_secret(), code, datetime.now(UTC)) is None

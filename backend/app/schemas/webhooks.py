@@ -12,7 +12,8 @@ MAX_INLINE_LEADS = 500
 
 
 class N8nRunRequest(BaseModel):
-    """Which campaign to run: `campaign_id`, or `niche` + `location` (found or created)."""
+    """Which campaign to run: `campaign_id`, or `niche` + `location` (found or created; a
+    campaign without sources is only used for a call that brings its own `leads`)."""
 
     campaign_id: int | None = Field(default=None, examples=[1])
     niche: str | None = Field(default=None, min_length=1, max_length=100, examples=["dentist"])

@@ -15,9 +15,10 @@ the audit row never does); `POST /api/users/{id}/unlock` lifts a login lock;
 `POST /api/users/{id}/two-factor/off` clears someone else's two-factor login (a lost
 phone) and ends their logins.
 
-A new admin, and a reset link or two-factor off for another admin, need the acting admin's
-own password again, plus a code when their two-factor is on (`confirm_yourself()`): with
-a stolen login token alone, those would hand someone lasting admin access.
+A new admin, another admin turned back on, and a reset link or two-factor off for another
+admin, need the acting admin's own password again, plus a code when their two-factor is on
+(`confirm_yourself()`): with a stolen login token alone, those would hand someone lasting
+admin access.
 """
 
 from datetime import UTC, datetime
@@ -108,13 +109,24 @@ def create_user(
     return UserOut.model_validate(user)
 
 
-@router.patch("/{user_id}", responses=error_docs(404, 409))
-def update_user(user_id: int, body: UserUpdate, admin: AdminUser, db: DbSession) -> UserOut:
-    """Turn an account off (its logins end at once) or back on. 409 for your own account
-    or the last active admin."""
+@router.patch("/{user_id}", responses=error_docs(400, 404, 409, 429))
+def update_user(
+    user_id: int,
+    body: UserUpdate,
+    admin: AdminUser,
+    db: DbSession,
+    request: Request,
+    settings: AppSettings,
+    correlation_id: CorrelationId,
+) -> UserOut:
+    """Turn an account off (its logins end at once) or back on. Turning an admin back on
+    needs your password again in `confirm` (a former admin's password still works). 409 for
+    your own account or the last active admin."""
     user = get_or_404(db, User, user_id, "user")
     if body.is_active == user.is_active:
         return UserOut.model_validate(user)  # nothing to change, nothing to audit
+    if body.is_active and user.role == UserRole.ADMIN:
+        confirm_yourself(db, admin, body.confirm, request, settings, correlation_id)
     if not body.is_active:
         if user.id == admin.id:
             raise HTTPException(status.HTTP_409_CONFLICT, "you can't turn off your own account")

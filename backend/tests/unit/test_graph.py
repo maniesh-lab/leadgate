@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.graph import build_graph
 from app.agents.llm import scripted_llm
-from app.agents.nodes.act import act
+from app.agents.nodes.act import act, lead_message
 from app.agents.runner import (
     FINISHED,
     NEW,
@@ -89,7 +89,7 @@ def test_approve_path_writes_the_crm_and_sends_one_message(world: World) -> None
     state = decide(world, lead, "approved")
 
     assert state["route"] == "notify"
-    assert state["crm_record_id"] == "fake-crm-1"
+    assert state["crm_record_id"].startswith("fake-crm-")
     assert state["notified"] is True
     assert world.crm.writes == 1
     assert world.crm.records[f"lead-{lead.id}"]["email"] == "info@smileaustin.test"
@@ -100,7 +100,7 @@ def test_approve_path_writes_the_crm_and_sends_one_message(world: World) -> None
     world.db.expire_all()
     saved = world.db.get(Lead, lead.id)
     assert saved.status == LeadStatus.APPROVED
-    assert saved.crm_record_id == "fake-crm-1"
+    assert saved.crm_record_id == state["crm_record_id"]
     assert waiting_for(world.graph, f"lead-{lead.id}") is None
 
 
@@ -491,3 +491,17 @@ def test_act_skips_the_message_when_the_run_item_says_it_was_sent(world: World) 
 
 def broken_llm(*_args, **_kwargs):
     raise RuntimeError("LLM down")
+
+
+def test_a_lead_name_cant_put_markdown_into_the_discord_message() -> None:
+    extracted = {
+        "name": "[Smile Dental](https://phish.test)\n# Call now",
+        "category": "dentist",
+        "city": "Austin",
+        "phone": "+1 512-555-0142",
+        "email": None,
+        "website": "https://smile.test",
+    }
+    text = lead_message({"extracted": extracted, "score": 60})
+    assert "\\[Smile Dental\\]\\(https://phish.test\\) # Call now (dentist, Austin)" in text
+    assert "\n" not in text

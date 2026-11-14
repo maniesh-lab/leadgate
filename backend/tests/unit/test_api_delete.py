@@ -177,6 +177,22 @@ def test_deleting_a_run_keeps_its_opted_out_leads_out(
     assert len(waiting(client, as_reviewer)) == 1
 
 
+def test_an_opted_out_lead_isnt_deleted(
+    client: TestClient, world: World, worker, clock, started, as_reviewer
+) -> None:
+    as_admin = started["as_admin"]
+    lead_id = waiting(client, as_reviewer)[0]["lead"]["id"]
+    client.delete(f"/api/leads/{lead_id}/data", headers=as_admin)
+    run_jobs(worker, clock)
+
+    response = client.delete(f"/api/leads/{lead_id}", headers=as_admin)
+
+    assert response.status_code == 409
+    assert "opted out" in message(response)
+    world.db.expire_all()
+    assert world.db.get(Lead, lead_id).opt_out is True  # the row that keeps it out stays
+
+
 def test_a_run_the_worker_has_not_started_is_not_deleted(
     client: TestClient, world: World, started
 ) -> None:

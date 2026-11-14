@@ -89,8 +89,9 @@ services:
     environment:
       <<: *backend-env
       # Trust X-Forwarded-For from the frontend's nginx, so the login limit sees each
-      # browser's own address. Safe here: the api port only listens on 127.0.0.1, and nginx
-      # replaces any X-Forwarded-For a browser sends with the browser's own address.
+      # browser's own address. Safe from browsers: the api port only listens on 127.0.0.1,
+      # and nginx replaces any X-Forwarded-For a browser sends with the browser's own
+      # address. Other containers on `leadnet` are trusted too (README Known limitations).
       FORWARDED_ALLOW_IPS: "*"
     networks:
       default:

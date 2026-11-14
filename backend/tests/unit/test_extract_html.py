@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from app.enrichment.extract_html import (
+    MAX_LINKS,
     MAX_PHONES,
     Link,
     ParsedPage,
@@ -234,3 +235,34 @@ def test_unique_phones_keeps_at_most_max_phones() -> None:
     started = time.perf_counter()
     assert unique_phones(phones) == phones[:MAX_PHONES]
     assert time.perf_counter() - started < 1
+
+
+def test_json_ld_nested_too_deep_is_skipped() -> None:
+    deep = "[" * 100_000 + "]" * 100_000
+    html = f'<script type="application/ld+json">{deep}</script><a href="mailto:hi@a.test">x</a>'
+    assert parse_page(html, "https://a.test/").emails == ["hi@a.test"]
+
+
+def test_only_web_mail_and_phone_links_are_kept() -> None:
+    html = (
+        '<a href="java\tscript://facebook.com/smile">a</a>'
+        '<a href="javascript:alert(1)">b</a><a href="data:text/html,x">c</a>'
+        '<a href="https://facebook.com/smiledental">d</a>'
+        '<a href="mailto:hi@a.test">e</a><a href="tel:+15125550142">f</a>'
+    )
+    page = parse_page(html, "https://a.test/")
+    assert [link.url for link in page.links] == [
+        "https://facebook.com/smiledental",
+        "mailto:hi@a.test",
+        "tel:+15125550142",
+    ]
+    assert find_socials(page.links) == {"facebook": "https://facebook.com/smiledental"}
+
+
+@pytest.mark.parametrize("unit", ["<form><input>", '<a href="/contact">'])
+def test_nested_forms_and_links_parse_in_linear_time(unit: str) -> None:
+    # html.parser leaves nested <form> and <a> open: each holds the rest of the page.
+    started = time.perf_counter()
+    page = parse_page(unit * (200_000 // len(unit)), "https://a.test/")
+    assert time.perf_counter() - started < 3  # 24 s for the forms before the caps
+    assert len(page.links) <= MAX_LINKS

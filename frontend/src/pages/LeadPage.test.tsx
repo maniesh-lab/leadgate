@@ -141,6 +141,8 @@ describe("LeadPage", () => {
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Aloha Dental"));
     expect(await screen.findByText("opted out")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Opt out" })).toBeNull();
+    // Its wiped row keeps it out, so it can't be deleted either.
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
     expect(calls.filter((call) => call.method === "DELETE")).toHaveLength(1);
   });
 

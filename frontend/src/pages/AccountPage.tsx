@@ -126,9 +126,14 @@ function TwoFactorCard() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (user?.two_factor_enabled) disable.mutate();
-    else if (setup) enable.mutate();
-    else start.mutate();
+    // Only this step's outcome shows: an earlier "it's on" mustn't stay after turning off.
+    if (user?.two_factor_enabled) {
+      enable.reset();
+      disable.mutate();
+    } else if (setup) {
+      disable.reset();
+      enable.mutate();
+    } else start.mutate();
   }
 
   return (

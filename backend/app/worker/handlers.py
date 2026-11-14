@@ -13,8 +13,9 @@ them from the graph's result, apart from `pending` (new items, `collect_run()`) 
 `resuming` (a decision, `app.services.approvals.decide()`).
 
 When an item of an opted-out lead stops (at the gate or the end), `finish_item()` blanks
-its steps and audit rows, and once it's finished deletes its checkpoints, as the opt-out
-did for the items already finished (`app.services.privacy`).
+its steps, free text and audit rows, and once it's finished deletes its checkpoints, as
+the opt-out did for the items already finished (`app.services.privacy`). One that reaches
+the gate after the opt-out is rejected there (`reject_opted_out()`).
 
 `give_up()` runs when a job has failed `max_attempts` times: the item (or the run, for
 `start_run`) is marked failed with the error. A callback that gives up leaves the run as
@@ -23,6 +24,7 @@ it is and only writes a `run.callback_failed` audit row.
 Called by `app.worker.main.Worker`.
 """
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -31,7 +33,7 @@ from typing import Any
 import httpx2
 import structlog
 from langgraph.graph.state import CompiledStateGraph
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agents.llm import LLM
@@ -42,18 +44,34 @@ from app.agents.runner import (
     continue_lead,
     current_state,
     resume_lead,
+    save_result,
     start_lead,
     thread_status,
 )
 from app.agents.state import AgentContext, utc_now
 from app.config import Settings
-from app.db.models import Approval, Job, JobType, Lead, Route, Run, RunItem, RunItemStatus
+from app.db.models import (
+    ActorType,
+    Approval,
+    AuditLog,
+    Job,
+    JobType,
+    Lead,
+    Route,
+    Run,
+    RunItem,
+    RunItemStatus,
+    RunStatus,
+    User,
+)
 from app.enrichment.crawler import Crawler
 from app.observability.tracing import Tracer
+from app.services.approvals import NotAwaitingDecision, decide
 from app.services.crm import CRMClient
-from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
+from app.services.deletion import purge_checkpoints, redact_audit, redact_items, redact_steps
 from app.services.n8n import post_callback
 from app.services.notify import Notifier
+from app.services.privacy import OPT_OUT_REASON
 from app.services.runs import audit_run, collect_run, fail_run, refresh_run_status
 
 log = structlog.get_logger(__name__)
@@ -125,6 +143,8 @@ def process_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
         )
     elif status == UNFINISHED:
         continue_lead(deps.graph, context, item.thread_id)
+    else:  # at the gate already: a kill may have come before its results reached the lead
+        save_result(deps.graph, context, item.thread_id)
     save_item(deps, session, item)
 
 
@@ -137,6 +157,10 @@ def resume_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
 
     context = deps.agent_context(session)
     status = thread_status(deps.graph, item.thread_id)
+    if status == NEW:
+        # Its saved state is gone (deleted): there's nothing to give the decision to, and
+        # finishing it here would wipe its score and flags. It fails instead.
+        raise RuntimeError(f"thread {item.thread_id} has no saved state to resume")
     if status == PAUSED:
         resume_lead(
             deps.graph,
@@ -148,6 +172,8 @@ def resume_item(deps: Deps, session: Session, payload: dict[str, Any]) -> None:
         )
     elif status == UNFINISHED:  # died during route / act last time
         continue_lead(deps.graph, context, item.thread_id)
+    else:  # finished: a kill may have come before its results reached the lead
+        save_result(deps.graph, context, item.thread_id)
     save_item(deps, session, item)
 
 
@@ -183,26 +209,64 @@ def save_item(deps: Deps, session: Session, item: RunItem) -> None:
 
 def finish_item(deps: Deps, session: Session, item: RunItem, status: RunItemStatus) -> None:
     item.status = status
-    # The row as it is now: this session may have read the lead before an opt-out.
-    lead = session.get(Lead, item.lead_id, populate_existing=True)
+    # The row as it is now (this session may have read the lead before an opt-out), locked
+    # until the commit: an opt-out in between would see the item still busy and leave its
+    # saved state for this to delete, while this would think the lead hadn't opted out.
+    lead = session.get(Lead, item.lead_id, with_for_update=True, populate_existing=True)
     if lead is not None and lead.opt_out:
         # The nodes work from the thread's saved state, so the steps and audit rows they
         # wrote after the opt-out hold the old contact data. Once the thread is over, its
         # saved state goes too (a waiting thread still needs it for the decision).
         redact_steps(session, [item.id], "lead opted out")
+        redact_items(session, [item.id], "lead opted out", keep=OPT_OUT_REASON)
         redact_audit(session, [item.lead_id], [item.id], "lead opted out")
         if status != RunItemStatus.AWAITING_APPROVAL:
             purge_checkpoints(session, [item.thread_id])
     refresh_run_status(session, get(session, Run, item.run_id), deps.now())
     session.commit()
     log.info("item_saved", run_item_id=item.id, status=status, score=item.score)
+    if status == RunItemStatus.AWAITING_APPROVAL and lead is not None and lead.opt_out:
+        reject_opted_out(deps, session, item)
+
+
+def reject_opted_out(deps: Deps, session: Session, item: RunItem) -> None:
+    """An item whose lead opted out while it ran reaches the gate after the opt-out
+    rejected whatever was waiting: reject it now, so its saved state (the old contact
+    data) goes once it finishes. In the name of the admin who opted the lead out, since a
+    decision needs a user; after an opt-out from the command line there's none, and it
+    waits for an admin to reject it (it can't be approved)."""
+    actor = session.scalar(
+        select(AuditLog.actor)
+        .where(
+            AuditLog.action == "lead.opted_out",
+            AuditLog.entity_type == "lead",
+            AuditLog.entity_id == item.lead_id,
+            AuditLog.actor_type == ActorType.USER,
+        )
+        .order_by(AuditLog.id.desc())
+        .limit(1)
+    )
+    admin = (
+        session.scalar(select(User).where(func.lower(User.email) == actor.lower()))
+        if actor
+        else None
+    )
+    if admin is None:
+        log.info("opted_out_item_waits", run_item_id=item.id)
+        return
+    with contextlib.suppress(NotAwaitingDecision):  # someone decided it meanwhile
+        decide(session, item.id, admin, "rejected", OPT_OUT_REASON, deps.now())
 
 
 def give_up(deps: Deps, session: Session, job: Job) -> None:
-    """The job failed for good: mark its item (or run) failed with the last error."""
+    """The job failed for good: mark its item (or run) failed with the last error, and
+    commit (with the job's own failure, which the caller left uncommitted). An item or run
+    the job already took past its work (a kill after it was saved) is left as it is."""
     error = job.last_error or "unknown error"
     if job.type == JobType.START_RUN:
-        fail_run(session, get(session, Run, job.payload["run_id"]), error, deps.now())
+        run = get(session, Run, job.payload["run_id"])
+        if run.status in (RunStatus.QUEUED, RunStatus.COLLECTING):
+            fail_run(session, run, error, deps.now())
         session.commit()
     elif job.type == JobType.SEND_CALLBACK:
         audit_run(
@@ -214,8 +278,20 @@ def give_up(deps: Deps, session: Session, job: Job) -> None:
         session.commit()
     elif "run_item_id" in job.payload:
         item = get(session, RunItem, job.payload["run_item_id"])
+        # Only the statuses this job is responsible for: a process job that died after
+        # saving its item at the gate mustn't fail it once a reviewer has decided (resuming).
+        if item.status not in GIVES_UP_ON.get(job.type, ()):
+            session.commit()
+            return
         item.error = error
         finish_item(deps, session, item, RunItemStatus.FAILED)
+
+
+# The item statuses a job that gives up may mark failed: those it was working on.
+GIVES_UP_ON = {
+    JobType.PROCESS_ITEM: (RunItemStatus.PENDING, RunItemStatus.RUNNING),
+    JobType.RESUME_ITEM: (RunItemStatus.RESUMING,),
+}
 
 
 def get[T](session: Session, model: type[T], row_id: int) -> T:

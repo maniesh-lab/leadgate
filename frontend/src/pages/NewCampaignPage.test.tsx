@@ -94,6 +94,40 @@ describe("NewCampaignPage", () => {
     ]);
   });
 
+  it("keeps the file picked last when an earlier upload finishes after it", async () => {
+    const answer = (body: unknown, delay: number) =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            setTimeout(() => {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify(body)));
+              controller.close();
+            }, delay);
+          },
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      );
+    fakeApi({
+      // The first file is slow to upload; the second one is quick.
+      "POST /api/uploads/csv": (url) =>
+        url.searchParams.get("filename") === "first.csv"
+          ? answer({ ...UPLOAD, id: 1, filename: "first.csv" }, 150)
+          : answer({ ...UPLOAD, id: 2, filename: "second.csv" }, 0),
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/rubrics": () => page(RUBRICS),
+      "GET /api/campaigns": () => page([]),
+    });
+    renderApp("/campaigns/new", { user: ADMIN });
+    await userEvent.click(await screen.findByLabelText("CSV file"));
+    const input = screen.getByLabelText("CSV upload");
+
+    await userEvent.upload(input, new File(["a"], "first.csv", { type: "text/csv" }));
+    await userEvent.upload(input, new File(["b"], "second.csv", { type: "text/csv" }));
+    await new Promise((resolve) => setTimeout(resolve, 250)); // the slow one has landed too
+
+    expect(screen.getByRole("status")).toHaveTextContent("Uploaded second.csv");
+  });
+
   it("won't send a CSV campaign without a file, and shows a refused upload", async () => {
     const posted: unknown[] = [];
     fakeApi({

@@ -181,7 +181,7 @@ def world(db: Session) -> dict[str, Any]:
         )
     db.commit()
     lead_ids = {name: item.lead_id for name, item in items.items()}
-    return {"first": first.id, "second": second.id, "leads": lead_ids}
+    return {"first": first.id, "second": second.id, "leads": lead_ids, "ana": ana, "bo": bo}
 
 
 def gate_step(
@@ -231,6 +231,7 @@ def test_reviewer_stats(db: Session, world: dict) -> None:
     assert report(db, ReportName.REVIEWER_STATS) == [
         {
             "reviewer": "ana@example.com",
+            "reviewer_id": world["ana"].id,
             "decisions": 2,
             "approved": 1,
             "rejected": 1,
@@ -239,6 +240,7 @@ def test_reviewer_stats(db: Session, world: dict) -> None:
         },
         {
             "reviewer": "bo@example.com",
+            "reviewer_id": world["bo"].id,
             "decisions": 2,
             "approved": 2,
             "rejected": 0,

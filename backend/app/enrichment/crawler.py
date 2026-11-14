@@ -9,7 +9,8 @@ The rules (PLAN §4, plus 10c's public-addresses-only):
   rules, a 5xx or no answer means stay out). A `Crawl-delay` there makes us wait longer;
   one over 10 s means stay out.
 - at least 1 s between two requests to the same domain (robots.txt included)
-- a timeout on every request, and 30 s for a whole answer; at most 3 redirects. A page's
+- a timeout on every read, and 30 s for a whole request, headers included (`Deadline`
+  shuts the connection); at most 3 redirects. A page's
   redirects are followed by hand, so each hop is checked against robots.txt and waits its
   turn; the robots.txt request itself lets httpx2 follow its (max 3) redirects.
 - only HTML pages are read (a PDF or an image is skipped), and only the first 2 MB (and
@@ -19,12 +20,15 @@ The rules (PLAN §4, plus 10c's public-addresses-only):
   network (10.x, 192.168.x, the compose services) or a cloud metadata address is refused
   before it's sent (`public_only`), since a lead's website can come from any CSV or n8n.
 
-A page that fails (timeout, 404, not HTML, blocked) becomes a `FetchedPage` with an
-`error`; the crawler never raises for network problems, so one bad site can't stop a batch.
+A page that fails (timeout, 404, not HTML, blocked, a broken address or a page that
+breaks the parser) becomes a `FetchedPage` with an `error`; the crawler never raises for
+those, so one bad site can't stop a batch.
 """
 
+import contextlib
 import ipaddress
 import socket
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -50,6 +54,9 @@ MAX_PAGE_BYTES = 2_000_000
 MAX_ROBOTS_BYTES = 512_000
 # How long a page (or robots.txt) may take to arrive in full, from the request.
 MAX_FETCH_SECONDS = 30.0
+# No kept-alive connections: each request opens its own, which `Deadline` can shut. A site
+# gets a few pages a second apart, so reusing a connection would save little.
+CRAWLER_LIMITS = httpx2.Limits(max_keepalive_connections=0)
 HTML_TYPES = ("text/html", "application/xhtml+xml")
 
 
@@ -86,12 +93,35 @@ def resolve_host(host: str) -> list[str]:
     return [str(info[4][0]) for info in infos]
 
 
+# IPv6 ranges that carry an IPv4 address in their last 32 bits, which a gateway on the way
+# may forward to: NAT64's well-known prefix, IPv4-translated (SIIT) and the old
+# IPv4-compatible form. 64:ff9b::a9fe:a9fe would otherwise reach 169.254.169.254.
+IPV4_IN_LAST_32_BITS = tuple(
+    ipaddress.ip_network(net) for net in ("64:ff9b::/96", "::ffff:0:0:0/96", "::/96")
+)
+
+
 def is_public(address: str) -> bool:
-    """False for loopback, private, link-local (cloud metadata), CGNAT, reserved, ..."""
+    """False for loopback, private, link-local (cloud metadata), CGNAT, reserved, ...; an
+    IPv6 address with an IPv4 one inside (mapped, NAT64, IPv4-translated, IPv4-compatible,
+    6to4, Teredo) counts as that one."""
     ip = ipaddress.ip_address(address.split("%")[0])  # drop an IPv6 zone like "%eth0"
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
-        ip = ip.ipv4_mapped  # ::ffff:127.0.0.1 is 127.0.0.1
-    return ip.is_global
+    if isinstance(ip, ipaddress.IPv4Address):
+        return ip.is_global
+    if ip.ipv4_mapped:
+        return ip.ipv4_mapped.is_global  # ::ffff:127.0.0.1 is 127.0.0.1
+    inside = embedded_ipv4(ip)
+    return ip.is_global and (inside is None or inside.is_global)
+
+
+def embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    if ip.sixtofour:
+        return ip.sixtofour
+    if ip.teredo:
+        return ip.teredo[1]  # the client's address
+    if int(ip) > 1 and any(ip in net for net in IPV4_IN_LAST_32_BITS):  # not :: or ::1
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    return None
 
 
 def public_only(resolve: Callable[[str], list[str]] = resolve_host) -> Callable[..., None]:
@@ -129,11 +159,57 @@ def make_crawler_client(
     return httpx2.Client(
         headers={"User-Agent": user_agent},
         timeout=TIMEOUT_SECONDS,
+        limits=CRAWLER_LIMITS,
         # Only robots.txt requests follow redirects by themselves; pages do it in `fetch()`.
         max_redirects=MAX_REDIRECTS,
         event_hooks={"request": [] if blocked else [public_only(resolve)]},
         transport=blocked_transport() if blocked else None,
     )
+
+
+class Deadline:
+    """Shuts the request's connection down if it isn't over `seconds` from now. httpx's
+    timeout is per read, so a server sending its headers (or page) a byte every few seconds
+    could hold the worker for days. Give the request `extensions=deadline.extensions`: it
+    hears of each connection the request opens (a new one each time: `CRAWLER_LIMITS`)."""
+
+    def __init__(self, seconds: float) -> None:
+        self.passed = False
+        self.extensions = {"trace": self._trace}
+        self._sockets: list[socket.socket] = []
+        self._lock = threading.Lock()
+        self._timer = threading.Timer(seconds, self._expire)
+        self._timer.daemon = True
+
+    def __enter__(self) -> Deadline:
+        self._timer.start()
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self._timer.cancel()
+
+    def _trace(self, event: str, info: dict[str, Any]) -> None:
+        if event in ("connection.connect_tcp.complete", "connection.start_tls.complete"):
+            sock = info["return_value"].get_extra_info("socket")
+            with self._lock:
+                self._sockets.append(sock)
+                if self.passed:
+                    shut(sock)
+
+    def _expire(self) -> None:
+        with self._lock:
+            self.passed = True
+            for sock in self._sockets:
+                shut(sock)
+
+
+def shut(sock: socket.socket | None) -> None:
+    """Wake a read blocked on `sock` with end-of-stream. The plain socket call, even for a
+    TLS socket: its own `shutdown()` would pull the TLS state from under the reading thread."""
+    if sock is None:
+        return
+    with contextlib.suppress(OSError):  # already closed
+        socket.socket.shutdown(sock, socket.SHUT_RDWR)
 
 
 def start_url(website: str) -> str:
@@ -174,22 +250,28 @@ class Crawler:
         """One page, following up to MAX_REDIRECTS redirects by hand (so each hop obeys robots)."""
         current = url
         for _ in range(MAX_REDIRECTS + 1):
+            watchdog = Deadline(MAX_FETCH_SECONDS)  # headers included (see `read_text()`)
             try:
                 if not self.allowed(current):
                     return self.logged(FetchedPage(url, current, error="blocked by robots.txt"))
                 self.wait_turn(current)
                 deadline = self.clock() + MAX_FETCH_SECONDS
-                with self.client.stream("GET", current) as response:
+                with (
+                    watchdog,
+                    self.client.stream("GET", current, extensions=watchdog.extensions) as response,
+                ):
                     if response.has_redirect_location:
                         current = urljoin(current, response.headers["location"])
                         continue
                     return self.logged(read_page(url, current, response, deadline, self.clock))
             except PrivateAddressError:
                 return self.logged(FetchedPage(url, current, error="not a public address"))
+            except httpx2.InvalidURL, ValueError:  # e.g. "http://x.test:abc/" from a CSV
+                return self.logged(FetchedPage(url, current, error="not a valid address"))
             except httpx2.TimeoutException:
                 return self.logged(FetchedPage(url, current, error="timeout"))
             except httpx2.HTTPError as exc:
-                error = f"request failed: {type(exc).__name__}"
+                error = "timeout" if watchdog.passed else f"request failed: {type(exc).__name__}"
                 return self.logged(FetchedPage(url, current, error=error))
         return self.logged(FetchedPage(url, current, error=f"more than {MAX_REDIRECTS} redirects"))
 
@@ -207,8 +289,14 @@ class Crawler:
             deadline = self.clock() + MAX_FETCH_SECONDS
             url = f"{origin}/robots.txt"
             # Streamed like a page, so a huge (or gzip-bombed) robots.txt is cut, not
-            # loaded whole into memory.
-            with self.client.stream("GET", url, follow_redirects=True) as response:
+            # loaded whole into memory; the watchdog covers the headers too.
+            watchdog = Deadline(MAX_FETCH_SECONDS)
+            with (
+                watchdog,
+                self.client.stream(
+                    "GET", url, follow_redirects=True, extensions=watchdog.extensions
+                ) as response,
+            ):
                 status = response.status_code
                 text = (
                     read_text(response, MAX_ROBOTS_BYTES, deadline, self.clock)
@@ -223,7 +311,10 @@ class Crawler:
 
         if status == 200:
             rules.parse(text.splitlines())
-            crawl_delay = float(rules.crawl_delay(self.user_agent) or 0)
+            try:
+                crawl_delay = float(rules.crawl_delay(self.user_agent) or 0)
+            except OverflowError:  # a 400-digit Crawl-delay: too long to wait, like any other
+                crawl_delay = float("inf")
             if crawl_delay > MAX_CRAWL_DELAY_SECONDS:
                 # Coming faster than asked would be rude, and waiting that long would hold
                 # the worker (one job at a time) up for every other lead: stay out.
@@ -268,7 +359,11 @@ def read_page(
     if content_type not in HTML_TYPES:
         page.error = f"not HTML ({content_type or 'no content type'})"
         return page
-    page.parsed = parse_page(read_text(response, MAX_PAGE_BYTES, deadline, clock), final_url)
+    text = read_text(response, MAX_PAGE_BYTES, deadline, clock)
+    try:
+        page.parsed = parse_page(text, final_url)
+    except RecursionError, ValueError:  # a page built to break the parser
+        page.error = "couldn't read the page"
     return page
 
 

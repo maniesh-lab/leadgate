@@ -14,9 +14,11 @@ from app.db.models import (
     RunItemStatus,
     RunStep,
     RunTrigger,
+    UserRole,
 )
 from app.services.approvals import NotAwaitingDecision
 from tests.agent_world import World, add_lead
+from tests.conftest import add_user, auth_headers
 from tests.unit.conftest import run_jobs
 
 
@@ -163,6 +165,11 @@ def test_lead_detail_after_a_decision(
         "approved",
         reviewer.email,
     )
+    # Who decided shows to admins and to that reviewer; anyone else sees "user <id>".
+    other = auth_headers(add_user(world.db, "other@example.com", UserRole.REVIEWER))
+    for headers, shown in ((started["as_admin"], reviewer.email), (other, f"user {reviewer.id}")):
+        lead = client.get(f"/api/leads/{item['lead']['id']}", headers=headers).json()
+        assert lead["history"][0]["reviewer_email"] == shown
 
 
 def test_opt_out_still_succeeds_when_a_reviewer_decided_first(
@@ -267,6 +274,30 @@ def test_opt_out_blanks_the_contact_data_in_the_run_steps(
     assert phone not in steps()
     assert {step["output"]["redacted"] for step in item["steps"]} == {"lead opted out"}
     assert item["review"]["score_breakdown"]  # ids, numbers and flags stay
+
+
+def test_opt_out_blanks_old_decision_reasons_and_errors(
+    client: TestClient, world: World, worker, clock, started, as_reviewer
+) -> None:
+    waiting = client.get("/api/approvals/queue", headers=as_reviewer).json()["items"][0]
+    item_id, lead_id = waiting["run_item_id"], waiting["lead"]["id"]
+    quoted = "they list 555-0142 on the door"
+    decided = client.post(
+        f"/api/run-items/{item_id}/decision",
+        json={"decision": "rejected", "reason": quoted},
+        headers=as_reviewer,
+    )
+    assert decided.status_code == 200
+    run_jobs(worker, clock)
+    world.db.get(RunItem, item_id).error = f"LLMError: could not read {quoted}"
+    world.db.commit()
+
+    client.delete(f"/api/leads/{lead_id}/data", headers=started["as_admin"])
+
+    lead = client.get(f"/api/leads/{lead_id}", headers=as_reviewer).json()
+    assert lead["history"][0]["reason"] == "lead opted out"
+    world.db.expire_all()
+    assert world.db.get(RunItem, item_id).error == "lead opted out"
 
 
 def test_opt_out_blanks_the_contact_data_in_the_audit_log(

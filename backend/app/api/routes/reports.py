@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, ShownEmails
 from app.api.errors import error_docs
 from app.reporting.queries import REPORTS, ReportName, run_report
 from app.schemas.reports import ReportInfo, ReportOut
@@ -31,6 +31,7 @@ def get_report(
     name: ReportName,
     _user: CurrentUser,
     db: DbSession,
+    emails: ShownEmails,
     days: Annotated[int, Query(ge=1, le=365, description="daily reports: how many days")] = 30,
     top: Annotated[int, Query(ge=1, le=20, description="top_leads_per_area: ranks kept")] = 3,
 ) -> ReportOut:
@@ -40,6 +41,9 @@ def get_report(
     report = REPORTS[name]
     given = {"days": days, "top": top}
     rows = run_report(db, name, datetime.now(UTC).date(), days=days, top=top)
+    if name == ReportName.REVIEWER_STATS:  # only admins see who the other reviewers are
+        for row in rows:
+            row["reviewer"] = emails.show(row["reviewer"], row.pop("reviewer_id"))
     return ReportOut(
         name=report.name,
         description=report.description,

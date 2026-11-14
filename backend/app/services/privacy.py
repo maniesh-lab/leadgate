@@ -7,23 +7,27 @@ city/area/country, rating, review state), so a later collect recognises the lead
 skips it (`app.services.ingestion`) and the crawler never visits it again
 (`app.services.enrichment`).
 
-The old contact data also sits in three other places, and goes from all of them: the
-audit rows about the lead and the steps of its run items are blanked (`redact_audit()`,
-`redact_steps()`), and the saved LangGraph state of its finished items is deleted
-(`purge_checkpoints()`). An item still waiting at the gate, or still being worked on,
-keeps its state until it finishes: the worker then deletes it, and blanks the steps and
-audit rows its nodes wrote in the meantime (`app.worker.handlers.finish_item`).
+The old contact data also sits in other places, and goes from all of them: the audit
+rows about the lead, the steps of its run items, and their free text (errors, decision
+reasons) are blanked (`redact_audit()`, `redact_steps()`, `redact_items()`), and the
+saved LangGraph state of its finished items is deleted (`purge_checkpoints()`). An item
+still waiting at the gate, or still being worked on, keeps its state until it finishes:
+the worker then deletes it, and blanks what its nodes wrote in the meantime
+(`app.worker.handlers.finish_item`).
 
 Called by `python -m app.cli opt-out --lead <id>` and `DELETE /api/leads/{id}/data` (which
-also writes a `lead.opted_out` audit row and rejects the lead's items waiting for approval).
+also writes a `lead.opted_out` audit row and rejects the lead's items waiting for approval;
+one still running is rejected when it reaches the gate, `reject_opted_out()`).
 """
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Lead, RunItem, RunItemStatus
-from app.services.deletion import purge_checkpoints, redact_audit, redact_steps
+from app.services.deletion import purge_checkpoints, redact_audit, redact_items, redact_steps
 
+# The reason on a decision the opt-out itself makes (an item waiting at the gate).
+OPT_OUT_REASON = "the lead opted out"
 # Wiped on opt-out. The name stays as the lead's label; category/city are not contact data.
 CONTACT_FIELDS = ("phone", "email", "website", "website_domain", "address", "lat", "lng")
 # Items whose thread is over: nothing will read their saved state again.
@@ -45,4 +49,5 @@ def opt_out_lead(session: Session, lead: Lead) -> None:
     items = session.scalars(select(RunItem).where(RunItem.lead_id == lead.id)).all()
     purge_checkpoints(session, [item.thread_id for item in items if item.status in FINISHED])
     redact_steps(session, [item.id for item in items], "lead opted out")
+    redact_items(session, [item.id for item in items], "lead opted out", keep=OPT_OUT_REASON)
     redact_audit(session, [lead.id], [item.id for item in items], "lead opted out")

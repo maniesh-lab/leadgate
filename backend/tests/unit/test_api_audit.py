@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.models import ActorType, AuditLog
+from app.db.models import ActorType, AuditLog, User
 
 
 def add_row(db: Session, when: datetime, action: str, **fields) -> AuditLog:
@@ -66,7 +66,8 @@ def test_filters_and_order(client: TestClient, db: Session, as_reviewer) -> None
 
     page = client.get("/api/audit?page_size=1&page=4", headers=as_reviewer).json()
     assert page["total"] == 4
-    assert page["items"][0]["actor"] == "admin@example.com"
+    # Not a user in this database, and only admins see other users' emails.
+    assert page["items"][0]["actor"] == "a user"
     assert page["items"][0]["details"] == {}
 
 
@@ -123,3 +124,33 @@ def test_account_and_admin_tool_rows_are_for_admins_only(
 
     assert actions(as_reviewer) == ["run_item.retried"]
     assert sorted(actions(as_admin)) == sorted([*hidden, "run_item.retried"])
+
+
+def test_only_admins_see_other_users_emails(
+    client: TestClient, db: Session, admin: User, reviewer: User, as_admin, as_reviewer
+) -> None:
+    add_row(db, at(9), "run.created", actor_type=ActorType.USER, actor=admin.email)
+    add_row(db, at(10), "approval.approved", actor_type=ActorType.USER, actor=reviewer.email)
+
+    def actors(headers: dict[str, str]) -> list[str]:
+        return [row["actor"] for row in client.get("/api/audit", headers=headers).json()["items"]]
+
+    assert actors(as_admin) == [reviewer.email, admin.email]
+    assert actors(as_reviewer) == [reviewer.email, f"user {admin.id}"]  # their own only
+
+
+def test_a_reviewer_cant_find_out_whose_email_is_whose(
+    client: TestClient, db: Session, admin: User, reviewer: User, as_admin, as_reviewer
+) -> None:
+    add_row(db, at(9), "run.created", actor_type=ActorType.USER, actor=admin.email)
+
+    def total(query: str, headers: dict[str, str]) -> int:
+        return client.get(f"/api/audit?{query}", headers=headers).json()["total"]
+
+    # A guessed email finds nothing for a reviewer (it would confirm the email is a user's);
+    # the label they see does, and an admin can search by email.
+    assert total(f"actor={admin.email}", as_reviewer) == 0
+    assert total(f"actor=user {admin.id}", as_reviewer) == 1
+    assert total(f"actor={admin.email}", as_admin) == 1
+    assert total(f"actor=user {admin.id}", as_admin) == 1
+    assert total("actor=user 999", as_reviewer) == 0

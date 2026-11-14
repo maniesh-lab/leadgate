@@ -14,7 +14,7 @@ import { DeleteButton } from "../components/DeleteButton";
 import { ExportButton } from "../components/ExportButton";
 import { PlayIcon } from "../components/icons";
 import { EmptyState, PageHeader } from "../components/Page";
-import { Pagination } from "../components/Pagination";
+import { Pagination, useStayOnAPageWithRows } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
 
@@ -38,11 +38,13 @@ export function CampaignsPage() {
     return rubric ? rubricLabel(rubric) : `#${id}`;
   };
 
-  function show(next: { page?: number; archived?: boolean }) {
+  useStayOnAPageWithRows(page, PAGE_SIZE, campaigns.data, (last) => show({ page: last }, true));
+
+  function show(next: { page?: number; archived?: boolean }, replace = false) {
     const query = new URLSearchParams();
     if (next.archived ?? archived) query.set("archived", "true");
     if (next.page && next.page > 1) query.set("page", String(next.page));
-    setParams(query);
+    setParams(query, { replace });
   }
 
   return (

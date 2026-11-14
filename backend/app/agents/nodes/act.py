@@ -16,6 +16,8 @@ A lead that opted out after it was approved gets no CRM write and no message.
 Messages are plain templates (the LLM isn't needed for them).
 """
 
+import re
+
 import structlog
 from langgraph.runtime import Runtime
 
@@ -38,7 +40,10 @@ def act(state: LeadState, runtime: Runtime[AgentContext]) -> LeadState:
     update: LeadState = {}
     if state["route"] == Route.NOTIFY:
         if not state.get("crm_record_id"):
-            update["crm_record_id"] = context.crm.upsert_lead(state["thread_id"], crm_fields(state))
+            # The lead's record from an earlier run (if any) is updated, not duplicated.
+            update["crm_record_id"] = context.crm.upsert_lead(
+                state["thread_id"], crm_fields(state), record_id=lead.crm_record_id
+            )
         if not already_notified(context, state):
             notify(context, state, Channel.LEADS, lead_message(state))
             update["notified"] = True
@@ -90,14 +95,27 @@ def crm_fields(state: LeadState) -> dict:
     }
 
 
+# Discord's markdown characters (escaped in lead data, see `plain()`).
+MARKDOWN = re.compile(r"([\\*_~`|>\[\]()])")
+
+
+def plain(value: object) -> str:
+    """A lead's value as it reads in Discord: on one line, with markdown escaped. Names and
+    contact details come from any OSM tag, CSV or website, and "[Smile](https://phish.test)"
+    would show as a disguised link (or a new line starting "#" as a heading)."""
+    return MARKDOWN.sub(r"\\\1", " ".join(str(value).split()))
+
+
 def lead_message(state: LeadState) -> str:
     extracted = state["extracted"]
     contact = " · ".join(
-        value for value in (extracted["phone"], extracted["email"], extracted["website"]) if value
+        plain(value)
+        for value in (extracted["phone"], extracted["email"], extracted["website"])
+        if value
     )
-    place = f", {extracted['city']}" if extracted["city"] else ""
+    place = f", {plain(extracted['city'])}" if extracted["city"] else ""
     return (
-        f"New approved lead: {extracted['name']} ({extracted['category']}{place}), "
+        f"New approved lead: {plain(extracted['name'])} ({plain(extracted['category'])}{place}), "
         f"score {state['score']}/100. {contact or 'No contact details.'}"
     )
 
@@ -107,6 +125,6 @@ def escalation_message(state: LeadState) -> str:
     if not state["extraction_ok"]:
         reasons.append("extraction failed")
     return (
-        f"Needs a second look: {state['extracted']['name']} (lead {state['lead_id']}) was "
-        f"approved, but: {', '.join(reasons)}. Score {state['score']}/100."
+        f"Needs a second look: {plain(state['extracted']['name'])} (lead {state['lead_id']}) "
+        f"was approved, but: {', '.join(reasons)}. Score {state['score']}/100."
     )

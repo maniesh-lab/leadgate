@@ -32,6 +32,7 @@ the event loop, so it lands under the node that asked.
 
 import asyncio
 import contextvars
+import threading
 import time
 from abc import ABC, abstractmethod
 from collections import deque
@@ -271,7 +272,16 @@ class SteadfastLLM(LLM):
         return (usage.input_tokens, usage.output_tokens) if usage else (0, 0)
 
     def close(self) -> None:
-        self._runner.close()
+        """Close the event loop. Inside a running loop (the API shutting down with
+        RUN_WORKER_IN_API) `Runner.close()` refuses to run, so a helper thread does it."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:  # no loop running here: the usual case (the worker process)
+            self._runner.close()
+            return
+        closer = threading.Thread(target=self._runner.close, name="llm-close")
+        closer.start()
+        closer.join()
 
 
 class ScriptedProvider:

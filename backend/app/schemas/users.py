@@ -128,3 +128,6 @@ class UserUpdate(BaseModel):
     """What an admin can change on an account: turn it off (`false`) or back on (`true`)."""
 
     is_active: bool
+    confirm: AdminConfirm | None = Field(
+        default=None, description="Needed to turn another admin back on (see `AdminConfirm`)."
+    )

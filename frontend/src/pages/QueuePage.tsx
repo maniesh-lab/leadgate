@@ -16,7 +16,7 @@ import { CampaignSelect } from "../components/CampaignSelect";
 import { DecisionDialog } from "../components/DecisionDialog";
 import { GoogleCredit } from "../components/GoogleCredit";
 import { EmptyState, PageHeader } from "../components/Page";
-import { Pagination } from "../components/Pagination";
+import { Pagination, useStayOnAPageWithRows } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { formatDateTime } from "../lib/format";
 
@@ -50,6 +50,7 @@ export function QueuePage() {
   });
 
   const items = queue.data?.items ?? [];
+  useStayOnAPageWithRows(page, PAGE_SIZE, queue.data, (last) => update("page", String(last), true));
   const open = items.find((item) => item.run_item_id === openId);
 
   /** After a decision: the item below the decided one. At the end of the page, wait for
@@ -78,14 +79,17 @@ export function QueuePage() {
     queryClient.invalidateQueries({ queryKey: ["approvals"] });
   }
 
-  function update(key: string, value: string) {
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      if (value) next.set(key, value);
-      else next.delete(key);
-      if (key !== "page") next.delete("page");
-      return next;
-    });
+  function update(key: string, value: string, replace = false) {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        if (key !== "page") next.delete("page");
+        return next;
+      },
+      { replace },
+    );
   }
 
   return (
