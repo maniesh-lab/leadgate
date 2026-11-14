@@ -87,12 +87,34 @@ def resolve_host(host: str) -> list[str]:
     return [str(info[4][0]) for info in infos]
 
 
+# IPv6 ranges that carry an IPv4 address in their last 32 bits, which a gateway on the way
+# may forward to: NAT64's well-known prefix, IPv4-translated (SIIT) and the old
+# IPv4-compatible form. 64:ff9b::a9fe:a9fe would otherwise reach 169.254.169.254.
+IPV4_IN_LAST_32_BITS = tuple(
+    ipaddress.ip_network(net) for net in ("64:ff9b::/96", "::ffff:0:0:0/96", "::/96")
+)
+
+
 def is_public(address: str) -> bool:
-    """False for loopback, private, link-local (cloud metadata), CGNAT, reserved, ..."""
+    """False for loopback, private, link-local (cloud metadata), CGNAT, reserved, ...; an
+    IPv6 address with an IPv4 one inside (mapped, NAT64, 6to4, Teredo) counts as that one."""
     ip = ipaddress.ip_address(address.split("%")[0])  # drop an IPv6 zone like "%eth0"
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
-        ip = ip.ipv4_mapped  # ::ffff:127.0.0.1 is 127.0.0.1
-    return ip.is_global
+    if isinstance(ip, ipaddress.IPv4Address):
+        return ip.is_global
+    if ip.ipv4_mapped:
+        return ip.ipv4_mapped.is_global  # ::ffff:127.0.0.1 is 127.0.0.1
+    inside = embedded_ipv4(ip)
+    return ip.is_global and (inside is None or inside.is_global)
+
+
+def embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    if ip.sixtofour:
+        return ip.sixtofour
+    if ip.teredo:
+        return ip.teredo[1]  # the client's address
+    if int(ip) > 1 and any(ip in net for net in IPV4_IN_LAST_32_BITS):  # not :: or ::1
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    return None
 
 
 def public_only(resolve: Callable[[str], list[str]] = resolve_host) -> Callable[..., None]:

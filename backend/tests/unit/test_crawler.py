@@ -323,6 +323,12 @@ def guarded_crawler(web: FakeWeb, dns: dict[str, list[str]]) -> Crawler:
         ("::1", False),
         ("fd00::1", False),
         ("::ffff:127.0.0.1", False),
+        # An IPv4 address inside an IPv6 one counts as that address (NAT64, SIIT, ...).
+        ("64:ff9b::a9fe:a9fe", False),  # NAT64 to the cloud metadata address
+        ("64:ff9b::808:808", True),  # NAT64 to a public address
+        ("::ffff:0:7f00:1", False),  # IPv4-translated 127.0.0.1
+        ("::127.0.0.1", False),  # IPv4-compatible
+        ("2002:a9fe:a9fe::1", False),  # 6to4
     ],
 )
 def test_is_public(address: str, public: bool) -> None:
