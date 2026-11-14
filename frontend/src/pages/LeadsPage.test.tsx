@@ -93,6 +93,21 @@ describe("LeadsPage", () => {
     );
   });
 
+  it("stays on the page when you leave a filter box without changing it", async () => {
+    fakeApi({
+      "GET /api/auth/me": () => ADMIN,
+      "GET /api/campaigns": () => page([]),
+      "GET /api/leads": () => ({ ...page([leadRow({})]), total: 120 }),
+    });
+    const router = renderApp("/leads?area=Zilker&page=2", { user: ADMIN });
+    const area = await screen.findByLabelText("Area");
+
+    await userEvent.click(area);
+    await userEvent.tab(); // leaves the box, value unchanged
+
+    expect(router.state.location.search).toBe("?area=Zilker&page=2");
+  });
+
   it("searches after you stop typing", async () => {
     const { calls } = leadsApi();
     const router = renderApp("/leads", { user: ADMIN });

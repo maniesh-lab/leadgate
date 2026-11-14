@@ -57,6 +57,8 @@ export function LeadsPage() {
 
   /** Change one filter (back to page 1), or the page. Empty = remove it from the URL. */
   function update(key: string, value: string) {
+    // Leaving a box without changing it isn't a new filter (it would reset the page).
+    if ((params.get(key) ?? "") === value) return;
     // Build on the URL as it is now (the search box calls this after a pause).
     setParams((current) => {
       const next = new URLSearchParams(current);
