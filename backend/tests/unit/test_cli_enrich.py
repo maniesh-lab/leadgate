@@ -151,7 +151,8 @@ def test_one_lead_failing_doesnt_stop_the_batch(
 
     monkeypatch.setattr(app.cli, "enrich_lead", enrich)
 
-    assert main(["enrich", "--stale"], settings) == 0
+    # The rest of the batch is done, and the exit code tells a script one lead failed.
+    assert main(["enrich", "--stale"], settings) == 1
     out = capsys.readouterr().out
     assert "failed: RuntimeError: something nobody expected" in out
     assert "done: 1 enriched, 1 failed" in out
