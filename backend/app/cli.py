@@ -6,7 +6,8 @@
 - `ingest <file> [--mapping mapping.json]`: import leads from any CSV file
 - `collect --campaign <id>`: run the campaign's sources (osm, google_places, csv)
 - `enrich --lead <id> | --campaign <id> | --stale [--limit N] [--force]`: crawl the
-  leads' websites (`--stale`: every lead never enriched or past ENRICH_CACHE_DAYS)
+  leads' websites (`--stale`: every lead never enriched or past ENRICH_CACHE_DAYS); a
+  lead that raises is skipped and the rest go on, but the exit code is then 1
 - `opt-out --lead <id>`: wipe a lead's contact data (and its copies in the audit log and
   finished checkpoints) and never collect or crawl it again
 - `start-run --campaign <id>`: queue a run (the worker, `python -m app.worker`, does it)
@@ -187,7 +188,7 @@ def cmd_enrich(settings: Settings, args: argparse.Namespace) -> int:
         engine.dispose()
 
     print("done: " + ", ".join(f"{count} {outcome}" for outcome, count in sorted(counts.items())))
-    return 0
+    return 1 if counts["failed"] else 0  # the others are saved; a script still sees the failure
 
 
 def describe_enrichment(lead: Lead, outcome: str) -> str:
