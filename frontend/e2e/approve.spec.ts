@@ -36,7 +36,8 @@ test("a reviewer approves a lead and the audit log records it", async ({ page, r
   await test.step("the worker finishes the item", async () => {
     await page.goto(`/run-items/${seeded.runItemId}`);
     await expect(page.getByRole("heading", { name: seeded.leadName })).toBeVisible();
-    // The page doesn't refresh itself, so reload until the resume job has run.
+    // The page refreshes itself while the item is resuming; reloading too covers a worker
+    // that hasn't picked the job up yet when the page first loads.
     await expect(async () => {
       await page.reload();
       await expect(page.getByText("done", { exact: true })).toBeVisible({ timeout: 2_000 });

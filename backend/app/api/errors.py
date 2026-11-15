@@ -19,6 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from sqlalchemy.exc import DataError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 log = structlog.get_logger(__name__)
@@ -77,6 +78,18 @@ async def validation_error(_request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+async def data_error(request: Request, exc: Exception) -> JSONResponse:
+    """Values Postgres can't take, from the request: an id too big for its column
+    ("numeric value out of range") can't exist, so 404; text with a NUL character (say
+    `?q=%00`) is refused, 422. Any other data error is a bug of ours, 500."""
+    assert isinstance(exc, DataError)
+    if getattr(exc.orig, "sqlstate", None) == "22003":
+        return error_response(404, "not found")
+    if "NUL (0x00)" in str(exc.orig):
+        return error_response(422, "text can't contain NUL characters")
+    return await server_error(request, exc)
+
+
 async def server_error(_request: Request, exc: Exception) -> JSONResponse:
     log.exception("unhandled_error", error=f"{type(exc).__name__}: {exc}")
     return error_response(500, "something went wrong on our side", code="internal_error")
@@ -85,6 +98,7 @@ async def server_error(_request: Request, exc: Exception) -> JSONResponse:
 def add_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, http_error)
     app.add_exception_handler(RequestValidationError, validation_error)
+    app.add_exception_handler(DataError, data_error)
     app.add_exception_handler(Exception, server_error)
 
 

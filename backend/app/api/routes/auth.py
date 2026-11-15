@@ -123,7 +123,7 @@ def login(
     ip = request.client.host if request.client else "unknown"
     now = datetime.now(UTC)
     lock_email = not is_demo(email, settings)
-    serialize(db, email, lock_email)
+    serialize(db, email, ip, lock_email)
     if too_many_failures(db, email, ip, now, lock_email=lock_email):
         log.warning("login_rate_limited", email=email, ip=ip)
         raise too_many()
@@ -321,17 +321,20 @@ def me(user: CurrentUser, settings: AppSettings) -> MeOut:
     return answer
 
 
-def serialize(db: Session, email: str, lock_email: bool) -> None:
+def serialize(db: Session, email: str, ip: str, lock_email: bool) -> None:
     """One password check at a time for an email that can be locked (the demo's can't, so
-    racing it gains nothing). 429 if another check for it takes too long."""
-    if not lock_email:
-        return
+    racing it gains nothing), and one at a time from an address: else a burst of guesses
+    for many emails would all pass the per-address check before any failure was saved.
+    Always email first, then address, so two checks can't wait for each other. 429 if
+    another check takes too long."""
     try:
-        one_attempt_at_a_time(db, email)
+        if lock_email:
+            one_attempt_at_a_time(db, email)
+        one_attempt_at_a_time(db, f"ip:{ip}")
     except Busy as exc:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "another login for this email is being checked; try again",
+            "another login is being checked; try again",
             headers={"Retry-After": "3"},
         ) from exc
 
@@ -388,7 +391,7 @@ def check_password(
     now = datetime.now(UTC)
     email = user.email.lower()
     lock_email = not is_demo(email, settings)
-    serialize(db, email, lock_email)
+    serialize(db, email, ip, lock_email)
     if too_many_failures(db, email, ip, now, lock_email=lock_email):
         raise too_many()
     if not verify_password(password, user.password_hash):
@@ -400,8 +403,8 @@ def check_code(
     db: Session, user: User, code: str, request: Request, correlation_id: str | None
 ) -> None:
     """A logged-in user's code from their app, good once: a wrong (or used) one is a failed
-    login and a 400. Their row stays locked until the commit, so a code can't be used twice
-    at once."""
+    login and a 400. Their row is locked while the code is checked, and its step committed
+    at once, so a code can't be used twice, at once or after the request fails."""
     db.refresh(user, with_for_update=True)
     now = datetime.now(UTC)
     step = totp_step(user.totp_secret or "", code, now)
@@ -410,6 +413,8 @@ def check_code(
         record_failure(db, user.email.lower(), user, ip, now, correlation_id, two_factor=True)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "wrong code; try the next one")
     user.totp_last_step = step
+    # Spent now, even if the request then fails (say a 409): else it would work again.
+    db.commit()
 
 
 def confirm_yourself(
@@ -420,8 +425,9 @@ def confirm_yourself(
     settings: Settings,
     correlation_id: str | None,
 ) -> None:
-    """For a change a stolen login mustn't make (a new admin, another admin's reset link
-    or two-factor): the user's own password again, and a code when their two-factor is on.
+    """For a change a stolen login mustn't make (a new admin, another admin turned back on,
+    another admin's reset link or two-factor): the user's own password again, and a code
+    when their two-factor is on.
     A login token alone (say one read by an injected script) isn't enough then."""
     if confirm is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "re-enter your password to do this")

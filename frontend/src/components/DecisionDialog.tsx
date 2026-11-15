@@ -18,6 +18,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, api, describeError } from "../api/client";
 import type { Approval, Decision, LeadDetail, QueueItem } from "../api/types";
+import { useAuth } from "../auth/AuthProvider";
+import { demoLogin } from "../lib/demo";
 import { FlagBadge } from "./Badge";
 import { type Enrichment, SignalList } from "./Enrichment";
 import { GoogleCredit } from "./GoogleCredit";
@@ -33,10 +35,24 @@ type Props = {
 export function DecisionDialog({ item, onClose, onDecided }: Props) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true; // again after StrictMode's test unmount in development
+    return () => {
+      open.current = false;
+    };
+  }, []);
+  // The shortcut key being held down, until it's let go: its repeats are ignored even once
+  // R has moved focus into the reason box (else holding R types "rrr" there).
+  const heldShortcut = useRef<string | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const [reason, setReason] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  // Every visitor shares the public demo's login, so the API keeps no reason typed there.
+  const onDemoLogin =
+    user !== null && user.email.toLowerCase() === demoLogin()?.email.toLowerCase();
   const lead = item.lead;
 
   // The queue item has no enrichment; the lead's own page data has the site signals.
@@ -54,7 +70,8 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
     onSuccess: () => {
       // Statuses change everywhere: the queue, the run, the lead.
       queryClient.invalidateQueries();
-      onDecided();
+      // Closed while the decision was on its way: don't open the next lead.
+      if (open.current) onDecided();
     },
   });
 
@@ -105,19 +122,31 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
         keepTabInside(event, dialogRef.current);
         return;
       }
+      const key = event.key.toLowerCase();
+      if (event.repeat && key === heldShortcut.current) {
+        event.preventDefault();
+        return;
+      }
       const target = event.target as HTMLElement;
       const typing = ["TEXTAREA", "INPUT", "SELECT"].includes(target.tagName);
       if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
-      const key = event.key.toLowerCase();
       if (key !== "a" && key !== "r") return;
       event.preventDefault(); // so R doesn't type an "r" into the reason box it focuses
       // A held key repeats: each repeat would decide the next lead as soon as it opens,
       // before anyone has read it (and an approval goes to the CRM and Discord).
       if (event.repeat) return;
+      heldShortcut.current = key;
       submitRef.current(key === "a" ? "approved" : "rejected");
     }
+    function onKeyUp(event: KeyboardEvent) {
+      if (event.key.toLowerCase() === heldShortcut.current) heldShortcut.current = null;
+    }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+    };
   }, [onClose]);
 
   const enrichment = (detail.data?.enrichment ?? null) as Enrichment | null;
@@ -204,6 +233,11 @@ export function DecisionDialog({ item, onClose, onDecided }: Props) {
             className="input"
             placeholder="e.g. a chain, not a small practice"
           />
+          {onDemoLogin && (
+            <p className="mt-1 text-xs text-muted">
+              Every visitor shares the demo login, so the reason you type isn't kept.
+            </p>
+          )}
         </div>
 
         {(problem || decide.error) && (

@@ -7,7 +7,7 @@
  * and the campaign points to the stored copy by its id; no file path is ever sent.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, type FormEvent, type ReactNode, useState } from "react";
+import { type ChangeEvent, type FormEvent, type ReactNode, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
@@ -75,18 +75,22 @@ export function NewCampaignPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [csvFile, setCsvFile] = useState<CsvUpload | null>(null);
+  // The file picked last: an upload of an earlier pick that finishes later is ignored.
+  const pickedFile = useRef<File | null>(null);
 
   const upload = useMutation({
     mutationFn: (file: File) =>
       api.postCsv<CsvUpload>("/api/uploads/csv", file, { filename: file.name }),
-    onSuccess: (stored) => {
+    onSuccess: (stored, file) => {
+      if (file !== pickedFile.current) return;
       setCsvFile(stored);
       setForm((current) => ({ ...current, csvUploadId: stored.id }));
     },
   });
 
   function pickFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const file = event.target.files?.[0] ?? null;
+    pickedFile.current = file;
     setCsvFile(null);
     setForm((current) => ({ ...current, csvUploadId: null }));
     if (file) upload.mutate(file);

@@ -12,6 +12,7 @@ from sqlalchemy import select
 from app.config import Settings
 from app.db.models import AuditLog, Campaign, Job, JobStatus, JobType, Lead, Run, RunTrigger
 from app.services.n8n import SECRET_HEADER
+from app.services.runs import create_run
 from tests.agent_world import World
 from tests.fake_web import SMILE
 from tests.unit.conftest import login, run_jobs
@@ -45,8 +46,9 @@ def test_the_webhook_needs_the_secret(client: TestClient, world: World) -> None:
     body = {"campaign_id": world.campaign.id}
     missing = client.post(URL, json=body)
     wrong = client.post(URL, json=body, headers={SECRET_HEADER: "nope"})
+    accented = client.post(URL, json=body, headers={SECRET_HEADER: "s\u00e9cret".encode("latin-1")})
 
-    assert (missing.status_code, wrong.status_code) == (401, 401)
+    assert (missing.status_code, wrong.status_code, accented.status_code) == (401, 401, 401)
     assert missing.json()["error"]["code"] == "unauthorized"
     assert world.db.scalars(select(Run).where(Run.trigger == RunTrigger.N8N)).first() is None
 
@@ -105,6 +107,26 @@ def test_a_niche_osm_doesnt_know_needs_its_own_leads(client: TestClient, world: 
     assert with_leads.status_code == 202
     campaign = world.db.get(Campaign, with_leads.json()["campaign_id"])
     assert campaign.sources == []  # n8n brings the list
+
+
+def test_a_campaign_made_for_sent_leads_isnt_reused_for_a_search(
+    client: TestClient, world: World
+) -> None:
+    body = {"niche": "gym", "location": "Denver, CO"}
+    sent = client.post(URL, json={**body, "leads": LEADS[:1]}, headers=HEADERS).json()
+    assert world.db.get(Campaign, sent["campaign_id"]).sources == []
+
+    # The same niche and place without leads: a campaign that searches, not the empty one.
+    search = client.post(URL, json=body, headers=HEADERS).json()
+    assert search["campaign_id"] != sent["campaign_id"]
+    assert world.db.get(Campaign, search["campaign_id"]).sources == ["osm"]
+    # Leads again: either campaign may take them, so the newest one does.
+    again = client.post(URL, json={**body, "leads": LEADS[:1]}, headers=HEADERS).json()
+    assert again["campaign_id"] == search["campaign_id"]
+
+    by_id = client.post(URL, json={"campaign_id": sent["campaign_id"]}, headers=HEADERS)
+    assert by_id.status_code == 409
+    assert "no sources to collect from" in by_id.json()["error"]["message"]
 
 
 @pytest.mark.parametrize(
@@ -185,7 +207,7 @@ def test_inline_leads_run_to_the_end_and_n8n_gets_the_summary(
         ("Smile Austin Dental", "notify"),
         ("Barton Creek Dentistry", "skip"),
     ]
-    assert summary["leads"][0]["crm_record_id"] == "fake-crm-1"
+    assert summary["leads"][0]["crm_record_id"].startswith("fake-crm-")
     assert summary["leads"][1]["crm_record_id"] is None
     assert "phone" not in summary["leads"][0]  # no contact details in the callback
     assert actions(world)[-1] == "run.callback_sent"
@@ -197,8 +219,8 @@ def test_a_callback_n8n_refuses_is_retried_then_given_up(
     n8n.status = 500
     world.campaign.sources = []  # an empty run: completed at once, so the callback is due
     world.db.commit()
-    body = {"campaign_id": world.campaign.id, "callback_url": CALLBACK}
-    client.post(URL, json=body, headers=HEADERS)
+    # Made directly: the webhook refuses to run a campaign with no sources and no leads.
+    create_run(world.db, world.campaign, clock(), trigger=RunTrigger.N8N, callback_url=CALLBACK)
 
     run_jobs(worker, clock)  # start_run + the first try
     for wait in (2, 4):  # the queue's retry waits

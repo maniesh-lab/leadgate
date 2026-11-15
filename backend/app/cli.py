@@ -166,13 +166,19 @@ def cmd_enrich(settings: Settings, args: argparse.Namespace) -> int:
             with make_crawler_client(settings.osm_user_agent, blocked=blocked) as client:
                 crawler = make_crawler(settings, client)
                 for lead in leads:
-                    outcome = enrich_lead(
-                        session,
-                        lead,
-                        crawler,
-                        cache_days=settings.enrich_cache_days,
-                        force=args.force,
-                    )
+                    try:
+                        outcome = enrich_lead(
+                            session,
+                            lead,
+                            crawler,
+                            cache_days=settings.enrich_cache_days,
+                            force=args.force,
+                        )
+                    except Exception as exc:  # one lead's problem mustn't stop the batch
+                        session.rollback()
+                        counts["failed"] += 1
+                        print(f"lead {lead.id} ({lead.name}): failed: {type(exc).__name__}: {exc}")
+                        continue
                     # One commit per lead: a crash later keeps the work done so far.
                     session.commit()
                     counts[outcome] += 1

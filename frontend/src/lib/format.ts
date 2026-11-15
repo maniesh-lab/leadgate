@@ -12,7 +12,6 @@ export function formatDuration(ms: number | null | undefined): string {
   if (ms === null || ms === undefined) return "—";
   if (ms < 1000) return `${ms} ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
-  const minutes = Math.floor(ms / 60_000);
-  const seconds = Math.round((ms % 60_000) / 1000);
-  return `${minutes} min ${seconds} s`;
+  const total = Math.round(ms / 1000); // 119600 ms is "2 min 0 s", not "1 min 60 s"
+  return `${Math.floor(total / 60)} min ${total % 60} s`;
 }

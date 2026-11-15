@@ -8,7 +8,7 @@ from app.db.models import Job, JobStatus, JobType
 from app.worker.jobs import (
     claim_next,
     enqueue,
-    fail_worn_out,
+    fail_next_worn_out,
     mark_done,
     mark_failed,
     recover_stale,
@@ -89,13 +89,15 @@ def test_a_job_whose_worker_dies_every_time_fails_after_its_last_attempt(db: Ses
     for _ in range(2):
         claim_next(db, "w", now)
         now += timedelta(minutes=6)  # the worker died; its lock is now stale
-        assert fail_worn_out(db, now) == []
+        assert fail_next_worn_out(db, now) is None
         assert recover_stale(db, now) == 1
     claim_next(db, "w", now)  # the third and last attempt
     now += timedelta(minutes=6)
 
     assert recover_stale(db, now) == 0  # no attempts left, so not queued again
-    assert fail_worn_out(db, now) == [job]
+    assert fail_next_worn_out(db, now) == job
+    db.commit()  # the worker commits it with the item's failure (`give_up()`)
+    assert fail_next_worn_out(db, now) is None
 
     db.refresh(job)
     assert (job.status, job.attempts, job.locked_by) == (JobStatus.FAILED, 3, None)

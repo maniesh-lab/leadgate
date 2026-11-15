@@ -8,7 +8,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Lead, LeadStatus
-from app.services.ingestion import ingest, ingest_source, website_domain
+from app.services.ingestion import (
+    ingest,
+    ingest_source,
+    lead_values,
+    upsert_lead,
+    website_domain,
+)
 from app.sources.base import RawLead
 from app.sources.csv_mapped import CsvSource
 
@@ -78,6 +84,21 @@ def test_opted_out_lead_is_left_alone(db: Session) -> None:
 
     assert (result.opted_out, result.updated, result.saved_keys) == (1, 0, [])
     assert db.scalars(select(Lead)).one().phone is None
+
+
+def test_an_opt_out_during_a_collect_isnt_written_over(db: Session) -> None:
+    # `ingest()` read the lead before the opt-out; the upsert itself must still skip it.
+    ingest(db, [raw_lead()])
+    lead = db.scalars(select(Lead)).one()
+    lead.opt_out, lead.phone, lead.raw = True, None, {}
+    db.commit()
+
+    upsert_lead(db, lead_values(raw_lead(phone="512-555-0100")))
+    db.commit()
+    db.expire_all()
+
+    lead = db.scalars(select(Lead)).one()
+    assert (lead.phone, lead.raw) == (None, {})
 
 
 @pytest.mark.parametrize(

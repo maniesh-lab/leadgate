@@ -12,6 +12,7 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
+import { StrictMode } from "react";
 import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { vi } from "vitest";
@@ -55,12 +56,16 @@ function isReply(value: unknown): value is Reply {
 export function renderApp(path: string, options: { user?: Me } = {}) {
   if (options.user) setToken("test-token");
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  // StrictMode like main.tsx: its extra mount and unmount in development finds effects
+  // that don't clean up (or set up) properly.
   render(
-    <QueryClientProvider client={makeQueryClient()}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </QueryClientProvider>,
+    <StrictMode>
+      <QueryClientProvider client={makeQueryClient()}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </StrictMode>,
   );
   return router;
 }

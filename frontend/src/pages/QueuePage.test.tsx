@@ -2,7 +2,7 @@
  * and going on past the end of a page. */
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { QueueItem } from "../api/types";
 import { fakeApi, page, REVIEWER, renderApp, reply } from "../test/render";
 
@@ -208,6 +208,86 @@ describe("QueuePage", () => {
 
     await userEvent.keyboard("{Escape}");
     expect(review).toHaveFocus();
+  });
+
+  it("tells a visitor on the shared demo login that reasons aren't kept", async () => {
+    vi.stubEnv("VITE_DEMO_EMAIL", REVIEWER.email.toUpperCase()); // case doesn't matter
+    vi.stubEnv("VITE_DEMO_PASSWORD", "public");
+    try {
+      setup();
+      const dialog = await openFirst();
+      expect(within(dialog).getByText(/the reason you type isn't kept/)).toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("stays closed when a decision lands after the dialog was closed", async () => {
+    // The decision's answer arrives a moment after Esc.
+    const slow = () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            setTimeout(() => {
+              controller.enqueue(new TextEncoder().encode("{}"));
+              controller.close();
+            }, 100);
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    setup(slow);
+    const dialog = await openFirst();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Approve/ }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(screen.queryByRole("dialog")).toBeNull(); // not reopened on the next lead
+  });
+
+  it("goes back a page when the last lead on this one was decided", async () => {
+    let decided = false;
+    fakeApi({
+      "GET /api/auth/me": () => REVIEWER,
+      "GET /api/campaigns": () => page([]),
+      // 51 waiting: one on page 2. Once it's decided, page 2 is past the end.
+      "GET /api/approvals/queue": (url) => {
+        const onPage2 = url.searchParams.get("page") === "2";
+        if (onPage2)
+          return decided
+            ? { ...page([]), total: 50 }
+            : { ...page([queueItem(1, "Bright Smiles")]), total: 51 };
+        return { ...page([queueItem(2, "Lake Dental")]), total: decided ? 50 : 51 };
+      },
+      "GET /api/leads/10": () => ({ enrichment: null }),
+      "GET /api/leads/20": () => ({ enrichment: null }),
+      "POST /api/run-items/1/decision": () => {
+        decided = true;
+        return reply(200, {});
+      },
+    });
+    const router = renderApp("/queue?page=2", { user: REVIEWER });
+    await openFirst();
+    await userEvent.keyboard("a");
+
+    expect(await screen.findByText("Lake Dental")).toBeInTheDocument();
+    expect(router.state.location.search).not.toContain("page=2");
+    // In place of the empty page: Back mustn't land on it (and move forward again).
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("ignores a held R once it has moved focus into the reason box", async () => {
+    setup();
+    const dialog = await openFirst();
+    fireEvent.keyDown(window, { key: "r" }); // no reason yet: focus goes to the box
+    const box = within(dialog).getByLabelText(/Reason/);
+    expect(box).toHaveFocus();
+
+    // The key is still down: its repeats must not type "rrr" into the box.
+    expect(fireEvent.keyDown(box, { key: "r", repeat: true })).toBe(false);
+    fireEvent.keyUp(window, { key: "r" });
+    expect(fireEvent.keyDown(box, { key: "r" })).toBe(true); // typing an "r" is fine
   });
 
   it("closes with Esc", async () => {

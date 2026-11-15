@@ -59,8 +59,14 @@ def test_you_cant_turn_yourself_off(client: TestClient, db: Session, as_admin, a
 def test_an_admin_can_turn_another_admin_off(client: TestClient, db: Session, as_admin) -> None:
     other = add_user(db, "other-admin@example.com", UserRole.ADMIN)
     assert set_active(client, as_admin, other, False).status_code == 200
-    # Now `admin` is the last active admin; the API still lets it turn the other back on.
-    assert set_active(client, as_admin, other, True).status_code == 200
+    # Turning an admin back on needs your password again: a former admin's still works.
+    assert set_active(client, as_admin, other, True).status_code == 400
+    on = client.patch(
+        f"/api/users/{other.id}",
+        json={"is_active": True, "confirm": {"password": PASSWORD}},
+        headers=as_admin,
+    )
+    assert on.status_code == 200 and on.json()["is_active"] is True
 
 
 def test_only_admins_change_accounts(
@@ -142,3 +148,19 @@ def test_another_admins_two_factor_off_needs_your_password_and_code(
     code = pyotp.TOTP(admin.totp_secret).now()
     off = client.post(path, json={"password": PASSWORD, "code": code}, headers=as_admin)
     assert off.status_code == 200 and off.json()["two_factor_enabled"] is False
+
+
+def test_a_code_spent_on_a_refused_request_cant_be_used_again(
+    client: TestClient, db: Session, admin: User, as_admin
+) -> None:
+    admin.totp_enabled, admin.totp_secret = True, pyotp.random_base32()
+    db.commit()
+    code = pyotp.TOTP(admin.totp_secret).now()
+    body = {"email": "admin@example.com", "password": "long-enough", "role": "admin"}
+    confirm = {"password": PASSWORD, "code": code}
+
+    taken = client.post("/api/users", json={**body, "confirm": confirm}, headers=as_admin)
+    assert taken.status_code == 409  # the email exists, after the code was checked
+
+    again = {**body, "email": "new-admin@example.com", "confirm": confirm}
+    assert client.post("/api/users", json=again, headers=as_admin).status_code == 400

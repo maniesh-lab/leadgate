@@ -5,11 +5,13 @@ No login: n8n proves who it is with the shared `X-Webhook-Secret` header
 on the public demo (PUBLIC_DEMO).
 
 The body names the campaign by `campaign_id`, or by `niche` + `location`: the newest
-open campaign with the same niche and location (any case) is used, else a new one is
-made (rubric `general-b2b`, source `osm`; with no source when the call brings its own
-`leads`, since those are its list). Like `POST /api/campaigns/{id}/runs`, the route only
-writes the run row and its `start_run` job; the worker does the rest, and posts the
-results to `callback_url` at the end (`app.services.n8n`).
+open campaign with the same niche and location (any case) that has sources is used (any
+one, if the call brings its own `leads`), else a new one is made (rubric `general-b2b`,
+source `osm`; with no source when the call brings its own `leads`, since those are its
+list). A `campaign_id` with no sources needs `leads` (else 409): it would run empty.
+Like `POST /api/campaigns/{id}/runs`, the route only writes the run row and its
+`start_run` job; the worker does the rest, and posts the results to `callback_url` at the
+end (`app.services.n8n`).
 """
 
 import hmac
@@ -44,8 +46,9 @@ def check_secret(
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the n8n webhook is off (N8N_WEBHOOK_SECRET)"
         )
-    # compare_digest: takes the same time however much of the secret matches.
-    if not secret or not hmac.compare_digest(secret, settings.n8n_webhook_secret):
+    # compare_digest: takes the same time however much of the secret matches. As bytes,
+    # since it refuses non-ASCII text (a header like that would be a 500, not a 401).
+    if not secret or not hmac.compare_digest(secret.encode(), settings.n8n_webhook_secret.encode()):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, f"wrong or missing {SECRET_HEADER}")
 
 
@@ -77,24 +80,34 @@ def n8n_run(body: N8nRunRequest, db: DbSession, correlation_id: CorrelationId) -
 
 
 def campaign_for(db: Session, body: N8nRunRequest) -> Campaign:
+    """The campaign to run. Without `leads` it must have sources to collect from: a
+    campaign made for leads n8n sent (no sources) would otherwise run empty."""
     if body.campaign_id is not None:
         campaign = get_or_404(db, Campaign, body.campaign_id, "campaign")
         if campaign.is_archived:
             raise HTTPException(status.HTTP_409_CONFLICT, f"campaign {campaign.id} is archived")
+        if not body.leads and not campaign.sources:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"campaign {campaign.id} has no sources to collect from: send `leads`",
+            )
         return campaign
-    return find_campaign(db, body.niche, body.location) or new_campaign(db, body)
+    found = find_campaign(db, body.niche, body.location, needs_sources=not body.leads)
+    return found or new_campaign(db, body)
 
 
-def find_campaign(db: Session, niche: str, location: str) -> Campaign | None:
+def find_campaign(
+    db: Session, niche: str, location: str, *, needs_sources: bool
+) -> Campaign | None:
+    """The newest open campaign for this niche and place (with sources, if `needs_sources`)."""
     stmt = (
         select(Campaign)
         .where(func.lower(Campaign.niche) == niche.lower())
         .where(func.lower(Campaign.location) == location.lower())
         .where(Campaign.is_archived.is_(False))
         .order_by(Campaign.id.desc())
-        .limit(1)
     )
-    return db.scalars(stmt).first()
+    return next((c for c in db.scalars(stmt) if c.sources or not needs_sources), None)
 
 
 def new_campaign(db: Session, body: N8nRunRequest) -> Campaign:

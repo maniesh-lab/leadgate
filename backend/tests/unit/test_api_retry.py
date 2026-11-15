@@ -96,7 +96,7 @@ def test_an_approved_lead_that_failed_in_act_is_sent_to_the_crm_once(
     decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
     real_upsert = world.crm.upsert_lead
 
-    def crm_down(key, fields):
+    def crm_down(key, fields, record_id=None):
         raise RuntimeError("CRM down")
 
     world.crm.upsert_lead = crm_down

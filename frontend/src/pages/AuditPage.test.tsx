@@ -38,6 +38,18 @@ describe("AuditPage", () => {
     expect(query?.get("to")).toBe("2026-10-31T00:00:00Z");
   });
 
+  it("ignores a 'to' date that isn't a date, instead of breaking the page", async () => {
+    const { calls } = fakeApi({
+      "GET /api/auth/me": () => REVIEWER,
+      "GET /api/audit": () => page([ROW]),
+    });
+    renderApp("/audit?to=not-a-date", { user: REVIEWER });
+
+    expect(await screen.findByText("approval.approved")).toBeInTheDocument();
+    const query = calls.find((call) => call.url.pathname === "/api/audit")?.url.searchParams;
+    expect(query?.has("to")).toBe(false);
+  });
+
   it("filters by action on Enter", async () => {
     const { calls } = fakeApi({
       "GET /api/auth/me": () => REVIEWER,

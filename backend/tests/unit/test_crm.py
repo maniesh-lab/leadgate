@@ -43,7 +43,14 @@ class FakeAirtable:
         if self.statuses:
             status = self.statuses.pop(0)
             return httpx2.Response(status, json={"error": {"type": "SOMETHING_WRONG"}})
-        fields = json.loads(request.content)["records"][0]["fields"]
+        record = json.loads(request.content)["records"][0]
+        if "id" in record:  # an update by record id
+            if record["id"] not in self.ids.values():
+                return httpx2.Response(404, json={"error": "NOT_FOUND"})
+            self.ids = {k: v for k, v in self.ids.items() if v != record["id"]}
+            self.ids[record["fields"]["Thread ID"]] = record["id"]
+            return httpx2.Response(200, json={"records": [{"id": record["id"], "fields": {}}]})
+        fields = record["fields"]
         key = fields["Thread ID"]
         created = key not in self.ids
         record_id = self.ids.setdefault(key, f"rec{len(self.ids) + 1:014d}")
@@ -95,6 +102,31 @@ def test_writing_the_same_key_twice_updates_one_record() -> None:
     assert len(fake.ids) == 1
 
 
+def test_the_leads_record_from_an_earlier_run_is_updated_not_duplicated() -> None:
+    fake = FakeAirtable()
+    crm = make_airtable(fake)
+    first = crm.upsert_lead("run-1-lead-7", FIELDS)
+
+    again = crm.upsert_lead("run-2-lead-7", FIELDS, record_id=first)
+
+    assert again == first and fake.ids == {"run-2-lead-7": first}
+    body = json.loads(fake.requests[-1].content)
+    assert "performUpsert" not in body
+    assert body["records"][0]["id"] == first
+    assert body["records"][0]["fields"]["Thread ID"] == "run-2-lead-7"
+
+
+def test_a_record_deleted_in_airtable_is_made_again() -> None:
+    fake = FakeAirtable()
+    record_id = make_airtable(fake).upsert_lead("run-2-lead-7", FIELDS, record_id="recGONE")
+
+    assert record_id == "rec00000000000001"
+    assert [json.loads(r.content).get("performUpsert") is None for r in fake.requests] == [
+        True,  # the update by id: 404
+        False,  # then the upsert by key
+    ]
+
+
 def test_a_rate_limit_waits_30_seconds_and_tries_again() -> None:
     fake = FakeAirtable(statuses=[429])
     waits: list[float] = []
@@ -143,3 +175,10 @@ def test_make_crm_needs_all_three_settings(settings: Settings) -> None:
 
     full = partly.model_copy(update={"airtable_table": "leadgate leads"})
     assert isinstance(make_crm(full, client), AirtableCRM)
+
+
+def test_fake_record_ids_stay_unique_across_worker_restarts() -> None:
+    # A lead keeps its record id in the database, and an earlier run's id is passed back.
+    assert FakeCRM().upsert_lead("run-1-lead-7", FIELDS) != FakeCRM().upsert_lead(
+        "run-1-lead-8", FIELDS
+    )

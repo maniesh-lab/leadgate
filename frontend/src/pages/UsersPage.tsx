@@ -8,10 +8,11 @@
  * themselves; they pick their own password. "Unlock" lifts a login lock after too many
  * wrong passwords or codes. "Turn off 2FA" clears a lost phone's two-factor login.
  * For another admin, those two ask for your own password again (and a code, if your
- * two-factor is on) first: the API wants it, so a stolen login can't take over an admin.
+ * two-factor is on) first, and so does turning a former admin back on: the API wants it,
+ * so a stolen login can't take over an admin or bring one back.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, describeError } from "../api/client";
 import type { AdminConfirm, Page, ResetLink, User, UserCreate, UserRow } from "../api/types";
@@ -147,8 +148,9 @@ function UserActions({ user }: { user: UserRow }) {
 
 /** A one-time reset link, shown once with a copy button; the admin sends it themselves. */
 function ResetLinkButton({ user }: { user: UserRow }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<boolean | null>(null); // null: not tried yet
   const [asking, setAsking] = useState(false);
+  const button = useFocusBackOnCancel(asking);
   const make = useMutation({
     mutationFn: (confirm?: AdminConfirm) =>
       api.post<ResetLink>(`/api/users/${user.id}/reset-link`, confirm),
@@ -160,8 +162,13 @@ function ResetLinkButton({ user }: { user: UserRow }) {
 
   async function copy() {
     if (!link) return;
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
+    try {
+      // Missing (or refused) on a plain-http address: say so, rather than nothing.
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
   }
 
   if (!link) {
@@ -173,12 +180,14 @@ function ResetLinkButton({ user }: { user: UserRow }) {
             busy={make.isPending}
             onConfirm={(confirm) => make.mutate(confirm)}
             onCancel={() => {
+              button.cancelled();
               setAsking(false);
               make.reset();
             }}
           />
         ) : (
           <button
+            ref={button.ref}
             type="button"
             className="btn px-3 py-1.5 whitespace-nowrap"
             disabled={make.isPending}
@@ -205,8 +214,13 @@ function ResetLinkButton({ user }: { user: UserRow }) {
         className="input font-mono text-xs"
       />
       <div className="mt-1 flex items-center gap-2 text-xs text-muted">
-        <button type="button" className="btn px-2 py-1" onClick={() => void copy()}>
-          {copied ? "Copied" : "Copy"}
+        <button
+          type="button"
+          className="btn px-2 py-1"
+          aria-live="polite"
+          onClick={() => void copy()}
+        >
+          {copied ? "Copied" : copied === false ? "Copy failed: select it and copy" : "Copy"}
         </button>
         <span>
           Works once, until {formatTime(make.data?.expires_at ?? "")}. Send it to them yourself.
@@ -228,6 +242,7 @@ function ActionButton(props: {
 }) {
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState(false);
+  const button = useFocusBackOnCancel(asking);
   const action = useMutation({
     mutationFn: (confirm?: AdminConfirm) =>
       api.post<UserRow>(`/api/users/${props.user.id}/${props.path}`, confirm),
@@ -248,12 +263,14 @@ function ActionButton(props: {
           busy={action.isPending}
           onConfirm={(confirm) => action.mutate(confirm)}
           onCancel={() => {
+            button.cancelled();
             setAsking(false);
             action.reset();
           }}
         />
       ) : (
         <button
+          ref={button.ref}
           type="button"
           className="btn px-3 py-1.5 whitespace-nowrap"
           disabled={action.isPending}
@@ -271,6 +288,24 @@ function ActionButton(props: {
   );
 }
 
+/** Cancelling the password prompt puts keyboard focus back on the button it replaced. */
+function useFocusBackOnCancel(asking: boolean) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const wasCancelled = useRef(false);
+  useEffect(() => {
+    if (!asking && wasCancelled.current) {
+      wasCancelled.current = false;
+      ref.current?.focus();
+    }
+  }, [asking]);
+  return {
+    ref,
+    cancelled: () => {
+      wasCancelled.current = true;
+    },
+  };
+}
+
 /** Your own password again, and a code when your two-factor is on: the API asks for them
  * before a reset link or two-factor off for another admin, so a login token alone (one
  * stolen from this browser, say) can't take an admin over. */
@@ -284,6 +319,9 @@ function ConfirmYourself(props: {
   const needsCode = me?.two_factor_enabled ?? false;
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  // It replaces the button that opened it: keyboard focus goes to its first box.
+  const passwordRef = useRef<HTMLInputElement>(null);
+  useEffect(() => passwordRef.current?.focus(), []);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -293,6 +331,7 @@ function ConfirmYourself(props: {
   return (
     <form onSubmit={submit} className="w-56 space-y-1.5 text-left">
       <input
+        ref={passwordRef}
         type="password"
         required
         maxLength={128}
@@ -331,30 +370,53 @@ function ConfirmYourself(props: {
 /** "Turn off" (asks first) or "Turn on" for one account. */
 function ActiveButton({ user }: { user: User }) {
   const queryClient = useQueryClient();
+  const [asking, setAsking] = useState(false);
+  const button = useFocusBackOnCancel(asking);
   const change = useMutation({
-    mutationFn: (isActive: boolean) =>
-      api.patch<User>(`/api/users/${user.id}`, { is_active: isActive }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    mutationFn: (body: { is_active: boolean; confirm?: AdminConfirm }) =>
+      api.patch<User>(`/api/users/${user.id}`, body),
+    onSuccess: () => {
+      setAsking(false); // the row stays: its prompt goes once the admin is back on
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
   });
 
   function toggle() {
     if (user.is_active) {
       const sure = window.confirm(`Turn off ${user.email}? Their logins end right away.`);
       if (!sure) return;
+      change.mutate({ is_active: false });
+    } else if (user.role === "admin") {
+      setAsking(true); // a former admin back on: the API wants your password again
+    } else {
+      change.mutate({ is_active: true });
     }
-    change.mutate(!user.is_active);
   }
 
   return (
     <div>
-      <button
-        type="button"
-        className="btn px-3 py-1.5 whitespace-nowrap"
-        disabled={change.isPending}
-        onClick={toggle}
-      >
-        {user.is_active ? "Turn off" : "Turn on"}
-      </button>
+      {asking ? (
+        <ConfirmYourself
+          label="Turn on"
+          busy={change.isPending}
+          onConfirm={(confirm) => change.mutate({ is_active: true, confirm })}
+          onCancel={() => {
+            button.cancelled();
+            setAsking(false);
+            change.reset();
+          }}
+        />
+      ) : (
+        <button
+          ref={button.ref}
+          type="button"
+          className="btn px-3 py-1.5 whitespace-nowrap"
+          disabled={change.isPending}
+          onClick={toggle}
+        >
+          {user.is_active ? "Turn off" : "Turn on"}
+        </button>
+      )}
       {change.error && (
         <p role="alert" className="mt-1 text-xs text-(--red)">
           {describeError(change.error)}

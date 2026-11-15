@@ -130,3 +130,29 @@ def test_opt_out_unknown_lead(
 ) -> None:
     assert main(["opt-out", "--lead", "999"], settings) == 1
     assert "no lead with id 999" in capsys.readouterr().out
+
+
+def test_one_lead_failing_doesnt_stop_the_batch(
+    db: Session,
+    engine: Engine,
+    settings: Settings,
+    fake_web: FakeWeb,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    broken = add_lead(db, "node/1", "https://boom.test/")
+    fine = add_lead(db, "node/2", SMILE)
+    real = app.cli.enrich_lead
+
+    def enrich(session, lead, crawler, **kwargs):
+        if lead.id == broken:
+            raise RuntimeError("something nobody expected")
+        return real(session, lead, crawler, **kwargs)
+
+    monkeypatch.setattr(app.cli, "enrich_lead", enrich)
+
+    assert main(["enrich", "--stale"], settings) == 0
+    out = capsys.readouterr().out
+    assert "failed: RuntimeError: something nobody expected" in out
+    assert "done: 1 enriched, 1 failed" in out
+    assert read_lead(engine, fine).enriched_at is not None

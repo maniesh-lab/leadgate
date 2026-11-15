@@ -251,8 +251,9 @@ export interface paths {
         head?: never;
         /**
          * Update User
-         * @description Turn an account off (its logins end at once) or back on. 409 for your own account
-         *     or the last active admin.
+         * @description Turn an account off (its logins end at once) or back on. Turning an admin back on
+         *     needs your password again in `confirm` (a former admin's password still works). 409 for
+         *     your own account or the last active admin.
          */
         patch: operations["update_user_api_users__user_id__patch"];
         trace?: never;
@@ -607,7 +608,8 @@ export interface paths {
         put?: never;
         /**
          * Decide Item
-         * @description Approve or reject a waiting item (a rejection needs a reason).
+         * @description Approve or reject a waiting item (a rejection needs a reason; on the public demo's
+         *     login a reason is saved as a placeholder, not as typed).
          *
          *     409 if the item isn't waiting, or if its lead opted out and this is an approval.
          */
@@ -655,7 +657,8 @@ export interface paths {
         /**
          * Delete One Lead
          * @description Delete the lead, its run items and their steps and decisions, and blank its name and
-         *     contact data in the audit log. 409 while the worker is still on one of its items.
+         *     contact data in the audit log. 409 while the worker is still on one of its items, or
+         *     for an opted-out lead (its wiped row is what keeps it from being collected again).
          */
         delete: operations["delete_one_lead_api_leads__lead_id__delete"];
         options?: never;
@@ -696,6 +699,7 @@ export interface paths {
          * List Audit
          * @description Audit rows, newest first. Login, account, campaign, upload and export rows (`auth.*`,
          *     `user.*`, `campaign.*`, `csv.*`, `leads.exported`) are left out unless you're an admin.
+         *     `actor` can be "user <id>" (how other users show to non-admins).
          */
         get: operations["list_audit_api_audit_get"];
         put?: never;
@@ -1287,7 +1291,8 @@ export interface components {
         };
         /**
          * N8nRunRequest
-         * @description Which campaign to run: `campaign_id`, or `niche` + `location` (found or created).
+         * @description Which campaign to run: `campaign_id`, or `niche` + `location` (found or created; a
+         *     campaign without sources is only used for a call that brings its own `leads`).
          */
         N8nRunRequest: {
             /**
@@ -1925,6 +1930,8 @@ export interface components {
         UserUpdate: {
             /** Is Active */
             is_active: boolean;
+            /** @description Needed to turn another admin back on (see `AdminConfirm`). */
+            confirm?: components["schemas"]["AdminConfirm"] | null;
         };
     };
     responses: never;
@@ -2589,6 +2596,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserOut"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -2627,6 +2643,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

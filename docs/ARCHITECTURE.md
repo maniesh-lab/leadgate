@@ -59,7 +59,7 @@ flowchart TD
 | `score` | Adds up the campaign's rubric (rules stored as data, versioned). The LLM only writes a one-sentence explanation of the points; it never changes the score. | explanation only |
 | `approval_gate` | `interrupt()`: the thread stops and is saved. On resume it stores the decision. No side effects, because LangGraph re-runs this node from its top on resume. | no |
 | `route` | Rule-based: rejected → skip; approved and clean → notify; approved with serious flags or a failed extraction → escalate. | no |
-| `act` | Writes the lead to Airtable (keyed by the thread id, so a retry updates the same record) and posts to Discord; escalations go to the admin channel only. | no |
+| `act` | Writes the lead to Airtable (keyed by the thread id, so a retry updates the same record; a lead with a record from an earlier run has that record updated) and posts to Discord, lead values with their markdown escaped; escalations go to the admin channel only. | no |
 
 Every node is wrapped by `@tracked_node` (`app/agents/tracking.py`), the single place that
 writes a `run_steps` row (input, output, duration) and an audit row for each node.
@@ -98,9 +98,13 @@ sequenceDiagram
   running job renews it every minute, so a slow collect or LLM call is never taken for a
   dead worker's, and a worker finishes a job only if it still holds it). A killed attempt
   counts like a failed one, so a job that kills the worker every time (e.g. out of
-  memory) fails after its third attempt instead of coming back forever. Every handler
+  memory) fails after its third attempt instead of coming back forever. A job's last
+  failure is saved in one commit with its item's (or run's), and giving up only touches the
+  statuses that job was working on (a dead process job never fails an item a reviewer has
+  since decided). One job that can't be given up doesn't stop recovery. Every handler
   first asks LangGraph where the thread is and only does what's left, so completed nodes
-  never run twice.
+  never run twice; a thread found at the gate or finished still has its results copied
+  onto the lead.
   `act` checks `notified_at` and the CRM key, so a message or CRM record happens once.
   This is tested by killing the worker mid-run (`tests/integration/test_worker_postgres.py`)
   and was checked by hand with `docker compose kill worker`.
@@ -159,9 +163,10 @@ ends), and at most 20 are open per API process (3 per user); over that it answer
 
 **Deleting** a lead, run, campaign or uploaded CSV (admins) happens in one transaction:
 the run items go with their steps, approvals, jobs and LangGraph checkpoints, a run takes
-the leads in no other run (apart from opted-out ones), and a campaign its runs and its file when no other campaign uses
-it. It's refused (409) while the worker may still be on any of it. Audit rows stay: a
-narrow exception in the trigger lets the delete blank their names, contact details and free
+the leads in no other run (apart from opted-out ones), and a campaign its runs and its
+file when no other campaign uses it. It's refused (409) while the worker may still be on
+any of it, and for an opted-out lead (its wiped row is what keeps it out). Audit rows
+stay: a narrow exception in the trigger lets the delete blank their names, contact details and free
 text, and a `lead.deleted` / `run.deleted` / `campaign.deleted` / `csv.deleted` row records
 it. Nothing outside leadgate (Airtable, Discord) changes.
 
@@ -212,6 +217,8 @@ erDiagram
   Turning an account off (the Users page) ends its logins at once and bumps it too, so
   turning it back on doesn't bring the old tokens back. The last active admin can't be
   turned off (the active admins' rows are locked while it's checked).
+- Password checks for one email, and from one address, wait for each other (Postgres
+  advisory locks), so a burst of guesses can't pass the count before its failures are saved.
 - Failed logins are audit rows; 5 for one email or 20 from one address within 15 minutes
   → 429. The public demo's reviewer login is exempt from the per-email lock (its password
   is on the login page); the per-address limit still applies. Those rows hold the typed
@@ -226,18 +233,28 @@ erDiagram
   its own kind (`typ: 2fa`) that only `/api/auth/login/two-factor` accepts, never as a
   login. Each code's 30-second step is stored, and the user's row is locked while a code
   is checked, so a code works once. `REQUIRE_ADMIN_TWO_FACTOR` makes `require_role` refuse
-  an admin without it.
+  an admin without it (set it once every admin has turned two-factor on: until then, the
+  password alone can turn it on).
 - Reset links (`password_reset_links`, `app.services.accounts`): 256 random bits, only the
   SHA-256 stored, one use, 30 minutes, a new link ends the old ones; using one ends the
   user's older logins and lifts the lock. The dashboard puts the token after `#`, so it
   never reaches a server log or a Referer header. The `reset-password` command makes one
   on the server for a locked-out admin.
-- The crawler refuses private and internal addresses on every request and redirect hop. A
-  site gets 30 s per answer, 2 MB per page and 500 KiB of robots.txt (streamed, so a
-  gzip bomb is cut, not unpacked whole), and a `Crawl-delay` over 10 s means stay out.
-- A new admin, and a reset link or two-factor off for another admin, need the acting
-  admin's own password again, plus a code when their two-factor is on
-  (`confirm_yourself()` in `app/api/routes/auth.py`); a wrong one is a failed login.
+- Users' emails: an admin sees them all; anyone else sees their own, and other users as
+  "user <id>" (`app.api.deps.Emails`: decisions, the audit log and its actor filter, the
+  reviewer report). A reason typed on the public demo's shared login is saved as a
+  placeholder, since every visitor would see it.
+- The crawler refuses private and internal addresses on every request and redirect hop (an
+  IPv4 address inside an IPv6 one counts as itself) and keeps only http(s), mailto and tel
+  links. A
+  site gets 30 s per request, headers included (a watchdog shuts the connection: httpx's
+  timeout is per read), 2 MB per page and 500 KiB of robots.txt (streamed, so a gzip bomb
+  is cut, not unpacked whole), and a `Crawl-delay` over 10 s means stay out. Nested links
+  and forms are read up to a cap, so a hostile page parses in linear time.
+- A new admin, a former admin turned back on, and a reset link or two-factor off for
+  another admin, need the acting admin's own password again, plus a code when their
+  two-factor is on (`confirm_yourself()` in `app/api/routes/auth.py`); a wrong one is a
+  failed login, and a code is spent even if the request then fails.
 - The dashboard is served with a strict Content-Security-Policy (only its own address; on
   the live demo, also the API's),
   no framing, `nosniff`, and HSTS on the live demo.

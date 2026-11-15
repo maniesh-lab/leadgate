@@ -8,8 +8,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "e2e",
-  // The worker needs a few seconds per lead, so give each test room.
-  timeout: 90_000,
+  // The worker needs a few seconds per lead, so give each test room: more than the two
+  // waits for the worker in the test (60 s each, e2e/setup.ts and approve.spec.ts), so a
+  // slow worker fails with their message rather than a bare timeout.
+  timeout: 180_000,
   expect: { timeout: 10_000 },
   forbidOnly: true,
   use: {

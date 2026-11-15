@@ -7,7 +7,7 @@ the campaign's only source is a small CSV file, so nothing touches the network. 
 """
 
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,13 +15,17 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.agents import runner
 from app.config import Settings
 from app.db.models import (
+    ActorType,
+    Approval,
     AuditLog,
     Job,
     JobStatus,
     JobType,
     Lead,
+    LeadStatus,
     Run,
     RunItem,
     RunItemStatus,
@@ -32,13 +36,15 @@ from app.db.models import (
 )
 from app.main import create_app
 from app.services.approvals import decide
-from app.services.privacy import opt_out_lead
+from app.services.audit import record
+from app.services.privacy import OPT_OUT_REASON, opt_out_lead
 from app.services.runs import create_run
 from app.worker import handlers
 from app.worker import main as worker_main
 from app.worker.jobs import enqueue, recover_stale
 from app.worker.main import Worker, open_worker
 from tests.agent_world import World
+from tests.conftest import add_user
 from tests.unit.conftest import Clock
 
 
@@ -200,8 +206,8 @@ def test_a_crash_in_act_is_finished_on_restart_with_one_crm_record(world, deps, 
     decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
     real_upsert = world.crm.upsert_lead
 
-    def crash_after_writing(key, fields):
-        real_upsert(key, fields)
+    def crash_after_writing(key, fields, record_id=None):
+        real_upsert(key, fields, record_id)
         raise Crash
 
     world.crm.upsert_lead = crash_after_writing
@@ -398,3 +404,204 @@ def test_a_job_another_worker_took_over_is_left_to_it(world, worker, clock, monk
 
 def job_id(session: Session) -> int:
     return session.scalars(select(Job.id).where(Job.type == JobType.START_RUN)).one()
+
+
+def test_a_kill_after_the_gate_before_the_lead_was_saved_still_saves_it(
+    world, deps, clock, monkeypatch
+) -> None:
+    run = start(world, clock)
+    first = Worker(deps, worker_id="container-1")
+    first.run_once()  # start_run
+    real_save = runner.save_result
+
+    def killed_before_saving(*args, **kwargs):
+        monkeypatch.setattr(runner, "save_result", real_save)
+        raise Crash
+
+    monkeypatch.setattr(runner, "save_result", killed_before_saving)
+    with pytest.raises(Crash):
+        first.run_once()  # the first lead's thread reaches the gate, then the kill
+
+    restarted = Worker(deps, worker_id="container-1")
+    restarted.stop()  # only the startup recovery, then return
+    restarted.run()
+    restarted.run_until_idle()
+
+    smile = items(world.db, run)[0]
+    lead = world.db.get(Lead, smile.lead_id)
+    assert smile.status == RunItemStatus.AWAITING_APPROVAL
+    assert (lead.status, lead.score) == (LeadStatus.IN_REVIEW, smile.score)
+    assert lead.phone == "+15125550142"  # the extracted, cleaned phone
+
+
+def test_a_decision_for_a_thread_whose_state_is_gone_fails_the_item(world, worker, clock) -> None:
+    run = start(world, clock)
+    worker.run_until_idle()
+    smile = items(world.db, run)[0]
+    score = smile.score
+    decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
+    world.graph.checkpointer.delete_thread(smile.thread_id)  # deleted meanwhile
+
+    for _ in range(3):  # each attempt fails; then the job gives up
+        clock.advance(60)
+        worker.run_until_idle()
+
+    smile = items(world.db, run)[0]
+    assert smile.status == RunItemStatus.FAILED
+    assert "no saved state to resume" in smile.error
+    assert smile.score == score  # not wiped
+
+
+def worn_out_job(world, run, item, status: RunItemStatus, clock) -> Job:
+    """`item` at `status`, and its process job left running on its last attempt by a worker
+    that died long ago."""
+    item.status = status
+    job = enqueue(world.db, JobType.PROCESS_ITEM, {"run_item_id": item.id}, clock())
+    job.status, job.attempts, job.max_attempts = JobStatus.RUNNING, 3, 3
+    job.locked_by, job.locked_at = "dead-worker", clock()
+    world.db.commit()
+    clock.advance(10 * 60)
+    return job
+
+
+def test_a_worn_out_job_leaves_an_item_it_already_finished_alone(world, worker, clock) -> None:
+    # Killed between saving the item (at the gate) and marking the job done, three times.
+    run = start(world, clock)
+    worker.run_once()  # start_run: the items and their jobs
+    smile = items(world.db, run)[0]
+    job = worn_out_job(world, run, smile, RunItemStatus.AWAITING_APPROVAL, clock)
+
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())
+
+    world.db.expire_all()
+    assert world.db.get(Job, job.id).status == JobStatus.FAILED
+    assert items(world.db, run)[0].status == RunItemStatus.AWAITING_APPROVAL
+
+
+def test_a_worn_out_job_and_its_item_fail_in_one_commit(world, worker, clock, monkeypatch) -> None:
+    run = start(world, clock)
+    worker.run_once()
+    smile = items(world.db, run)[0]
+    job = worn_out_job(world, run, smile, RunItemStatus.RUNNING, clock)
+    real_finish = handlers.finish_item
+
+    def broken(*_args, **_kwargs):
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(handlers, "finish_item", broken)
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())  # logs it and goes on
+    world.db.expire_all()
+    # Neither was saved: the job is still there to be failed by the next recovery.
+    assert world.db.get(Job, job.id).status == JobStatus.RUNNING
+    assert items(world.db, run)[0].status == RunItemStatus.RUNNING
+
+    monkeypatch.setattr(handlers, "finish_item", real_finish)
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())
+    world.db.expire_all()
+    assert world.db.get(Job, job.id).status == JobStatus.FAILED
+    assert items(world.db, run)[0].status == RunItemStatus.FAILED
+
+
+def test_a_lead_approved_again_in_a_later_run_stays_one_crm_record(world, worker, clock) -> None:
+    first_run = start(world, clock)
+    worker.run_until_idle()
+    smile = items(world.db, first_run)[0]
+    who = reviewer(world.db)
+    decide(world.db, smile.id, who, "approved", None, clock())
+    worker.run_until_idle()
+    record_id = world.db.get(Lead, smile.lead_id).crm_record_id
+    assert record_id is not None
+
+    second_run = start(world, clock)  # the same campaign again finds the same leads
+    worker.run_until_idle()
+    again = next(i for i in items(world.db, second_run) if i.lead_id == smile.lead_id)
+    decide(world.db, again.id, who, "approved", None, clock())
+    worker.run_until_idle()
+
+    assert world.crm.ids == {again.thread_id: record_id}  # one record, moved to run 2
+    world.db.expire_all()
+    assert world.db.get(Lead, smile.lead_id).crm_record_id == record_id
+
+
+def test_a_worn_out_job_whose_item_is_gone_fails_alone_and_recovery_goes_on(
+    world, worker, clock
+) -> None:
+    run = start(world, clock)
+    worker.run_once()  # start_run
+    smile, barton = items(world.db, run)
+    gone = worn_out_job(world, run, smile, RunItemStatus.RUNNING, clock)
+    gone.payload = {"run_item_id": 999_999}  # its item was deleted meanwhile
+    stale = enqueue(world.db, JobType.PROCESS_ITEM, {"run_item_id": barton.id}, clock())
+    stale.status, stale.attempts, stale.max_attempts = JobStatus.RUNNING, 1, 3
+    stale.locked_by, stale.locked_at = "dead-worker", clock() - timedelta(minutes=10)
+    world.db.commit()
+
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())
+
+    world.db.expire_all()
+    assert world.db.get(Job, gone.id).status == JobStatus.FAILED
+    assert world.db.get(Job, stale.id).status == JobStatus.QUEUED  # recovery went on
+
+
+def test_a_dead_process_job_doesnt_fail_an_item_a_reviewer_decided_since(
+    world, worker, clock
+) -> None:
+    run = start(world, clock)
+    worker.run_until_idle()  # both leads at the gate
+    smile = items(world.db, run)[0]
+    # Its process job saved it at the gate, then died before being marked done...
+    job = worn_out_job(world, run, smile, RunItemStatus.AWAITING_APPROVAL, clock)
+    # ...and meanwhile a reviewer approved it.
+    decide(world.db, smile.id, reviewer(world.db), "approved", None, clock())
+
+    with worker.deps.session_factory() as session:
+        worker.recover(session, clock())  # gives the dead process job up
+    worker.run_until_idle()  # the resume job runs
+
+    world.db.expire_all()
+    assert world.db.get(Job, job.id).status == JobStatus.FAILED
+    assert items(world.db, run)[0].status == RunItemStatus.DONE
+    assert len(world.crm.records) == 1  # the approval went through
+
+
+def test_an_item_whose_lead_opted_out_while_it_ran_is_rejected_at_the_gate(
+    world, worker, clock, deps
+) -> None:
+    run = start(world, clock)
+    worker.run_once()  # start_run
+    smile = items(world.db, run)[0]
+    admin = add_user(world.db, "admin@example.com", UserRole.ADMIN)
+    crawl = deps.crawler.crawl
+
+    def opt_out_meanwhile(website: str):
+        # The admin opts out through the API while the item is running: nothing is waiting
+        # at the gate yet for the API to reject.
+        with deps.session_factory() as other:
+            opt_out_lead(other, other.get(Lead, smile.lead_id))
+            record(
+                other,
+                actor_type=ActorType.USER,
+                actor=admin.email,
+                action="lead.opted_out",
+                entity_type="lead",
+                entity_id=smile.lead_id,
+            )
+            other.commit()
+        return crawl(website)
+
+    deps.crawler.crawl = opt_out_meanwhile
+    worker.run_until_idle()
+
+    smile = items(world.db, run)[0]
+    assert smile.status == RunItemStatus.DONE  # rejected at the gate, then finished
+    approval = world.db.scalars(select(Approval).where(Approval.run_item_id == smile.id)).one()
+    assert (approval.decision.value, approval.reason, approval.reviewer_id) == (
+        "rejected",
+        OPT_OUT_REASON,
+        admin.id,
+    )
+    assert world.crm.records == {}

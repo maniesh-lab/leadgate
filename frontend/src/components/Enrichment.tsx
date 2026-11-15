@@ -3,6 +3,8 @@
  * `EnrichmentCard` (all of it) is on the lead page; `SignalList` (the signals only, so
  * the dialog stays short) is in the approval queue's decision dialog.
  */
+
+import { webLink } from "../lib/links";
 import { EmptyState } from "./Page";
 
 // The shape the enrichment service stores (PROGRESS Decision #63), minus the page text.
@@ -67,17 +69,16 @@ export function EnrichmentCard({ enrichment }: { enrichment: Enrichment | null }
             <dd className="flex flex-wrap gap-x-3">
               {socials.length === 0
                 ? "none"
-                : socials.map(([name, url]) => (
-                    <a
-                      key={name}
-                      href={url ?? undefined}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="link"
-                    >
-                      {name}
-                    </a>
-                  ))}
+                : socials.map(([name, url]) => {
+                    const href = webLink(url);
+                    return href ? (
+                      <a key={name} href={href} target="_blank" rel="noreferrer" className="link">
+                        {name}
+                      </a>
+                    ) : (
+                      <span key={name}>{name}</span>
+                    );
+                  })}
             </dd>
           </div>
         </dl>

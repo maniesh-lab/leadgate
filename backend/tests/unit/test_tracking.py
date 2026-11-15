@@ -60,7 +60,7 @@ def test_resume_completes_the_open_gate_step_instead_of_adding_one(world: World)
     ]
     assert actions(world.db)[-4:] == ["lead.decided", "lead.routed", "lead.acted", "crm.written"]
     written = world.db.scalars(select(AuditLog).where(AuditLog.action == "crm.written")).one()
-    assert written.details == {"crm_record_id": "fake-crm-1"}
+    assert written.details["crm_record_id"].startswith("fake-crm-")
 
 
 def test_step_rows_hold_compact_input_output_and_timing(world: World) -> None:

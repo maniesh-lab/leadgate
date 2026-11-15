@@ -15,8 +15,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import Select, select
 
-from app.api.deps import DbSession, Paging, ReviewerUser, paginate
+from app.api.deps import AppSettings, DbSession, Paging, ReviewerUser, paginate
 from app.api.errors import error_docs
+from app.api.routes.auth import is_demo
 from app.api.routes.runs import approval_out, reviews_for
 from app.db.models import Campaign, Lead, Run, RunItem, RunItemStatus
 from app.schemas.common import Page
@@ -82,17 +83,27 @@ def queue_query(
     return stmt
 
 
+# The public demo's reviewer login is shared by every visitor, so a reason typed there
+# would show to all the others (lead history, the run item's steps, the audit log): it's
+# saved as this instead, before it reaches any of them.
+DEMO_REASON = "(a demo visitor's reason: not kept)"
+
+
 @router.post("/run-items/{item_id}/decision", responses=error_docs(404, 409, 422))
 def decide_item(
-    item_id: int, body: DecisionIn, reviewer: ReviewerUser, db: DbSession
+    item_id: int, body: DecisionIn, reviewer: ReviewerUser, db: DbSession, settings: AppSettings
 ) -> ApprovalOut:
-    """Approve or reject a waiting item (a rejection needs a reason).
+    """Approve or reject a waiting item (a rejection needs a reason; on the public demo's
+    login a reason is saved as a placeholder, not as typed).
 
     409 if the item isn't waiting, or if its lead opted out and this is an approval.
     """
+    reason = body.reason
+    if reason and reason.strip() and is_demo(reviewer.email, settings):
+        reason = DEMO_REASON
     # No lookup first: `decide()` loads the item itself, with the row lock.
     try:
-        approval = decide(db, item_id, reviewer, body.decision, body.reason, datetime.now(UTC))
+        approval = decide(db, item_id, reviewer, body.decision, reason, datetime.now(UTC))
     except LookupError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"run item {item_id} not found") from exc
     except (NotAwaitingDecision, LeadOptedOut) as exc:
