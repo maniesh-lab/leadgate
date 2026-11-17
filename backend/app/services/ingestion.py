@@ -11,6 +11,9 @@ Upsert rules:
 - review state (status, score), enrichment and the opt-out flag are never touched
 - an opted-out lead is skipped entirely, so its wiped data never comes back
 - the same key twice in one batch is saved once and counted as a duplicate
+- a filler website a business left on its listing (`FILLER_DOMAINS`: yourwebsite.com,
+  example.com, ...) is saved as no website, so the crawler never reads a stranger's site
+  and the rules don't count a website the business doesn't have
 
 Postgres and SQLite both support `INSERT ... ON CONFLICT DO UPDATE`; SQLAlchemy
 has a dialect-specific `insert()` for each, picked in `upsert_lead()`.
@@ -57,6 +60,24 @@ REFRESHED_COLUMNS = (
     "business_status",
 )
 DIALECT_INSERTS = {"postgresql": postgresql.insert, "sqlite": sqlite.insert}
+# Template text, not a business's site (seen on a real listing: "https://yourwebsite.com/").
+# The `filler_websites` migration has its own copy, for leads saved before.
+FILLER_DOMAINS = frozenset(
+    {
+        "example.com",
+        "example.net",
+        "example.org",
+        "domain.com",
+        "website.com",
+        "mysite.com",
+        "mywebsite.com",
+        "yourdomain.com",
+        "yoursite.com",
+        "yourwebsite.com",
+        "yourcompany.com",
+        "yourbusiness.com",
+    }
+)
 # How many keys go into one `WHERE source_key IN (...)` lookup.
 LOOKUP_CHUNK = 500
 
@@ -222,6 +243,8 @@ def known_leads(session: Session, keys: list[str]) -> dict[str, bool]:
 
 def lead_values(lead: RawLead) -> dict[str, Any]:
     """The `leads` columns for one RawLead."""
+    domain = website_domain(lead.website)
+    filler = domain in FILLER_DOMAINS
     return {
         "source": lead.source,
         "source_ref": lead.source_ref,
@@ -230,8 +253,8 @@ def lead_values(lead: RawLead) -> dict[str, Any]:
         "name": lead.name,
         "phone": lead.phone,
         "email": lead.email,
-        "website": lead.website,
-        "website_domain": website_domain(lead.website),
+        "website": None if filler else lead.website,
+        "website_domain": None if filler else domain,
         "address": lead.address,
         "lat": lead.lat,
         "lng": lead.lng,

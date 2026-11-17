@@ -187,7 +187,8 @@ erDiagram
 
 - **leads** are unique by `source_key` (`osm:node/123`, `google_places:<id>`,
   `csv:<hash>`). Finding a lead again updates it; it never wipes what reviewers or agents
-  stored.
+  stored. A filler website from a listing (yourwebsite.com, example.com, ...) is saved as
+  no website, so it's never crawled or scored as the business's own.
 - **run_items** link a lead to a run and carry its LangGraph `thread_id`.
 - **csv_uploads** hold the CSV files admins upload in the dashboard (the file's text, its
   columns and row count). A campaign points to one in `source_options`, so every worker reads

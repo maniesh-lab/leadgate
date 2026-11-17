@@ -113,3 +113,22 @@ def test_an_opt_out_during_a_collect_isnt_written_over(db: Session) -> None:
 )
 def test_website_domain(website: str | None, domain: str | None) -> None:
     assert website_domain(website) == domain
+
+
+@pytest.mark.parametrize(
+    "website",
+    ["https://yourwebsite.com/bevel", "www.Example.com", "http://domain.com", "mysite.com/"],
+)
+def test_a_filler_website_is_saved_as_none(website: str) -> None:
+    # Template text a business left on its listing: crawling it would read a stranger's
+    # site, and the rules would count a website the business doesn't have.
+    values = lead_values(raw_lead(website=website))
+
+    assert (values["website"], values["website_domain"]) == (None, None)
+
+
+@pytest.mark.parametrize(
+    "website", ["https://mangpahang.com/", "https://notexample.com", "https://yourwebsite.com.np"]
+)
+def test_a_real_website_is_kept(website: str) -> None:
+    assert lead_values(raw_lead(website=website))["website"] == website
