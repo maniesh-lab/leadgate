@@ -13,7 +13,7 @@ the reports) has its own page: [sql-notes.md](sql-notes.md).
 ```mermaid
 flowchart LR
   UI["React dashboard"] -->|"REST + JWT"| API["FastAPI"]
-  N8N["n8n (Switchyard)"] -->|"POST /api/webhooks/n8n/runs"| API
+  N8N["n8n"] -->|"POST /api/webhooks/n8n/runs"| API
   API -->|"rows + jobs"| DB[("Postgres")]
   W["Worker"] -->|"claims jobs (SKIP LOCKED)"| DB
   W --> SRC["Lead sources: OpenStreetMap · Google Places · CSV"]
