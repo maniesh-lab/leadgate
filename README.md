@@ -238,7 +238,7 @@ npm run e2e:up && npm run e2e && npm run e2e:down    # Playwright on its own Doc
 
 The 32 Postgres tests each make and drop their own database on the server you point them at. No test calls a real outside service: the LLM runs in fake mode, and Airtable, Discord, n8n, Google, OpenStreetMap and the websites are faked or replayed from saved answers.
 
-CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 100 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
+CI runs four jobs on every pull request and every push to `main`: backend unit tests with coverage (uploaded to Codecov), the Postgres tests on a real Postgres 18, the frontend checks (lint, types, 101 Vitest tests, build, and that the API types match the API), and the end-to-end test (the whole stack in Docker, a reviewer logs in, approves a lead and finds it in the audit log).
 
 ## Project structure
 
