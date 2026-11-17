@@ -1,4 +1,4 @@
-"""The n8n webhook (`POST /api/webhooks/n8n/runs`): Switchyard's n8n starts a run.
+"""The n8n webhook (`POST /api/webhooks/n8n/runs`): your n8n starts a run.
 
 No login: n8n proves who it is with the shared `X-Webhook-Secret` header
 (N8N_WEBHOOK_SECRET). Without that setting the webhook is off (503), and it answers 403

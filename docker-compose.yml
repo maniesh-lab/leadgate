@@ -1,7 +1,7 @@
 # Local stack: db + migrate (one-shot) + api + worker + frontend (http://localhost:8080)
 # + backup (a database dump a day into ./backups).
 # Values come from .env (see .env.example); empty ones fall back to "leadgate".
-# api + worker also join `leadnet`, the network shared with Switchyard's n8n (see below).
+# api + worker also join `leadnet`, the network shared with your n8n (see below).
 
 # The backend services share one image and one set of settings.
 x-backend-env: &backend-env
@@ -160,7 +160,7 @@ volumes:
 
 networks:
   default:
-  # Shared with Switchyard's n8n (its compose file marks it `external`). This file creates
+  # Shared with your n8n (its compose file marks it `external`). This file creates
   # it when it's missing, so `docker compose up` works on a fresh clone; when it already
   # exists (made by `docker network create leadnet`), compose warns once and uses it.
   leadnet:

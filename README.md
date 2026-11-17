@@ -31,7 +31,7 @@ Every lead in the queue shows its **reasons**: the score broken down rule by rul
 ```mermaid
 flowchart LR
   UI["React dashboard"] -->|"REST + JWT"| API["FastAPI"]
-  N8N["n8n (Switchyard)"] -->|"POST /api/webhooks/n8n/runs"| API
+  N8N["n8n"] -->|"POST /api/webhooks/n8n/runs"| API
   API -->|"rows + jobs"| DB[("Postgres")]
   W["Worker"] -->|"claims jobs (SKIP LOCKED)"| DB
   W --> SRC["OpenStreetMap · Google Places · CSV"]
@@ -220,7 +220,7 @@ Which indexes were kept, which weren't, and why: [docs/sql-notes.md](docs/sql-no
 
 - **Airtable** (the CRM): approved leads go to a table with 12 fields (thread id as the key, name, phone, email, website, address, city, category, score, explanation, lead id, run item id; the list is in `backend/app/services/crm.py`). Behind a `CRMClient` interface, so a real CRM is one more class.
 - **Discord:** a webhook per channel, one for approved leads and one for escalations. Mentions are switched off, so a lead's name can't ping anyone.
-- **n8n** ([Switchyard](https://github.com/maniesh-lab/Switchyard), my self-hosted n8n): a workflow starts a run through the webhook with a shared secret, and leadgate posts the results back when the run is done. The workflow is in [n8n/leadgate.json](n8n/leadgate.json); both run on a shared Docker network (`leadnet`).
+- **n8n** (self-hosted): a workflow starts a run through the webhook with a shared secret, and leadgate posts the results back when the run is done. The workflow is in [n8n/leadgate.json](n8n/leadgate.json); both run on a shared Docker network (`leadnet`).
 - **Langfuse** (optional): with keys set, each lead is one trace, with a span per step and every LLM call's prompt, answer and tokens. Off without keys.
 
 ## Tests

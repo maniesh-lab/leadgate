@@ -1,6 +1,6 @@
 """The n8n results callback: when a run started by n8n finishes, post its summary back.
 
-Switchyard's n8n starts runs through `POST /api/webhooks/n8n/runs` with a
+n8n starts runs through `POST /api/webhooks/n8n/runs` with a
 `callback_url` (an n8n Webhook node). When the run completes or fails, the run service
 queues a `send_callback` job (`app.services.runs.queue_callback`) and the worker calls
 `post_callback()`, which POSTs `run_summary()` there with the same `X-Webhook-Secret`
