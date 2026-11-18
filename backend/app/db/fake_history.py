@@ -6,7 +6,7 @@ audit rows and jobs, so the SQL phase has realistic volume to measure.
 rows the real worker would have left behind (see `app.agents.tracking` for the steps
 and audit rows, `app.services.approvals` for the decision):
 
-- one campaign per category + city ("dentist in Austin (fake)"), one run per campaign
+- one campaign per category + city ("Dentists in Austin (sample)"), one run per campaign
   and day the leads were first seen
 - per item: steps enrich → extract → check → score → approval_gate (→ route → act),
   about 10 audit rows, a `process_item` job (and a `resume_item` job once decided)
@@ -238,13 +238,18 @@ def fake_rubric(session: Session) -> int:
     return rubric_id
 
 
+def campaign_name(category: str, city: str) -> str:
+    """The name the dashboard shows for a fake campaign: "Dentists in Austin (sample)"."""
+    return f"{category.capitalize()}s in {city} (sample)"
+
+
 def fake_campaigns(
     session: Session, rubric_id: int, pairs: set[tuple[str, str]]
 ) -> dict[tuple[str, str], int]:
     """One campaign per (category, city), reused if it already exists."""
     campaigns = {}
     for category, city in sorted(pairs):
-        name = f"{category} in {city} (fake)"
+        name = campaign_name(category, city)
         campaign_id = session.scalar(select(Campaign.id).where(Campaign.name == name))
         if campaign_id is None:
             campaign = Campaign(
