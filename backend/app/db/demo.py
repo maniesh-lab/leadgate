@@ -162,7 +162,7 @@ class DemoResult:
 def set_up_demo(
     session: Session, reviewer_email: str, reviewer_password: str, now: datetime
 ) -> DemoResult:
-    """Demo reviewer + demo campaign, and a new run if the queue is running low. Commits."""
+    """Demo reviewer + demo campaign, and a new run once the queue is empty. Commits."""
     reviewer = ensure_reviewer(session, reviewer_email, reviewer_password)
     campaign = ensure_campaign(session)
     session.commit()
