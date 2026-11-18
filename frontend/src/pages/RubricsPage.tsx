@@ -8,6 +8,9 @@
  * the open version's text and is sent as typed (the API trims it; blank clears it).
  *
  * The open version is in the URL (`/settings/rubrics?id=5`, or `?id=new`).
+ *
+ * The public demo's login sees the page locked (`auth/access`): rules can be changed on
+ * screen to try them, but saving is turned off.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -15,7 +18,9 @@ import { useSearchParams } from "react-router";
 import { api, describeError } from "../api/client";
 import { useRubrics } from "../api/hooks";
 import type { Rubric, Rule } from "../api/types";
+import { useAdminAccess } from "../auth/access";
 import { PlusIcon } from "../components/icons";
+import { LockedButton, LockedNotice } from "../components/Locked";
 import { EmptyState, PageHeader } from "../components/Page";
 import { ErrorMessage, Loading } from "../components/QueryState";
 import { SettingsTabs } from "../components/SettingsTabs";
@@ -109,6 +114,7 @@ function toRule(draft: Draft): Rule {
 
 export function RubricsPage() {
   const rubrics = useRubrics();
+  const locked = useAdminAccess() === "locked";
   const [params, setParams] = useSearchParams();
   const openId = params.get("id");
 
@@ -143,6 +149,7 @@ export function RubricsPage() {
           </button>
         }
       />
+      {locked && <LockedNotice />}
 
       <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
         <nav aria-label="Rubrics" className="space-y-4">
@@ -174,6 +181,7 @@ export function RubricsPage() {
             key="new"
             rubric={null}
             latest={0}
+            locked={locked}
             onSaved={(id) => setParams({ id: String(id) })}
           />
         ) : open ? (
@@ -181,6 +189,7 @@ export function RubricsPage() {
             key={open.id}
             rubric={open}
             latest={byName.get(open.name)?.[0]?.version ?? open.version}
+            locked={locked}
             onSaved={(id) => setParams({ id: String(id) })}
           />
         ) : (
@@ -195,10 +204,11 @@ type EditorProps = {
   rubric: Rubric | null; // null = a new rubric
   latest: number;
   onSaved: (id: number) => void;
+  locked: boolean; // the public demo: saving is turned off
 };
 
 /** The page gives each version its own `key`, so opening another one starts fresh. */
-function RubricEditor({ rubric, latest, onSaved }: EditorProps) {
+function RubricEditor({ rubric, latest, onSaved, locked }: EditorProps) {
   const queryClient = useQueryClient();
   const start = () => (rubric ? (rubric.rules as Partial<Rule>[]).map(toDraft) : [toDraft({})]);
   const [name, setName] = useState("");
@@ -230,7 +240,7 @@ function RubricEditor({ rubric, latest, onSaved }: EditorProps) {
       className="card space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        save.mutate();
+        if (!locked) save.mutate(); // locked: no submit button, but just in case
       }}
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -400,9 +410,15 @@ function RubricEditor({ rubric, latest, onSaved }: EditorProps) {
               Undo changes
             </button>
           )}
-          <button type="submit" className="btn-primary" disabled={save.isPending}>
-            {rubric ? `Save as v${latest + 1}` : "Create rubric"}
-          </button>
+          {locked ? (
+            <LockedButton className="btn-primary">
+              {rubric ? `Save as v${latest + 1}` : "Create rubric"}
+            </LockedButton>
+          ) : (
+            <button type="submit" className="btn-primary" disabled={save.isPending}>
+              {rubric ? `Save as v${latest + 1}` : "Create rubric"}
+            </button>
+          )}
         </div>
       </div>
     </form>

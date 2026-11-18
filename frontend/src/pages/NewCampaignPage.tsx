@@ -5,6 +5,9 @@
  *
  * With the CSV source, the file is uploaded as soon as it's picked (`POST /api/uploads/csv`)
  * and the campaign points to the stored copy by its id; no file path is ever sent.
+ *
+ * The public demo's login sees the page locked (`auth/access`): the form can be filled in,
+ * but uploading and creating are turned off.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, type FormEvent, type ReactNode, useRef, useState } from "react";
@@ -12,6 +15,8 @@ import { useNavigate } from "react-router";
 import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
 import type { Campaign, CampaignCreate, CsvUpload, SourceName } from "../api/types";
+import { useAdminAccess } from "../auth/access";
+import { LockedButton, LockedNotice } from "../components/Locked";
 import { PageHeader } from "../components/Page";
 
 const SOURCES: { name: SourceName; title: string; hint: string }[] = [
@@ -71,6 +76,7 @@ export function NewCampaignPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const rubrics = useRubrics();
+  const locked = useAdminAccess() === "locked";
   const [form, setForm] = useState<Form>(EMPTY);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -117,6 +123,7 @@ export function NewCampaignPage() {
   function submit(event: FormEvent) {
     event.preventDefault();
     setFormError(null);
+    if (locked) return; // no submit button while locked, but just in case
     if (form.sources.length === 0) {
       setFormError("Pick at least one source.");
       return;
@@ -146,6 +153,7 @@ export function NewCampaignPage() {
         }
         subtitle="Tell the agents what to look for and where. Nothing runs until you press Start run."
       />
+      {locked && <LockedNotice />}
       <form onSubmit={submit} className="card space-y-6">
         <Field id="name" label="Name">
           <input id="name" required value={form.name} onChange={set("name")} className="input" />
@@ -245,12 +253,17 @@ export function NewCampaignPage() {
             <Field
               id="csv-file"
               label="CSV upload"
-              hint="UTF-8, a header row, up to 1 MB by default"
+              hint={
+                locked
+                  ? "Uploading is turned off on the public demo."
+                  : "UTF-8, a header row, up to 1 MB by default"
+              }
             >
               <input
                 id="csv-file"
                 type="file"
                 accept=".csv,text/csv"
+                disabled={locked}
                 onChange={pickFile}
                 className="input file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-line-strong file:bg-transparent file:px-3 file:py-1 file:text-xs file:font-medium file:text-fg"
               />
@@ -282,9 +295,13 @@ export function NewCampaignPage() {
           </p>
         )}
         <div className="flex gap-2 border-t border-line pt-5">
-          <button type="submit" className="btn-primary" disabled={create.isPending}>
-            {create.isPending ? "Creating…" : "Create campaign"}
-          </button>
+          {locked ? (
+            <LockedButton className="btn-primary">Create campaign</LockedButton>
+          ) : (
+            <button type="submit" className="btn-primary" disabled={create.isPending}>
+              {create.isPending ? "Creating…" : "Create campaign"}
+            </button>
+          )}
           <button type="button" className="btn" onClick={() => navigate("/campaigns")}>
             Cancel
           </button>

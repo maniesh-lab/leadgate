@@ -8,7 +8,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { ApiError } from "./api/client";
 import { AuthProvider } from "./auth/AuthProvider";
-import { RequireAuth, RequireRole } from "./auth/guards";
+import { RequireAdminTools, RequireAuth } from "./auth/guards";
 import { Layout } from "./components/Layout";
 import { EmptyState } from "./components/Page";
 import { AccountPage } from "./pages/AccountPage";
@@ -44,9 +44,9 @@ export const routes: RouteObject[] = [
           {
             path: "campaigns/new",
             element: (
-              <RequireRole allowed="admin">
+              <RequireAdminTools>
                 <NewCampaignPage />
-              </RequireRole>
+              </RequireAdminTools>
             ),
           },
           { path: "runs", element: <RunsPage /> },
@@ -60,17 +60,17 @@ export const routes: RouteObject[] = [
           {
             path: "settings/rubrics",
             element: (
-              <RequireRole allowed="admin">
+              <RequireAdminTools>
                 <RubricsPage />
-              </RequireRole>
+              </RequireAdminTools>
             ),
           },
           {
             path: "settings/users",
             element: (
-              <RequireRole allowed="admin">
+              <RequireAdminTools>
                 <UsersPage />
-              </RequireRole>
+              </RequireAdminTools>
             ),
           },
           { path: "*", element: <EmptyState title="Page not found." /> },
