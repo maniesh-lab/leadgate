@@ -17,7 +17,7 @@
 - `show-run --run <id>`: the run's status, stats and items, and any node that completed
   twice for one item (there should be none, even after the worker was killed)
 - `demo [--history N]`: the public demo's reviewer + campaign, and a new run when its
-  queue runs low (`app.db.demo`); `--history N` adds N fake leads with a decided
+  queue is empty (`app.db.demo`); `--history N` adds N fake leads with a decided
   history for the dashboard (once: skipped when fake leads exist)
 - `reset-password --email <email> [--base-url URL] [--two-factor-off]`: print a one-time
   link (30 minutes) for that user to set a new password, e.g. for an admin who is locked

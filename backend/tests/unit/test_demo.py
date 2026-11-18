@@ -75,20 +75,27 @@ def test_the_worker_takes_the_demo_leads_to_the_gate_without_crawling(
     assert hot.score is not None and hot.score >= 60  # old http site, great reviews
 
 
-def test_the_queue_is_refilled_only_when_it_runs_low(world: World, worker, clock) -> None:
+def test_the_queue_is_refilled_only_once_it_is_empty(world: World, worker, clock) -> None:
     demo(world.db)
     run_jobs(worker, clock)
 
     assert demo(world.db).run_id is None  # 12 waiting
 
-    for item in waiting_items(world.db)[:8]:
+    items = waiting_items(world.db)
+    for item in items[:11]:
         item.status = RunItemStatus.DONE
     world.db.commit()
+    assert demo(world.db).run_id is None  # one left: the same leads would show up twice
+
+    items[11].status = RunItemStatus.DONE
+    world.db.commit()
     refill = demo(world.db)
-    assert refill.waiting == 4
+    assert refill.waiting == 0
     assert refill.run_id is not None
     run_jobs(worker, clock)
-    assert len(waiting_items(world.db)) == 16
+    waiting = waiting_items(world.db)
+    assert len(waiting) == 12
+    assert len({item.lead_id for item in waiting}) == 12  # no business twice
     assert world.db.scalar(select(func.count()).select_from(Run)) == 3  # world's own + 2
 
 

@@ -11,9 +11,10 @@ refills itself while the demo is awake:
 - the demo campaign "Dentists in Austin, TX (demo)": the `csv` source on
   `demo/austin-dentists.csv` (12 made-up practices: `.example` websites, 555-01xx phones)
   and the `web-agency` rubric.
-- the queue: when fewer than REFILL_BELOW of the campaign's items wait for a reviewer (or
-  are on their way there), a new run of the campaign is queued; the worker takes its 12
-  leads to the approval gate with the real graph (fake LLM on the demo).
+- the queue: once none of the campaign's items wait for a reviewer (or are on their way
+  there), a new run of the campaign is queued; the worker takes its 12 leads to the
+  approval gate with the real graph (fake LLM on the demo). Every run collects the same
+  12 leads, so refilling any sooner would show the same business twice in the queue.
 
 The sites don't exist, so their findings are written here (`SITES`) and stored as fresh
 enrichment before each run: the `enrich` node finds them cached and never crawls.
@@ -49,8 +50,9 @@ from app.sources.csv_mapped import CsvSource
 CAMPAIGN_NAME = "Dentists in Austin, TX (demo)"
 # Relative to backend/ (locally) and /app (in the image): the worker's working directory.
 CSV_PATH = "demo/austin-dentists.csv"
-# Start a new run when fewer items than this are waiting (or on their way).
-REFILL_BELOW = 6
+# Start a new run when fewer items than this are waiting (or on their way): only once the
+# queue is empty, since each run brings the same 12 leads back.
+REFILL_BELOW = 1
 # Items still headed for the gate count as waiting too.
 QUEUED = (
     RunItemStatus.PENDING,
@@ -169,7 +171,7 @@ def set_up_demo(
 
 
 def refill_queue(session: Session, now: datetime) -> int | None:
-    """The worker's check: a new run when the demo campaign's queue runs low. Commits.
+    """The worker's check: a new run once the demo campaign's queue is empty. Commits.
 
     Returns the new run's id, or None (no demo campaign yet, or enough items waiting).
     """
