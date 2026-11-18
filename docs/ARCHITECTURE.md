@@ -293,7 +293,8 @@ flowchart LR
   website findings are stored in advance, so nothing is crawled.
 - `python -m app.cli demo --history 1000` set it up once: the demo reviewer, the demo
   campaign and a decided fake history for the dashboard. After that, the worker refills
-  the approval queue by itself whenever fewer than 6 items wait.
+  the approval queue by itself once it is empty (each run brings the same 12 leads, so a
+  sooner refill would show a business twice).
 - Free instances sleep after 15 minutes without traffic; the first request after that
   waits about a minute while the API starts.
 
