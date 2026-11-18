@@ -4,14 +4,15 @@
  * stream (`lib/runStream.ts`) sends the run whenever it changes, so a freshly started
  * run fills in as the worker goes and decisions made elsewhere show up within seconds.
  * If the stream can't connect, the page asks again every few seconds instead (every 15
- * while it waits for decisions). Admins can delete a run that has stopped moving.
+ * while it waits for decisions). Admins can delete a run that has stopped moving (the
+ * public demo's login sees the buttons locked, `auth/access`).
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api/client";
 import type { RunDetail, RunStatus } from "../api/types";
-import { useAuth } from "../auth/AuthProvider";
+import { useAdminAccess } from "../auth/access";
 import { FlagBadge, ScoreMeter, StatusBadge } from "../components/Badge";
 import { DeleteButton } from "../components/DeleteButton";
 import { ExportButton } from "../components/ExportButton";
@@ -40,7 +41,8 @@ const STAT_LABELS: [key: string, label: string][] = [
 
 export function RunPage() {
   const { runId } = useParams();
-  const { user } = useAuth();
+  const access = useAdminAccess();
+  const locked = access === "locked";
   const navigate = useNavigate();
   const live = useLiveRun(Number(runId));
   const run = useQuery({
@@ -86,14 +88,16 @@ export function RunPage() {
             <Link to={`/audit?run_id=${data.id}`} className="btn px-3 py-1.5">
               Audit trail
             </Link>
-            {user?.role === "admin" && (
+            {access !== "none" && (
               <>
                 <ExportButton
                   target={{ run_id: data.id }}
                   filename={`leadgate-run-${data.id}-approved.csv`}
+                  locked={locked}
                 />
                 {!moving && (
                   <DeleteButton
+                    locked={locked}
                     path={`/api/runs/${data.id}`}
                     question={`Delete run #${data.id}? This can't be undone. Its leads go too, unless another run also found them or they opted out. The audit log keeps its rows with those leads' names and contact details blanked. Leads already sent to Airtable or Discord stay there.`}
                     onDeleted={() => navigate(`/runs?campaign_id=${data.campaign_id}`)}

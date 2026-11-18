@@ -10,6 +10,9 @@
  * For another admin, those two ask for your own password again (and a code, if your
  * two-factor is on) first, and so does turning a former admin back on: the API wants it,
  * so a stolen login can't take over an admin or bring one back.
+ *
+ * The public demo's login sees the page locked (`auth/access`): only its own row, since
+ * the list holds real people's emails, and "Add reviewer" turned off.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -17,8 +20,10 @@ import { useSearchParams } from "react-router";
 import { api, describeError } from "../api/client";
 import type { AdminConfirm, Page, ResetLink, User, UserCreate, UserRow } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
+import { useAdminAccess } from "../auth/access";
 import { Badge } from "../components/Badge";
 import { PlusIcon } from "../components/icons";
+import { LockedButton, LockedNotice } from "../components/Locked";
 import { PageHeader } from "../components/Page";
 import { Pagination } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -32,11 +37,18 @@ export function UsersPage() {
   const [params, setParams] = useSearchParams();
   const page = Number(params.get("page") ?? 1);
   const [adding, setAdding] = useState(false);
+  const locked = useAdminAccess() === "locked";
 
-  const users = useQuery({
+  const list = useQuery({
     queryKey: ["users", { page }],
     queryFn: () => api.get<Page<UserRow>>("/api/users", { page, page_size: PAGE_SIZE }),
+    enabled: !locked,
   });
+  // The demo's login only ever sees itself: the API keeps the list for admins.
+  const ownRow: UserRow[] = me ? [me] : [];
+  const users = locked
+    ? { isPending: false, error: null, data: { items: ownRow, total: ownRow.length } }
+    : { isPending: list.isPending, error: list.error, data: list.data };
 
   return (
     <section>
@@ -46,13 +58,26 @@ export function UsersPage() {
         title={<span className="text-gradient">Users</span>}
         subtitle="Who can log in. Reviewers decide on leads; admins also run campaigns and change settings."
         actions={
-          !adding && (
-            <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
+          locked ? (
+            <LockedButton className="btn-primary">
               <PlusIcon /> Add reviewer
-            </button>
+            </LockedButton>
+          ) : (
+            !adding && (
+              <button type="button" className="btn-primary" onClick={() => setAdding(true)}>
+                <PlusIcon /> Add reviewer
+              </button>
+            )
           )
         }
       />
+      {locked && (
+        <LockedNotice>
+          This is an admin page, shown as it is in the real app. On the public demo it lists only
+          you: the full list holds real people's emails. An admin sees every login here, with
+          buttons to turn one off, send a reset link, unlock it or turn off its two-factor login.
+        </LockedNotice>
+      )}
 
       {adding && <AddReviewer onDone={() => setAdding(false)} />}
 

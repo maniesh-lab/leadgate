@@ -2,17 +2,18 @@
  * The campaign list: what each campaign looks for, where, with which sources and rubric.
  * Admins can start a run from here (it opens the new run's page), export a campaign's
  * approved leads as a CSV, or delete a campaign. `?archived=true` lists the archived
- * campaigns instead.
+ * campaigns instead. The public demo's login sees those buttons locked (`auth/access`).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api, describeError } from "../api/client";
 import { rubricLabel, useRubrics } from "../api/hooks";
 import type { Campaign, Page, Run } from "../api/types";
-import { useAuth } from "../auth/AuthProvider";
+import { useAdminAccess } from "../auth/access";
 import { DeleteButton } from "../components/DeleteButton";
 import { ExportButton } from "../components/ExportButton";
 import { PlayIcon } from "../components/icons";
+import { LockedButton } from "../components/Locked";
 import { EmptyState, PageHeader } from "../components/Page";
 import { Pagination, useStayOnAPageWithRows } from "../components/Pagination";
 import { ErrorMessage, Loading } from "../components/QueryState";
@@ -21,8 +22,9 @@ import { formatDateTime } from "../lib/format";
 const PAGE_SIZE = 50;
 
 export function CampaignsPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const access = useAdminAccess();
+  const isAdmin = access === "full";
+  const locked = access === "locked";
   const [params, setParams] = useSearchParams();
   const page = Number(params.get("page") ?? 1);
   const archived = params.get("archived") === "true";
@@ -120,14 +122,18 @@ export function CampaignsPage() {
                       {formatDateTime(campaign.created_at)}
                     </td>
                     <td>
-                      {isAdmin && (
+                      {(isAdmin || locked) && (
                         <div className="flex justify-end gap-2">
-                          {!campaign.is_archived && <StartRunButton campaign={campaign} />}
+                          {!campaign.is_archived && (
+                            <StartRunButton campaign={campaign} locked={locked} />
+                          )}
                           <ExportButton
                             target={{ campaign_id: campaign.id }}
                             filename={`leadgate-campaign-${campaign.id}-approved.csv`}
+                            locked={locked}
                           />
                           <DeleteButton
+                            locked={locked}
                             path={`/api/campaigns/${campaign.id}`}
                             question={`Delete "${campaign.name}" with all its runs? This can't be undone. Leads no other campaign found go too, and so does its uploaded CSV if no other campaign uses it. The audit log keeps its rows with those leads' names and contact details blanked. Leads already sent to Airtable or Discord stay there.`}
                           />
@@ -152,7 +158,7 @@ export function CampaignsPage() {
 }
 
 /** Starts a run (the worker does the rest) and opens the run's page. */
-function StartRunButton({ campaign }: { campaign: Campaign }) {
+function StartRunButton({ campaign, locked }: { campaign: Campaign; locked: boolean }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const start = useMutation({
@@ -163,6 +169,14 @@ function StartRunButton({ campaign }: { campaign: Campaign }) {
     },
   });
 
+  if (locked) {
+    return (
+      <LockedButton>
+        <PlayIcon className="size-3.5 text-accent" />
+        Start run
+      </LockedButton>
+    );
+  }
   return (
     <div>
       <button

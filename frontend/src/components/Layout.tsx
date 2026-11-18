@@ -6,12 +6,14 @@
  */
 import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
+import { useAdminAccess } from "../auth/access";
 import { ThemeToggle, Wordmark } from "./Brand";
 import { Footer } from "./Footer";
 import { LogOutIcon, PlusIcon, UserIcon } from "./icons";
 import { Dot } from "./Page";
 
-// Every logged-in user sees these; admins also get "Settings" (ADMIN_NAV). `dot` is the
+// Every logged-in user sees these; admins (and the public demo's login, locked: see
+// `auth/access`) also get "Settings" (ADMIN_NAV). `dot` is the
 // page's tone (PageHeader's `tone`), shown as a dot on the active item.
 const NAV = [
   { to: "/dashboard", label: "Dashboard", dot: "var(--accent)" },
@@ -26,7 +28,8 @@ const ADMIN_NAV = [{ to: "/settings", label: "Settings", dot: "var(--tone-orange
 
 export function Layout() {
   const { user, logout } = useAuth();
-  const nav = user?.role === "admin" ? [...NAV, ...ADMIN_NAV] : NAV;
+  const adminTools = useAdminAccess() !== "none";
+  const nav = adminTools ? [...NAV, ...ADMIN_NAV] : NAV;
 
   return (
     <div className="min-h-screen">
@@ -63,7 +66,7 @@ export function Layout() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 sm:ml-0">
-            {user?.role === "admin" && (
+            {adminTools && (
               <Link
                 to="/campaigns/new"
                 aria-label="New campaign"
